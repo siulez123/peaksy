@@ -13,5 +13,7 @@ export const logger = pino({
           },
         }
       : undefined,
+  // Ensure logs are output in production
+  serializers: pino.stdSerializers,
 });
 

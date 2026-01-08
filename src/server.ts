@@ -42,28 +42,35 @@ async function build() {
   });
 
   // Register Prisma plugin directly
-  await server.register(prismaPlugin);
+  server.log.info('Registering Prisma plugin...');
+  try {
+    await server.register(prismaPlugin);
+    server.log.info('Prisma plugin registered');
+  } catch (err) {
+    server.log.error({ err }, 'Failed to register Prisma plugin, continuing without it');
+    // Create a fallback Prisma instance
+    const prismaInstance = new PrismaClient({
+      log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
+    });
+    (server as any).prisma = prismaInstance;
+  }
   
-    // Manually copy Prisma to server if not available (workaround for Fastify scoping)
-    if (!server.prisma) {
-      // Access Prisma from the registered plugin context
-      const prismaInstance = new PrismaClient({
-        log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
-      });
-      (server as any).prisma = prismaInstance;
-    }
+  server.log.info('Registering plugins...');
   await server.register(swaggerPlugin);
   await server.register(authPlugin);
   await server.register(rateLimitPlugin);
   
   // Register tenant resolver
+  server.log.info('Registering tenant resolver...');
   await server.register(tenantResolverPlugin);
   
   // Register routes
+  server.log.info('Registering routes...');
   await server.register(authRoutes);
   await server.register(publicRoutes);
   await server.register(adminRoutes);
   await server.register(superRoutes);
+  server.log.info('All routes registered');
   
   // Add hook directly AFTER routes to ensure it runs and has access to Prisma
   server.addHook('onRequest', async (request, reply) => {
@@ -104,30 +111,35 @@ async function build() {
     }
   });
 
-  // Error handler
-  server.setErrorHandler(errorHandler);
-
-  // Health check
-  server.get('/health', async () => {
+  // Health check (register early, before error handler)
+  // Simple health check that doesn't depend on database
+  server.get('/health', async (request, reply) => {
     return { status: 'ok', timestamp: new Date().toISOString() };
   });
 
+  // Error handler
+  server.setErrorHandler(errorHandler);
 
   return server;
 }
 
 async function start() {
   try {
+    logger.info('Starting server...');
     const app = await build();
+    logger.info('Server built successfully');
+    
     // Railway provides PORT environment variable
     const port = parseInt(process.env.PORT || '3000', 10);
     const host = process.env.HOST || '0.0.0.0';
 
+    logger.info({ port, host }, 'Attempting to listen on port');
     await app.listen({ port, host });
-    app.log.info(`🚀 Server listening on http://${host}:${port}`);
-    app.log.info(`📚 Swagger docs available at http://${host}:${port}/docs`);
+    logger.info(`🚀 Server listening on http://${host}:${port}`);
+    logger.info(`📚 Swagger docs available at http://${host}:${port}/docs`);
   } catch (err) {
-    logger.error(err);
+    logger.error({ err }, 'Failed to start server');
+    console.error('Fatal error starting server:', err);
     process.exit(1);
   }
 }

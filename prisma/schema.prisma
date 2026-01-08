@@ -1,0 +1,143 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  BAKERY_ADMIN
+}
+
+enum Plan {
+  STARTER
+  PRO
+  PREMIUM
+}
+
+enum OrderStatus {
+  RECEIVED
+  READY
+  PICKED_UP
+}
+
+model Bakery {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  domain    String?  @unique
+  timezone  String   @default("Europe/Lisbon")
+  active    Boolean  @default(true)
+  plan      Plan     @default(STARTER)
+  createdAt DateTime @default(now())
+
+  users            User[]
+  products         Product[]
+  availableDays    AvailableDay[]
+  orders           Order[]
+  productCaps      AvailableDayProductCap[]
+
+  @@map("bakeries")
+}
+
+model User {
+  id           String    @id @default(uuid())
+  bakeryId     String?
+  role         UserRole
+  email        String    @unique
+  passwordHash String
+  createdAt    DateTime  @default(now())
+
+  bakery Bakery? @relation(fields: [bakeryId], references: [id], onDelete: Cascade)
+
+  @@map("users")
+}
+
+model Product {
+  id          String   @id @default(uuid())
+  bakeryId    String
+  name        String
+  variant     String
+  priceCents  Int
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  bakery              Bakery                   @relation(fields: [bakeryId], references: [id], onDelete: Cascade)
+  orderItems          OrderItem[]
+  productCaps          AvailableDayProductCap[]
+
+  @@map("products")
+}
+
+model AvailableDay {
+  id            String   @id @default(uuid())
+  bakeryId      String
+  pickupDate    DateTime @db.Date
+  orderDeadline DateTime
+  active        Boolean  @default(true)
+  dayCapTotal   Int?
+  createdAt     DateTime @default(now())
+
+  bakery       Bakery                   @relation(fields: [bakeryId], references: [id], onDelete: Cascade)
+  orders       Order[]
+  productCaps  AvailableDayProductCap[]
+
+  @@unique([bakeryId, pickupDate])
+  @@map("available_days")
+}
+
+model AvailableDayProductCap {
+  id             String        @id @default(uuid())
+  bakeryId       String
+  availableDayId String
+  productId      String
+  cap            Int
+
+  bakery       Bakery        @relation(fields: [bakeryId], references: [id], onDelete: Cascade)
+  availableDay AvailableDay  @relation(fields: [availableDayId], references: [id], onDelete: Cascade)
+  product      Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([availableDayId, productId])
+  @@map("available_day_product_caps")
+}
+
+model Order {
+  id              String      @id @default(uuid())
+  bakeryId       String
+  availableDayId String
+  pickupDate     DateTime    @db.Date
+  customerName   String
+  customerPhone  String
+  customerEmail  String?
+  notes          String?      @db.VarChar(100)
+  status         OrderStatus  @default(RECEIVED)
+  totalCents     Int
+  paid           Boolean      @default(false)
+  stripeSessionId String?
+  createdAt      DateTime    @default(now())
+
+  bakery     Bakery       @relation(fields: [bakeryId], references: [id], onDelete: Cascade)
+  availableDay AvailableDay @relation(fields: [availableDayId], references: [id], onDelete: Cascade)
+  items      OrderItem[]
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id                      String   @id @default(uuid())
+  orderId                 String
+  productId              String
+  productNameSnapshot    String
+  variantSnapshot        String
+  unitPriceCentsSnapshot Int
+  quantity               Int
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("order_items")
+}
+

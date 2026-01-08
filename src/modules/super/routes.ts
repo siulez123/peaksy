@@ -1,0 +1,693 @@
+import { FastifyInstance } from 'fastify';
+import { z } from 'zod';
+import bcrypt from 'bcryptjs';
+import { NotFoundError, ValidationError, ConflictError } from '../../lib/errors';
+
+const bakeryCreateSchema = z.object({
+  name: z.string().min(1).max(200),
+  slug: z.string().min(1).max(100).regex(/^[a-z0-9-]+$/),
+  domain: z.string().max(255).optional(),
+  timezone: z.string().default('Europe/Lisbon'),
+  active: z.boolean().default(true),
+  plan: z.enum(['STARTER', 'PRO', 'PREMIUM']).default('STARTER'),
+});
+
+const bakeryUpdateSchema = bakeryCreateSchema.partial();
+
+const userCreateSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(8),
+  role: z.enum(['SUPER_ADMIN', 'BAKERY_ADMIN']),
+  bakeryId: z.string().uuid().optional(),
+});
+
+const userUpdateSchema = z.object({
+  email: z.string().email().optional(),
+  password: z.string().min(8).optional(),
+  role: z.enum(['SUPER_ADMIN', 'BAKERY_ADMIN']).optional(),
+  bakeryId: z.string().uuid().nullable().optional(),
+});
+
+export async function superRoutes(fastify: FastifyInstance) {
+  // Helper function for hooks
+  const requireSuperAdmin = async (request: any, reply: any) => {
+    await fastify.requireSuperAdmin(request);
+  };
+  // Bakeries CRUD
+  // GET /super/bakeries
+  fastify.get(
+    '/super/bakeries',
+    {
+      schema: {
+        description: 'List all bakeries',
+        tags: ['super'],
+        security: [{ bearerAuth: [] }],
+        querystring: {
+          type: 'object',
+          properties: {
+            active: { type: 'boolean' },
+          },
+        },
+      },
+      onRequest: [requireSuperAdmin],
+    },
+    async (request, reply) => {
+      const { active } = request.query as { active?: boolean };
+
+      const where: any = {};
+      if (active !== undefined) {
+        where.active = active;
+      }
+
+      const bakeries = await fastify.prisma.bakery.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          _count: {
+            select: {
+              users: true,
+              products: true,
+              orders: true,
+            },
+          },
+        },
+      });
+
+      return bakeries;
+    }
+  );
+
+  // POST /super/bakeries
+  fastify.post(
+    '/super/bakeries',
+    {
+      schema: {
+        description: 'Create a bakery',
+        tags: ['super'],
+        security: [{ bearerAuth: [] }],
+        body: {
+          type: 'object',
+          required: ['name', 'slug'],
+          properties: {
+            name: { type: 'string' },
+            slug: { type: 'string' },
+            domain: { type: 'string' },
+            timezone: { type: 'string' },
+            active: { type: 'boolean' },
+            plan: { type: 'string', enum: ['STARTER', 'PRO', 'PREMIUM'] },
+          },
+        },
+      },
+      onRequest: [requireSuperAdmin],
+    },
+    async (request, reply) => {
+      const data = bakeryCreateSchema.parse(request.body);
+
+      // Check slug uniqueness
+      const existing = await fastify.prisma.bakery.findUnique({
+        where: { slug: data.slug },
+      });
+
+      if (existing) {
+        throw new ConflictError('Slug already exists');
+      }
+
+      // Check domain uniqueness if provided
+      if (data.domain) {
+        const existingDomain = await fastify.prisma.bakery.findUnique({
+          where: { domain: data.domain },
+        });
+
+        if (existingDomain) {
+          throw new ConflictError('Domain already exists');
+        }
+      }
+
+      const bakery = await fastify.prisma.bakery.create({
+        data,
+      });
+
+      return reply.status(201).send(bakery);
+    }
+  );
+
+  // GET /super/bakeries/:id
+  fastify.get(
+    '/super/bakeries/:id',
+    {
+      schema: {
+        description: 'Get a bakery',
+        tags: ['super'],
+        security: [{ bearerAuth: [] }],
+        params: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+          },
+        },
+      },
+      onRequest: [requireSuperAdmin],
+    },
+    async (request, reply) => {
+      const { id } = request.params as { id: string };
+
+      const bakery = await fastify.prisma.bakery.findUnique({
+        where: { id },
+        include: {
+          _count: {
+            select: {
+              users: true,
+              products: true,
+              orders: true,
+            },
+          },
+        },
+      });
+
+      if (!bakery) {
+        throw new NotFoundError('Bakery not found');
+      }
+
+      return bakery;
+    }
+  );
+
+  // PATCH /super/bakeries/:id
+  fastify.patch(
+    '/super/bakeries/:id',
+    {
+      schema: {
+        description: 'Update a bakery',
+        tags: ['super'],
+        security: [{ bearerAuth: [] }],
+        params: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+          },
+        },
+      },
+      onRequest: [requireSuperAdmin],
+    },
+    async (request, reply) => {
+      const { id } = request.params as { id: string };
+      const data = bakeryUpdateSchema.parse(request.body);
+
+      // Check slug uniqueness if updating
+      if (data.slug) {
+        const existing = await fastify.prisma.bakery.findFirst({
+          where: {
+            slug: data.slug,
+            id: { not: id },
+          },
+        });
+
+        if (existing) {
+          throw new ConflictError('Slug already exists');
+        }
+      }
+
+      // Check domain uniqueness if updating
+      if (data.domain) {
+        const existingDomain = await fastify.prisma.bakery.findFirst({
+          where: {
+            domain: data.domain,
+            id: { not: id },
+          },
+        });
+
+        if (existingDomain) {
+          throw new ConflictError('Domain already exists');
+        }
+      }
+
+      const bakery = await fastify.prisma.bakery.update({
+        where: { id },
+        data,
+      });
+
+      return bakery;
+    }
+  );
+
+  // DELETE /super/bakeries/:id
+  fastify.delete(
+    '/super/bakeries/:id',
+    {
+      schema: {
+        description: 'Delete a bakery',
+        tags: ['super'],
+        security: [{ bearerAuth: [] }],
+        params: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+          },
+        },
+      },
+      onRequest: [requireSuperAdmin],
+    },
+    async (request, reply) => {
+      const { id } = request.params as { id: string };
+
+      const bakery = await fastify.prisma.bakery.delete({
+        where: { id },
+      });
+
+      return { success: true };
+    }
+  );
+
+  // Users CRUD
+  // GET /super/users
+  fastify.get(
+    '/super/users',
+    {
+      schema: {
+        description: 'List all users',
+        tags: ['super'],
+        security: [{ bearerAuth: [] }],
+        querystring: {
+          type: 'object',
+          properties: {
+            role: { type: 'string', enum: ['SUPER_ADMIN', 'BAKERY_ADMIN'] },
+            bakeryId: { type: 'string' },
+          },
+        },
+      },
+      onRequest: [requireSuperAdmin],
+    },
+    async (request, reply) => {
+      const { role, bakeryId } = request.query as {
+        role?: string;
+        bakeryId?: string;
+      };
+
+      const where: any = {};
+      if (role) {
+        where.role = role;
+      }
+      if (bakeryId) {
+        where.bakeryId = bakeryId;
+      }
+
+      const users = await fastify.prisma.user.findMany({
+        where,
+        include: {
+          bakery: true,
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      return users.map((user) => ({
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        bakeryId: user.bakeryId,
+        bakery: user.bakery
+          ? {
+              id: user.bakery.id,
+              name: user.bakery.name,
+              slug: user.bakery.slug,
+            }
+          : null,
+        createdAt: user.createdAt,
+      }));
+    }
+  );
+
+  // POST /super/users
+  fastify.post(
+    '/super/users',
+    {
+      schema: {
+        description: 'Create a user',
+        tags: ['super'],
+        security: [{ bearerAuth: [] }],
+        body: {
+          type: 'object',
+          required: ['email', 'password', 'role'],
+          properties: {
+            email: { type: 'string', format: 'email' },
+            password: { type: 'string' },
+            role: { type: 'string', enum: ['SUPER_ADMIN', 'BAKERY_ADMIN'] },
+            bakeryId: { type: 'string' },
+          },
+        },
+      },
+      onRequest: [requireSuperAdmin],
+    },
+    async (request, reply) => {
+      const data = userCreateSchema.parse(request.body);
+
+      // Validate bakery admin has bakeryId
+      if (data.role === 'BAKERY_ADMIN' && !data.bakeryId) {
+        throw new ValidationError('Bakery admin must have a bakeryId');
+      }
+
+      // Validate super admin has no bakeryId
+      if (data.role === 'SUPER_ADMIN' && data.bakeryId) {
+        throw new ValidationError('Super admin cannot have a bakeryId');
+      }
+
+      // Check email uniqueness
+      const existing = await fastify.prisma.user.findUnique({
+        where: { email: data.email },
+      });
+
+      if (existing) {
+        throw new ConflictError('Email already exists');
+      }
+
+      // Verify bakery exists if provided
+      if (data.bakeryId) {
+        const bakery = await fastify.prisma.bakery.findUnique({
+          where: { id: data.bakeryId },
+        });
+
+        if (!bakery) {
+          throw new NotFoundError('Bakery not found');
+        }
+      }
+
+      const passwordHash = await bcrypt.hash(data.password, 10);
+
+      const user = await fastify.prisma.user.create({
+        data: {
+          email: data.email,
+          passwordHash,
+          role: data.role,
+          bakeryId: data.bakeryId || null,
+        },
+        include: {
+          bakery: true,
+        },
+      });
+
+      return reply.status(201).send({
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        bakeryId: user.bakeryId,
+        bakery: user.bakery
+          ? {
+              id: user.bakery.id,
+              name: user.bakery.name,
+              slug: user.bakery.slug,
+            }
+          : null,
+        createdAt: user.createdAt,
+      });
+    }
+  );
+
+  // PATCH /super/users/:id
+  fastify.patch(
+    '/super/users/:id',
+    {
+      schema: {
+        description: 'Update a user',
+        tags: ['super'],
+        security: [{ bearerAuth: [] }],
+        params: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+          },
+        },
+      },
+      onRequest: [requireSuperAdmin],
+    },
+    async (request, reply) => {
+      const { id } = request.params as { id: string };
+      const data = userUpdateSchema.parse(request.body);
+
+      const user = await fastify.prisma.user.findUnique({
+        where: { id },
+      });
+
+      if (!user) {
+        throw new NotFoundError('User not found');
+      }
+
+      // Validate role changes
+      const newRole = data.role || user.role;
+      if (newRole === 'BAKERY_ADMIN' && !data.bakeryId && !user.bakeryId) {
+        throw new ValidationError('Bakery admin must have a bakeryId');
+      }
+
+      if (newRole === 'SUPER_ADMIN' && (data.bakeryId !== undefined || user.bakeryId)) {
+        throw new ValidationError('Super admin cannot have a bakeryId');
+      }
+
+      // Check email uniqueness if updating
+      if (data.email && data.email !== user.email) {
+        const existing = await fastify.prisma.user.findUnique({
+          where: { email: data.email },
+        });
+
+        if (existing) {
+          throw new ConflictError('Email already exists');
+        }
+      }
+
+      // Verify bakery exists if provided
+      if (data.bakeryId) {
+        const bakery = await fastify.prisma.bakery.findUnique({
+          where: { id: data.bakeryId },
+        });
+
+        if (!bakery) {
+          throw new NotFoundError('Bakery not found');
+        }
+      }
+
+      const updateData: any = { ...data };
+      if (data.password) {
+        updateData.passwordHash = await bcrypt.hash(data.password, 10);
+        delete updateData.password;
+      }
+
+      const updated = await fastify.prisma.user.update({
+        where: { id },
+        data: updateData,
+        include: {
+          bakery: true,
+        },
+      });
+
+      return {
+        id: updated.id,
+        email: updated.email,
+        role: updated.role,
+        bakeryId: updated.bakeryId,
+        bakery: updated.bakery
+          ? {
+              id: updated.bakery.id,
+              name: updated.bakery.name,
+              slug: updated.bakery.slug,
+            }
+          : null,
+        createdAt: updated.createdAt,
+      };
+    }
+  );
+
+  // DELETE /super/users/:id
+  fastify.delete(
+    '/super/users/:id',
+    {
+      schema: {
+        description: 'Delete a user',
+        tags: ['super'],
+        security: [{ bearerAuth: [] }],
+        params: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+          },
+        },
+      },
+      onRequest: [requireSuperAdmin],
+    },
+    async (request, reply) => {
+      const { id } = request.params as { id: string };
+
+      // Prevent deleting yourself
+      if (id === request.user!.id) {
+        throw new ValidationError('Cannot delete your own account');
+      }
+
+      const user = await fastify.prisma.user.delete({
+        where: { id },
+      });
+
+      return { success: true };
+    }
+  );
+
+  // Metrics
+  // GET /super/metrics
+  fastify.get(
+    '/super/metrics',
+    {
+      schema: {
+        description: 'Get global metrics',
+        tags: ['super'],
+        security: [{ bearerAuth: [] }],
+        querystring: {
+          type: 'object',
+          properties: {
+            from: { type: 'string', format: 'date' },
+            to: { type: 'string', format: 'date' },
+          },
+        },
+      },
+      onRequest: [requireSuperAdmin],
+    },
+    async (request, reply) => {
+      const { from, to } = request.query as {
+        from?: string;
+        to?: string;
+      };
+
+      const where: any = {};
+      if (from || to) {
+        where.createdAt = {};
+        if (from) {
+          where.createdAt.gte = new Date(from);
+        }
+        if (to) {
+          where.createdAt.lte = new Date(to + 'T23:59:59');
+        }
+      }
+
+      const [
+        totalBakeries,
+        activeBakeries,
+        totalUsers,
+        totalOrders,
+        totalRevenue,
+      ] = await Promise.all([
+        fastify.prisma.bakery.count(),
+        fastify.prisma.bakery.count({ where: { active: true } }),
+        fastify.prisma.user.count(),
+        fastify.prisma.order.count({ where }),
+        fastify.prisma.order.aggregate({
+          where: {
+            ...where,
+            paid: true,
+          },
+          _sum: {
+            totalCents: true,
+          },
+        }),
+      ]);
+
+      return {
+        bakeries: {
+          total: totalBakeries,
+          active: activeBakeries,
+        },
+        users: {
+          total: totalUsers,
+        },
+        orders: {
+          total: totalOrders,
+        },
+        revenue: {
+          totalCents: totalRevenue._sum.totalCents || 0,
+        },
+      };
+    }
+  );
+
+  // GET /super/bakeries/:id/metrics
+  fastify.get(
+    '/super/bakeries/:id/metrics',
+    {
+      schema: {
+        description: 'Get metrics for a specific bakery',
+        tags: ['super'],
+        security: [{ bearerAuth: [] }],
+        params: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+          },
+        },
+        querystring: {
+          type: 'object',
+          properties: {
+            from: { type: 'string', format: 'date' },
+            to: { type: 'string', format: 'date' },
+          },
+        },
+      },
+      onRequest: [requireSuperAdmin],
+    },
+    async (request, reply) => {
+      const { id } = request.params as { id: string };
+      const { from, to } = request.query as {
+        from?: string;
+        to?: string;
+      };
+
+      const bakery = await fastify.prisma.bakery.findUnique({
+        where: { id },
+      });
+
+      if (!bakery) {
+        throw new NotFoundError('Bakery not found');
+      }
+
+      const where: any = {
+        bakeryId: id,
+      };
+
+      if (from || to) {
+        where.createdAt = {};
+        if (from) {
+          where.createdAt.gte = new Date(from);
+        }
+        if (to) {
+          where.createdAt.lte = new Date(to + 'T23:59:59');
+        }
+      }
+
+      const [totalOrders, totalRevenue, totalProducts] = await Promise.all([
+        fastify.prisma.order.count({ where }),
+        fastify.prisma.order.aggregate({
+          where: {
+            ...where,
+            paid: true,
+          },
+          _sum: {
+            totalCents: true,
+          },
+        }),
+        fastify.prisma.product.count({
+          where: { bakeryId: id },
+        }),
+      ]);
+
+      return {
+        bakery: {
+          id: bakery.id,
+          name: bakery.name,
+          slug: bakery.slug,
+        },
+        products: {
+          total: totalProducts,
+        },
+        orders: {
+          total: totalOrders,
+        },
+        revenue: {
+          totalCents: totalRevenue._sum.totalCents || 0,
+        },
+      };
+    }
+  );
+}
+

@@ -5,7 +5,7 @@ import { ValidationError, NotFoundError, ConflictError } from '../../lib/errors'
 import { isDateAfterToday, formatDateForDB } from '../../lib/dates';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-  apiVersion: '2024-11-20.acacia',
+  apiVersion: '2025-02-24.acacia',
 });
 
 const checkoutSchema = z.object({

@@ -2,17 +2,6 @@ import { FastifyInstance, FastifyPluginOptions, FastifyRequest } from 'fastify';
 import fastifyJwt from '@fastify/jwt';
 import { UnauthorizedError, ForbiddenError } from '../lib/errors';
 
-declare module 'fastify' {
-  interface FastifyRequest {
-    user?: {
-      id: string;
-      email: string;
-      role: 'SUPER_ADMIN' | 'BAKERY_ADMIN';
-      bakeryId: string | null;
-    };
-  }
-}
-
 export async function authPlugin(
   fastify: FastifyInstance,
   options: FastifyPluginOptions
@@ -30,7 +19,14 @@ export async function authPlugin(
   fastify.decorate('authenticate', async function (request: FastifyRequest) {
     try {
       await request.jwtVerify();
-      const payload = request.user as any;
+      // JWT payload from @fastify/jwt is typed as string | object | Buffer
+      // We cast it to our UserPayload type after verification
+      const payload = request.user as unknown as {
+        id: string;
+        email: string;
+        role: 'SUPER_ADMIN' | 'BAKERY_ADMIN';
+        bakeryId: string | null;
+      };
       request.user = {
         id: payload.id,
         email: payload.email,
@@ -62,11 +58,4 @@ export async function authPlugin(
   });
 }
 
-declare module 'fastify' {
-  interface FastifyInstance {
-    authenticate: (request: FastifyRequest) => Promise<void>;
-    requireBakeryAdmin: (request: FastifyRequest) => Promise<void>;
-    requireSuperAdmin: (request: FastifyRequest) => Promise<void>;
-  }
-}
 

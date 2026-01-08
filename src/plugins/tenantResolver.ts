@@ -8,12 +8,6 @@ export interface Tenant {
   timezone: string;
 }
 
-declare module 'fastify' {
-  interface FastifyRequest {
-    tenant?: Tenant;
-  }
-}
-
 export async function tenantResolverPlugin(
   fastify: FastifyInstance,
   options: FastifyPluginOptions

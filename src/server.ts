@@ -13,11 +13,13 @@ import { authRoutes } from './modules/auth/routes';
 import { publicRoutes } from './modules/public/routes';
 import { adminRoutes } from './modules/admin/routes';
 import { superRoutes } from './modules/super/routes';
+import { uploadsStaticPlugin } from './plugins/uploadsStaticPlugin';
+import { multipartPlugin } from './plugins/multipartPlugin';
 
 dotenv.config();
 
 const server = Fastify({
-  logger: logger,
+  loggerInstance: logger,
   requestIdLogLabel: 'reqId',
   disableRequestLogging: false,
 });
@@ -56,6 +58,8 @@ async function build() {
   }
   
   server.log.info('Registering plugins...');
+  await server.register(uploadsStaticPlugin);
+  await server.register(multipartPlugin);
   await server.register(swaggerPlugin);
   await server.register(authPlugin);
   await server.register(rateLimitPlugin);
@@ -82,7 +86,15 @@ async function build() {
     // DEVELOPMENT: Allow X-Tenant-Slug header for local development without /etc/hosts
     const devTenantSlug = request.headers['x-tenant-slug'] as string | undefined;
     
-    if (devTenantSlug && !request.url.startsWith('/super/') && !request.url.startsWith('/auth/') && !request.url.startsWith('/health') && !request.url.startsWith('/docs')) {
+    const pathOnly = request.url.split('?')[0] ?? request.url;
+    if (
+      devTenantSlug &&
+      !request.url.startsWith('/super/') &&
+      !request.url.startsWith('/auth/') &&
+      !request.url.startsWith('/health') &&
+      !request.url.startsWith('/docs') &&
+      !pathOnly.startsWith('/uploads/')
+    ) {
       try {
         // Access Prisma from server
         let prisma = server.prisma;

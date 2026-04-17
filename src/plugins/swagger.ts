@@ -1,10 +1,15 @@
+import path from 'node:path';
+import fp from 'fastify-plugin';
 import { FastifyInstance, FastifyPluginOptions } from 'fastify';
+import fastifyStatic from '@fastify/static';
 import swagger from '@fastify/swagger';
 import swaggerUI from '@fastify/swagger-ui';
 
-export async function swaggerPlugin(
+const DOCS_PREFIX = '/docs';
+
+async function swaggerPluginImpl(
   fastify: FastifyInstance,
-  options: FastifyPluginOptions
+  _options: FastifyPluginOptions
 ) {
   await fastify.register(swagger, {
     openapi: {
@@ -32,7 +37,7 @@ export async function swaggerPlugin(
   });
 
   await fastify.register(swaggerUI, {
-    routePrefix: '/docs',
+    routePrefix: DOCS_PREFIX,
     uiConfig: {
       docExpansion: 'list',
       deepLinking: false,
@@ -40,5 +45,15 @@ export async function swaggerPlugin(
     staticCSP: true,
     transformStaticCSP: (header) => header,
   });
+
+  await fastify.register(fastifyStatic, {
+    root: path.join(process.cwd(), 'node_modules', '@fastify', 'swagger-ui', 'static'),
+    prefix: `${DOCS_PREFIX}/static/`,
+    decorateReply: false,
+  });
 }
 
+/** fastify-plugin: mesmo contexto que a app, para `/docs/static/*` coincidir com o HTML gerado. */
+export const swaggerPlugin = fp(swaggerPluginImpl, {
+  name: 'comebolos-swagger',
+});

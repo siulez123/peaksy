@@ -40,3 +40,45 @@ export function parseDateFromDB(dateString: string): Date {
   return new Date(dateString + 'T00:00:00');
 }
 
+/** Data de levantamento `YYYY-MM-DD` estritamente posterior ao dia civil atual no fuso da padaria. */
+export function isFuturePickupCalendarDate(dateStr: string, timezone: string): boolean {
+  const pickup = DateTime.fromISO(dateStr, { zone: timezone }).startOf('day');
+  if (!pickup.isValid) return false;
+  const today = DateTime.now().setZone(timezone).startOf('day');
+  return pickup > today;
+}
+
+/** Dia civil do limite de encomenda (no fuso da padaria) tem de ser o mesmo ou posterior ao dia de levantamento. */
+export function isOrderDeadlineOnOrAfterPickupDay(
+  orderDeadline: Date,
+  pickupDateStr: string,
+  timezone: string
+): boolean {
+  const pickupDay = DateTime.fromISO(pickupDateStr, { zone: timezone }).startOf('day');
+  const deadline = DateTime.fromJSDate(orderDeadline).setZone(timezone);
+  if (!pickupDay.isValid || !deadline.isValid) return false;
+  const deadlineDay = deadline.startOf('day');
+  return deadlineDay >= pickupDay;
+}
+
+/** Intervalos [aStart,aEnd] e [bStart,bEnd] em YYYY-MM-DD sobrepostos. */
+export function ymdRangesOverlap(aStart: string, aEnd: string, bStart: string, bEnd: string): boolean {
+  return aStart <= bEnd && bStart <= aEnd;
+}
+
+/** Lista cada dia civil entre início e fim (inclusive), no fuso indicado. */
+export function eachCalendarDateInRangeInclusive(
+  startStr: string,
+  endStr: string,
+  timezone: string
+): string[] {
+  const start = DateTime.fromISO(startStr, { zone: timezone }).startOf('day');
+  const end = DateTime.fromISO(endStr, { zone: timezone }).startOf('day');
+  if (!start.isValid || !end.isValid || end < start) return [];
+  const out: string[] = [];
+  for (let d = start; d <= end; d = d.plus({ days: 1 })) {
+    out.push(d.toFormat('yyyy-MM-dd'));
+  }
+  return out;
+}
+

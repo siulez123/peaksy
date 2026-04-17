@@ -1,3 +1,4 @@
+import fp from 'fastify-plugin';
 import { FastifyInstance, FastifyPluginOptions, FastifyRequest } from 'fastify';
 import { NotFoundError, ForbiddenError } from '../lib/errors';
 
@@ -8,21 +9,30 @@ export interface Tenant {
   timezone: string;
 }
 
-export async function tenantResolverPlugin(
+async function tenantResolverPluginFn(
   fastify: FastifyInstance,
-  options: FastifyPluginOptions
+  _options: FastifyPluginOptions
 ) {
   fastify.addHook('onRequest', async (request: FastifyRequest, reply) => {
-    request.log.info({ 
-      url: request.url,
-      host: request.headers.host,
-      xTenantSlug: request.headers['x-tenant-slug'],
-      method: request.method
-    }, 'Tenant resolver - hook started');
-    
+    request.log.info(
+      {
+        url: request.url,
+        host: request.headers.host,
+        xTenantSlug: request.headers['x-tenant-slug'],
+        method: request.method,
+      },
+      'Tenant resolver - hook started'
+    );
+
     const host = request.headers.host || '';
     // Remove port if present
     const hostWithoutPort = host.split(':')[0];
+    const pathOnly = request.url.split('?')[0] ?? request.url;
+
+    // Ficheiros estáticos em /uploads (sem tenant)
+    if (pathOnly.startsWith('/uploads/')) {
+      return;
+    }
 
     // Skip tenant resolution for super admin endpoints and auth endpoints
     if (
@@ -39,7 +49,10 @@ export async function tenantResolverPlugin(
     // Fastify normalizes headers to lowercase
     const devTenantSlug = request.headers['x-tenant-slug'] as string | undefined;
     if (devTenantSlug) {
-      request.log.info({ devTenantSlug, host: hostWithoutPort, url: request.url }, 'Processing X-Tenant-Slug header');
+      request.log.info(
+        { devTenantSlug, host: hostWithoutPort, url: request.url },
+        'Processing X-Tenant-Slug header'
+      );
       try {
         const bakery = await fastify.prisma.bakery.findUnique({
           where: { slug: devTenantSlug },
@@ -172,9 +185,7 @@ export async function tenantResolverPlugin(
   });
 }
 
-declare module 'fastify' {
-  interface FastifyInstance {
-    requireTenant: (request: FastifyRequest) => Promise<void>;
-  }
-}
-
+export const tenantResolverPlugin = fp(tenantResolverPluginFn, {
+  name: 'comebolos-tenant-resolver',
+  dependencies: ['prisma-plugin'],
+});

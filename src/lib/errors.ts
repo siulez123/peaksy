@@ -1,4 +1,5 @@
 import { FastifyError, FastifyReply, FastifyRequest } from 'fastify';
+import { sanitizeClientErrorMessage } from './safeClientMessage';
 
 export class AppError extends Error {
   constructor(
@@ -66,16 +67,17 @@ export function errorHandler(
     });
   }
 
-  // Default error
+  // Default error (ex.: Stripe SDK) — nunca enviar mensagens brutas que possam incluir segredos
   const statusCode = error.statusCode || 500;
-  const message = error.message || 'Internal server error';
+  const rawMessage = error.message || 'Internal server error';
+  const safeMessage = sanitizeClientErrorMessage(rawMessage);
 
   request.log.error({ error }, 'Unhandled error');
 
   return reply.status(statusCode).send({
     error: {
       code: 'INTERNAL_ERROR',
-      message: statusCode >= 500 ? 'Internal server error' : message,
+      message: statusCode >= 500 ? 'Internal server error' : safeMessage,
     },
   });
 }

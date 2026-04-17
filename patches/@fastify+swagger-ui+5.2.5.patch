@@ -1,0 +1,54 @@
+diff --git a/node_modules/@fastify/swagger-ui/lib/routes.js b/node_modules/@fastify/swagger-ui/lib/routes.js
+index 413cafe..9dc811f 100644
+--- a/node_modules/@fastify/swagger-ui/lib/routes.js
++++ b/node_modules/@fastify/swagger-ui/lib/routes.js
+@@ -187,33 +187,27 @@ function fastifySwagger (fastify, opts, done) {
+       }
+   })
+ 
+-  // serve swagger-ui with the help of @fastify/static
+-  fastify.register(fastifyStatic, {
+-    root: opts.baseDir || path.join(__dirname, '..', 'static'),
+-    prefix: staticPrefix,
+-    decorateReply: false
+-  })
+-
++  // Bundles CSS/JS: servidos pela aplicação (@fastify/static em swaggerPlugin) para evitar
++  // rotas em 404 com Fastify 5 (registo interno + fastify-plugin).
+   if (opts.baseDir) {
+     fastify.register(fastifyStatic, {
+       root: opts.baseDir,
+       serve: false
+-    })
+-
+-    // Handler for external documentation files passed via $ref
+-    fastify.route({
+-      url: '/*',
+-      method: 'GET',
+-      schema: { hide: true },
+-      ...hooks,
+-      handler: function (req, reply) {
+-        const file = req.params['*']
+-        reply.sendFile(file)
+-      }
+-    })
++    }).then(() => {
++      fastify.route({
++        url: '/*',
++        method: 'GET',
++        schema: { hide: true },
++        ...hooks,
++        handler: function (req, reply) {
++          const file = req.params['*']
++          reply.sendFile(file)
++        }
++      })
++    }).then(() => done(), done)
++  } else {
++    done()
+   }
+-
+-  done()
+ }
+ 
+ module.exports = fastifySwagger

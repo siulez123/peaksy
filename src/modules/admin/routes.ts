@@ -1,7 +1,45 @@
-import { FastifyInstance } from 'fastify';
+import { randomUUID } from 'node:crypto';
+import { FastifyInstance, FastifyRequest } from 'fastify';
+import type { MultipartFile } from '@fastify/multipart';
 import { z } from 'zod';
-import { NotFoundError, ValidationError, ForbiddenError } from '../../lib/errors';
-import { formatDateForDB } from '../../lib/dates';
+import { NotFoundError, ValidationError, ForbiddenError, ConflictError } from '../../lib/errors';
+import {
+  formatDateForDB,
+  isFuturePickupCalendarDate,
+  isOrderDeadlineOnOrAfterPickupDay,
+  ymdRangesOverlap,
+} from '../../lib/dates';
+import { parseTimeToMinutes } from '../../lib/timeOfDay';
+import {
+  ensureProductUploadDir,
+  saveProductImageFile,
+  deleteProductImageFile,
+} from '../../lib/productImage';
+
+async function readProductMultipart(request: FastifyRequest): Promise<{
+  fields: Record<string, string>;
+  image?: MultipartFile;
+}> {
+  const fields: Record<string, string> = {};
+  let image: MultipartFile | undefined;
+  for await (const part of request.parts()) {
+    if (part.type === 'file') {
+      if (part.fieldname === 'image') {
+        image = part;
+      } else {
+        part.file.resume();
+      }
+    } else {
+      fields[part.fieldname] = String(part.value);
+    }
+  }
+  return { fields, image };
+}
+
+function parseOptionalBool(s: string | undefined): boolean | undefined {
+  if (s === undefined) return undefined;
+  return s === 'true' || s === 'on' || s === '1';
+}
 
 const productCreateSchema = z.object({
   name: z.string().min(1).max(200),
@@ -12,23 +50,114 @@ const productCreateSchema = z.object({
 
 const productUpdateSchema = productCreateSchema.partial();
 
-const availableDayCreateSchema = z.object({
-  pickupDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  orderDeadline: z.string().datetime(),
-  active: z.boolean().optional().default(true),
-  dayCapTotal: z.number().int().positive().optional(),
-});
-
-const availableDayUpdateSchema = availableDayCreateSchema.partial();
-
 const productCapSchema = z.object({
   productId: z.string().uuid(),
   cap: z.number().int().positive(),
 });
 
+const productCapsArraySchema = z
+  .array(productCapSchema)
+  .refine(
+    (rows) => rows.length === 0 || new Set(rows.map((r) => r.productId)).size === rows.length,
+    { message: 'Cada produto só pode aparecer uma vez.' }
+  );
+
+/** Horas cheias apenas (HH:00) */
+const pickupHourSchema = z
+  .string()
+  .regex(/^([01]\d|2[0-3]):00$/, 'Usa horas cheias (ex.: 08:00, 14:00), sem minutos intermédios.');
+
+const availableDayCreateSchema = z
+  .object({
+    pickupDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    pickupEndDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    orderDeadline: z.string().datetime(),
+    pickupTimeMin: pickupHourSchema,
+    pickupTimeMax: pickupHourSchema,
+    active: z.boolean().optional().default(true),
+    dayCapTotal: z.number().int().positive().optional(),
+    productCaps: productCapsArraySchema.optional().default([]),
+  })
+  .refine(
+    (d) => {
+      const a = parseTimeToMinutes(d.pickupTimeMin);
+      const b = parseTimeToMinutes(d.pickupTimeMax);
+      return a !== null && b !== null && a <= b;
+    },
+    { message: 'A hora de início de levantamento tem de ser anterior ou igual à hora máxima.' }
+  );
+
+const availableDayUpdateSchema = z
+  .object({
+    pickupDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    pickupEndDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    orderDeadline: z.string().datetime().optional(),
+    pickupTimeMin: pickupHourSchema.optional(),
+    pickupTimeMax: pickupHourSchema.optional(),
+    active: z.boolean().optional(),
+    dayCapTotal: z.number().int().positive().optional().nullable(),
+    productCaps: productCapsArraySchema.optional(),
+  })
+  .refine((d) => Object.keys(d).length > 0, { message: 'Nada para atualizar.' })
+  .refine(
+    (d) => {
+      if (d.pickupTimeMin === undefined && d.pickupTimeMax === undefined) return true;
+      return d.pickupTimeMin !== undefined && d.pickupTimeMax !== undefined;
+    },
+    { message: 'Indica ambas as horas (início e fim) ou nenhuma.' }
+  )
+  .refine(
+    (d) => {
+      if (d.pickupTimeMin === undefined || d.pickupTimeMax === undefined) return true;
+      const a = parseTimeToMinutes(d.pickupTimeMin);
+      const b = parseTimeToMinutes(d.pickupTimeMax);
+      return a !== null && b !== null && a <= b;
+    },
+    { message: 'A hora de início de levantamento tem de ser anterior ou igual à hora máxima.' }
+  );
+
 const orderStatusUpdateSchema = z.object({
   status: z.enum(['READY', 'PICKED_UP']),
 });
+
+async function assertProductCapsForBakery(
+  prisma: FastifyInstance['prisma'],
+  bakeryId: string,
+  caps: Array<{ productId: string; cap: number }>
+): Promise<void> {
+  if (caps.length === 0) return;
+  const ids = [...new Set(caps.map((c) => c.productId))];
+  const found = await prisma.product.count({
+    where: { bakeryId, id: { in: ids }, active: true },
+  });
+  if (found !== ids.length) {
+    throw new ValidationError('Um ou mais produtos são inválidos ou não pertencem a esta padaria.');
+  }
+}
+
+async function assertPickupRangeNoOverlap(
+  prisma: FastifyInstance['prisma'],
+  bakeryId: string,
+  startStr: string,
+  endStr: string,
+  excludeId?: string
+): Promise<void> {
+  const others = await prisma.availableDay.findMany({
+    where: {
+      bakeryId,
+      ...(excludeId ? { id: { not: excludeId } } : {}),
+    },
+  });
+  for (const o of others) {
+    const oStart = formatDateForDB(o.pickupDate);
+    const oEnd = formatDateForDB(o.pickupEndDate);
+    if (ymdRangesOverlap(startStr, endStr, oStart, oEnd)) {
+      throw new ValidationError(
+        'Este período de levantamento sobrepõe-se a outro já existente.'
+      );
+    }
+  }
+}
 
 export async function adminRoutes(fastify: FastifyInstance) {
   // Helper functions for hooks
@@ -57,6 +186,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
                 name: { type: 'string' },
                 variant: { type: 'string' },
                 priceCents: { type: 'number' },
+                imageUrl: { type: 'string', nullable: true },
                 active: { type: 'boolean' },
                 createdAt: { type: 'string' },
               },
@@ -83,24 +213,15 @@ export async function adminRoutes(fastify: FastifyInstance) {
     }
   );
 
-  // POST /admin/products
+  // POST /admin/products (JSON ou multipart com campo opcional `image`)
   fastify.post(
     '/admin/products',
     {
       schema: {
-        description: 'Create a product',
+        description:
+          'Create a product. JSON (application/json) ou multipart/form-data com name, variant, priceCents, active e ficheiro image opcional.',
         tags: ['admin'],
         security: [{ bearerAuth: [] }],
-        body: {
-          type: 'object',
-          required: ['name', 'variant', 'priceCents'],
-          properties: {
-            name: { type: 'string' },
-            variant: { type: 'string' },
-            priceCents: { type: 'number' },
-            active: { type: 'boolean' },
-          },
-        },
         response: {
           201: {
             type: 'object',
@@ -109,6 +230,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
               name: { type: 'string' },
               variant: { type: 'string' },
               priceCents: { type: 'number' },
+              imageUrl: { type: 'string', nullable: true },
               active: { type: 'boolean' },
               createdAt: { type: 'string' },
             },
@@ -123,6 +245,32 @@ export async function adminRoutes(fastify: FastifyInstance) {
 
       if (user.bakeryId !== tenant.bakeryId) {
         throw new ForbiddenError('Access denied');
+      }
+
+      if (request.isMultipart()) {
+        await ensureProductUploadDir();
+        const { fields, image } = await readProductMultipart(request);
+        const activeField = parseOptionalBool(fields.active);
+        const data = productCreateSchema.parse({
+          name: fields.name,
+          variant: fields.variant,
+          priceCents: Number(fields.priceCents),
+          active: activeField ?? true,
+        });
+        const id = randomUUID();
+        let imageUrl: string | null = null;
+        if (image) {
+          imageUrl = await saveProductImageFile(image, id);
+        }
+        const product = await fastify.prisma.product.create({
+          data: {
+            id,
+            ...data,
+            bakeryId: tenant.bakeryId,
+            imageUrl,
+          },
+        });
+        return reply.status(201).send(product);
       }
 
       const data = productCreateSchema.parse(request.body);
@@ -180,12 +328,13 @@ export async function adminRoutes(fastify: FastifyInstance) {
     }
   );
 
-  // PATCH /admin/products/:id
+  // PATCH /admin/products/:id (JSON ou multipart com imagem opcional)
   fastify.patch(
     '/admin/products/:id',
     {
       schema: {
-        description: 'Update a product',
+        description:
+          'Update a product. JSON parcial ou multipart com campos a alterar e ficheiro `image` opcional.',
         tags: ['admin'],
         security: [{ bearerAuth: [] }],
         params: {
@@ -206,6 +355,46 @@ export async function adminRoutes(fastify: FastifyInstance) {
       }
 
       const { id } = request.params as { id: string };
+
+      const existing = await fastify.prisma.product.findFirst({
+        where: {
+          id,
+          bakeryId: tenant.bakeryId,
+        },
+      });
+
+      if (!existing) {
+        throw new NotFoundError('Product not found');
+      }
+
+      if (request.isMultipart()) {
+        await ensureProductUploadDir();
+        const { fields, image } = await readProductMultipart(request);
+        const raw: Record<string, unknown> = {};
+        if (fields.name !== undefined) raw.name = fields.name;
+        if (fields.variant !== undefined) raw.variant = fields.variant;
+        if (fields.priceCents !== undefined) raw.priceCents = Number(fields.priceCents);
+        const ab = parseOptionalBool(fields.active);
+        if (ab !== undefined) raw.active = ab;
+        const data = productUpdateSchema.parse(raw);
+
+        let imageUrl = existing.imageUrl;
+        if (image) {
+          await deleteProductImageFile(existing.imageUrl);
+          imageUrl = await saveProductImageFile(image, id);
+        }
+
+        await fastify.prisma.product.update({
+          where: { id },
+          data: {
+            ...data,
+            ...(image ? { imageUrl } : {}),
+          },
+        });
+
+        return fastify.prisma.product.findUnique({ where: { id } });
+      }
+
       const data = productUpdateSchema.parse(request.body);
 
       const product = await fastify.prisma.product.updateMany({
@@ -255,16 +444,22 @@ export async function adminRoutes(fastify: FastifyInstance) {
 
       const { id } = request.params as { id: string };
 
-      const product = await fastify.prisma.product.deleteMany({
+      const existing = await fastify.prisma.product.findFirst({
         where: {
           id,
           bakeryId: tenant.bakeryId,
         },
       });
 
-      if (product.count === 0) {
+      if (!existing) {
         throw new NotFoundError('Product not found');
       }
+
+      await deleteProductImageFile(existing.imageUrl);
+
+      await fastify.prisma.product.delete({
+        where: { id },
+      });
 
       return { success: true };
     }
@@ -302,10 +497,6 @@ export async function adminRoutes(fastify: FastifyInstance) {
         bakeryId: tenant.bakeryId,
       };
 
-      if (pickupDate) {
-        where.pickupDate = new Date(pickupDate);
-      }
-
       const days = await fastify.prisma.availableDay.findMany({
         where,
         orderBy: { pickupDate: 'asc' },
@@ -315,12 +506,23 @@ export async function adminRoutes(fastify: FastifyInstance) {
               product: true,
             },
           },
+          _count: { select: { orders: true } },
         },
       });
 
-      return days.map((day) => ({
+      let list = days;
+      if (pickupDate) {
+        list = days.filter((day) => {
+          const s = formatDateForDB(day.pickupDate);
+          const e = formatDateForDB(day.pickupEndDate);
+          return pickupDate >= s && pickupDate <= e;
+        });
+      }
+
+      return list.map((day) => ({
         ...day,
         pickupDate: formatDateForDB(day.pickupDate),
+        pickupEndDate: formatDateForDB(day.pickupEndDate),
       }));
     }
   );
@@ -335,12 +537,16 @@ export async function adminRoutes(fastify: FastifyInstance) {
         security: [{ bearerAuth: [] }],
         body: {
           type: 'object',
-          required: ['pickupDate', 'orderDeadline'],
+          required: ['pickupDate', 'orderDeadline', 'pickupTimeMin', 'pickupTimeMax'],
           properties: {
             pickupDate: { type: 'string', format: 'date' },
+            pickupEndDate: { type: 'string', format: 'date' },
             orderDeadline: { type: 'string', format: 'date-time' },
+            pickupTimeMin: { type: 'string', description: 'HH:00 (hora cheia)' },
+            pickupTimeMax: { type: 'string', description: 'HH:00 (hora cheia)' },
             active: { type: 'boolean' },
             dayCapTotal: { type: 'number' },
+            productCaps: { type: 'array' },
           },
         },
       },
@@ -356,18 +562,63 @@ export async function adminRoutes(fastify: FastifyInstance) {
 
       const data = availableDayCreateSchema.parse(request.body);
 
-      const day = await fastify.prisma.availableDay.create({
-        data: {
-          ...data,
-          pickupDate: new Date(data.pickupDate),
-          orderDeadline: new Date(data.orderDeadline),
-          bakeryId: tenant.bakeryId,
+      const endStr = data.pickupEndDate ?? data.pickupDate;
+      if (endStr < data.pickupDate) {
+        throw new ValidationError('A data de fim de levantamento não pode ser anterior à data de início.');
+      }
+
+      if (!isFuturePickupCalendarDate(data.pickupDate, tenant.timezone)) {
+        throw new ValidationError('A data de levantamento tem de ser posterior a hoje.');
+      }
+
+      const orderDeadlineDate = new Date(data.orderDeadline);
+      if (!isOrderDeadlineOnOrAfterPickupDay(orderDeadlineDate, data.pickupDate, tenant.timezone)) {
+        throw new ValidationError(
+          'O limite de encomenda tem de ser no mesmo dia ou depois do dia de levantamento.'
+        );
+      }
+
+      await assertPickupRangeNoOverlap(fastify.prisma, tenant.bakeryId, data.pickupDate, endStr);
+      await assertProductCapsForBakery(fastify.prisma, tenant.bakeryId, data.productCaps);
+
+      const day = await fastify.prisma.$transaction(async (tx) => {
+        const created = await tx.availableDay.create({
+          data: {
+            bakeryId: tenant.bakeryId,
+            pickupDate: new Date(data.pickupDate),
+            pickupEndDate: new Date(endStr),
+            orderDeadline: orderDeadlineDate,
+            pickupTimeMin: data.pickupTimeMin,
+            pickupTimeMax: data.pickupTimeMax,
+            active: data.active ?? true,
+            dayCapTotal: data.dayCapTotal,
+          },
+        });
+        if (data.productCaps.length > 0) {
+          await tx.availableDayProductCap.createMany({
+            data: data.productCaps.map((pc) => ({
+              bakeryId: tenant.bakeryId,
+              availableDayId: created.id,
+              productId: pc.productId,
+              cap: pc.cap,
+            })),
+          });
+        }
+        return created;
+      });
+
+      const full = await fastify.prisma.availableDay.findUniqueOrThrow({
+        where: { id: day.id },
+        include: {
+          productCaps: { include: { product: true } },
+          _count: { select: { orders: true } },
         },
       });
 
       return reply.status(201).send({
-        ...day,
-        pickupDate: formatDateForDB(day.pickupDate),
+        ...full,
+        pickupDate: formatDateForDB(full.pickupDate),
+        pickupEndDate: formatDateForDB(full.pickupEndDate),
       });
     }
   );
@@ -400,33 +651,93 @@ export async function adminRoutes(fastify: FastifyInstance) {
       const { id } = request.params as { id: string };
       const data = availableDayUpdateSchema.parse(request.body);
 
-      const updateData: any = { ...data };
-      if (data.pickupDate) {
-        updateData.pickupDate = new Date(data.pickupDate);
-      }
-      if (data.orderDeadline) {
-        updateData.orderDeadline = new Date(data.orderDeadline);
-      }
-
-      const day = await fastify.prisma.availableDay.updateMany({
+      const existing = await fastify.prisma.availableDay.findFirst({
         where: {
           id,
           bakeryId: tenant.bakeryId,
         },
-        data: updateData,
       });
 
-      if (day.count === 0) {
+      if (!existing) {
         throw new NotFoundError('Available day not found');
       }
 
-      const updated = await fastify.prisma.availableDay.findUnique({
+      if (data.pickupDate && !isFuturePickupCalendarDate(data.pickupDate, tenant.timezone)) {
+        throw new ValidationError('A data de levantamento tem de ser posterior a hoje.');
+      }
+
+      const nextPickupStr = data.pickupDate ?? formatDateForDB(existing.pickupDate);
+      const nextEndStr = data.pickupEndDate ?? formatDateForDB(existing.pickupEndDate);
+      if (nextEndStr < nextPickupStr) {
+        throw new ValidationError('A data de fim de levantamento não pode ser anterior à data de início.');
+      }
+
+      await assertPickupRangeNoOverlap(
+        fastify.prisma,
+        tenant.bakeryId,
+        nextPickupStr,
+        nextEndStr,
+        id
+      );
+
+      const nextDeadline =
+        data.orderDeadline !== undefined ? new Date(data.orderDeadline) : existing.orderDeadline;
+
+      if (!isOrderDeadlineOnOrAfterPickupDay(nextDeadline, nextPickupStr, tenant.timezone)) {
+        throw new ValidationError(
+          'O limite de encomenda tem de ser no mesmo dia ou depois do dia de levantamento.'
+        );
+      }
+
+      if (data.productCaps !== undefined) {
+        await assertProductCapsForBakery(fastify.prisma, tenant.bakeryId, data.productCaps);
+      }
+
+      const updateData: Record<string, unknown> = {};
+      if (data.pickupDate !== undefined) updateData.pickupDate = new Date(data.pickupDate);
+      if (data.pickupEndDate !== undefined) updateData.pickupEndDate = new Date(data.pickupEndDate);
+      if (data.orderDeadline !== undefined) updateData.orderDeadline = new Date(data.orderDeadline);
+      if (data.active !== undefined) updateData.active = data.active;
+      if (data.dayCapTotal !== undefined) updateData.dayCapTotal = data.dayCapTotal;
+      if (data.pickupTimeMin !== undefined) updateData.pickupTimeMin = data.pickupTimeMin;
+      if (data.pickupTimeMax !== undefined) updateData.pickupTimeMax = data.pickupTimeMax;
+
+      const hasDayUpdates = Object.keys(updateData).length > 0;
+
+      await fastify.prisma.$transaction(async (tx) => {
+        if (hasDayUpdates) {
+          await tx.availableDay.update({
+            where: { id },
+            data: updateData as any,
+          });
+        }
+        if (data.productCaps !== undefined) {
+          await tx.availableDayProductCap.deleteMany({ where: { availableDayId: id } });
+          if (data.productCaps.length > 0) {
+            await tx.availableDayProductCap.createMany({
+              data: data.productCaps.map((pc) => ({
+                bakeryId: tenant.bakeryId,
+                availableDayId: id,
+                productId: pc.productId,
+                cap: pc.cap,
+              })),
+            });
+          }
+        }
+      });
+
+      const updated = await fastify.prisma.availableDay.findUniqueOrThrow({
         where: { id },
+        include: {
+          productCaps: { include: { product: true } },
+          _count: { select: { orders: true } },
+        },
       });
 
       return {
         ...updated,
-        pickupDate: formatDateForDB(updated!.pickupDate),
+        pickupDate: formatDateForDB(updated.pickupDate),
+        pickupEndDate: formatDateForDB(updated.pickupEndDate),
       };
     }
   );
@@ -458,16 +769,28 @@ export async function adminRoutes(fastify: FastifyInstance) {
 
       const { id } = request.params as { id: string };
 
-      const day = await fastify.prisma.availableDay.deleteMany({
+      const existingDay = await fastify.prisma.availableDay.findFirst({
         where: {
           id,
           bakeryId: tenant.bakeryId,
         },
       });
 
-      if (day.count === 0) {
+      if (!existingDay) {
         throw new NotFoundError('Available day not found');
       }
+
+      const orderCount = await fastify.prisma.order.count({
+        where: { availableDayId: id },
+      });
+
+      if (orderCount > 0) {
+        throw new ConflictError('Não é possível apagar: existem pedidos associados a este período.');
+      }
+
+      await fastify.prisma.availableDay.delete({
+        where: { id },
+      });
 
       return { success: true };
     }
@@ -659,7 +982,11 @@ export async function adminRoutes(fastify: FastifyInstance) {
           type: 'object',
           properties: {
             pickupDate: { type: 'string', format: 'date' },
+            pickupTime: { type: 'string', description: 'HH:00' },
             status: { type: 'string', enum: ['RECEIVED', 'READY', 'PICKED_UP'] },
+            customerName: { type: 'string' },
+            customerPhone: { type: 'string' },
+            product: { type: 'string', description: 'Pesquisa em nome/variante dos artigos' },
           },
         },
       },
@@ -673,21 +1000,55 @@ export async function adminRoutes(fastify: FastifyInstance) {
         throw new ForbiddenError('Access denied');
       }
 
-      const { pickupDate, status } = request.query as {
+      const q = request.query as {
         pickupDate?: string;
+        pickupTime?: string;
         status?: string;
+        customerName?: string;
+        customerPhone?: string;
+        product?: string;
       };
 
-      const where: any = {
+      const where: Record<string, unknown> = {
         bakeryId: tenant.bakeryId,
       };
 
-      if (pickupDate) {
-        where.pickupDate = new Date(pickupDate);
+      if (q.pickupDate) {
+        where.pickupDate = new Date(q.pickupDate);
       }
 
-      if (status) {
-        where.status = status;
+      if (q.status) {
+        where.status = q.status;
+      }
+
+      const pt = q.pickupTime?.trim();
+      if (pt) {
+        if (!/^([01]\d|2[0-3]):00$/.test(pt)) {
+          throw new ValidationError('pickupTime inválido (usa HH:00).');
+        }
+        where.pickupTime = pt;
+      }
+
+      const nameQ = q.customerName?.trim().slice(0, 120);
+      if (nameQ) {
+        where.customerName = { contains: nameQ, mode: 'insensitive' };
+      }
+
+      const phoneQ = q.customerPhone?.trim().slice(0, 40);
+      if (phoneQ) {
+        where.customerPhone = { contains: phoneQ, mode: 'insensitive' };
+      }
+
+      const productQ = q.product?.trim().slice(0, 80);
+      if (productQ) {
+        where.items = {
+          some: {
+            OR: [
+              { productNameSnapshot: { contains: productQ, mode: 'insensitive' } },
+              { variantSnapshot: { contains: productQ, mode: 'insensitive' } },
+            ],
+          },
+        };
       }
 
       const orders = await fastify.prisma.order.findMany({
@@ -843,6 +1204,179 @@ export async function adminRoutes(fastify: FastifyInstance) {
         productTotals: Object.values(productTotals),
         statusCounts,
         totalOrders: orders.length,
+      };
+    }
+  );
+
+  // GET /admin/orders/production-breakdown — totais por dia, hora e produto (encomendas pagas)
+  fastify.get(
+    '/admin/orders/production-breakdown',
+    {
+      schema: {
+        description: 'Production breakdown by pickup date, time and product line',
+        tags: ['admin'],
+        security: [{ bearerAuth: [] }],
+        querystring: {
+          type: 'object',
+          required: ['pickupDate'],
+          properties: {
+            pickupDate: { type: 'string', format: 'date' },
+            pickupDateTo: { type: 'string', format: 'date' },
+            pickupTime: { type: 'string', description: 'HH:00' },
+            productIds: { type: 'string', description: 'UUIDs separados por vírgula' },
+          },
+        },
+      },
+      onRequest: [requireBakeryAdmin, requireTenant],
+    },
+    async (request, reply) => {
+      const tenant = request.tenant!;
+      const user = request.user!;
+
+      if (user.bakeryId !== tenant.bakeryId) {
+        throw new ForbiddenError('Access denied');
+      }
+
+      const q = request.query as {
+        pickupDate: string;
+        pickupDateTo?: string;
+        pickupTime?: string;
+        productIds?: string;
+      };
+
+      const fromStr = q.pickupDate.trim();
+      const toStr = (q.pickupDateTo?.trim() || fromStr).trim();
+      const from = new Date(fromStr);
+      const to = new Date(toStr);
+      if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) {
+        throw new ValidationError('Datas inválidas.');
+      }
+      if (to < from) {
+        throw new ValidationError('A data final não pode ser anterior à inicial.');
+      }
+      const daySpan = Math.ceil((to.getTime() - from.getTime()) / 86400000);
+      if (daySpan > 31) {
+        throw new ValidationError('Intervalo máximo: 31 dias.');
+      }
+
+      const pt = q.pickupTime?.trim();
+      if (pt && !/^([01]\d|2[0-3]):00$/.test(pt)) {
+        throw new ValidationError('pickupTime inválido (usa HH:00).');
+      }
+
+      const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      const productIds = (q.productIds?.trim() || '')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+      for (const id of productIds) {
+        if (!uuidRe.test(id)) {
+          throw new ValidationError('productIds contém identificadores inválidos.');
+        }
+      }
+
+      const where: Record<string, unknown> = {
+        bakeryId: tenant.bakeryId,
+        paid: true,
+        pickupDate: {
+          gte: from,
+          lte: to,
+        },
+      };
+
+      if (pt) {
+        where.pickupTime = pt;
+      }
+
+      if (productIds.length > 0) {
+        where.items = {
+          some: {
+            productId: { in: productIds },
+          },
+        };
+      }
+
+      const orders = await fastify.prisma.order.findMany({
+        where,
+        include: { items: true },
+        orderBy: [{ pickupDate: 'asc' }, { pickupTime: 'asc' }, { createdAt: 'asc' }],
+      });
+
+      type Row = {
+        pickupDate: string;
+        pickupTime: string;
+        productName: string;
+        variant: string;
+        totalQuantity: number;
+      };
+
+      const map = new Map<string, Row>();
+
+      const idSet = productIds.length > 0 ? new Set(productIds) : null;
+
+      for (const order of orders) {
+        const d = formatDateForDB(order.pickupDate);
+        const time = order.pickupTime;
+        for (const item of order.items) {
+          if (idSet && !idSet.has(item.productId)) {
+            continue;
+          }
+          const key = `${d}|${time}|${item.productNameSnapshot}\0${item.variantSnapshot}`;
+          const cur = map.get(key);
+          if (!cur) {
+            map.set(key, {
+              pickupDate: d,
+              pickupTime: time,
+              productName: item.productNameSnapshot,
+              variant: item.variantSnapshot,
+              totalQuantity: item.quantity,
+            });
+          } else {
+            cur.totalQuantity += item.quantity;
+          }
+        }
+      }
+
+      const rows = Array.from(map.values()).sort((a, b) => {
+        const c = a.pickupDate.localeCompare(b.pickupDate);
+        if (c !== 0) return c;
+        const t = a.pickupTime.localeCompare(b.pickupTime);
+        if (t !== 0) return t;
+        return `${a.productName} ${a.variant}`.localeCompare(`${b.productName} ${b.variant}`, 'pt');
+      });
+
+      const byProduct = new Map<string, { productName: string; variant: string; totalQuantity: number }>();
+      for (const r of rows) {
+        const k = `${r.productName}\0${r.variant}`;
+        const x = byProduct.get(k);
+        if (!x) {
+          byProduct.set(k, {
+            productName: r.productName,
+            variant: r.variant,
+            totalQuantity: r.totalQuantity,
+          });
+        } else {
+          x.totalQuantity += r.totalQuantity;
+        }
+      }
+
+      const productTotals = Array.from(byProduct.values()).sort((a, b) =>
+        `${a.productName} ${a.variant}`.localeCompare(`${b.productName} ${b.variant}`, 'pt')
+      );
+
+      const statusCounts = {
+        RECEIVED: orders.filter((o) => o.status === 'RECEIVED').length,
+        READY: orders.filter((o) => o.status === 'READY').length,
+        PICKED_UP: orders.filter((o) => o.status === 'PICKED_UP').length,
+      };
+
+      return {
+        pickupDate: fromStr,
+        pickupDateTo: toStr === fromStr ? null : toStr,
+        totalOrders: orders.length,
+        rows,
+        productTotals,
+        statusCounts,
       };
     }
   );

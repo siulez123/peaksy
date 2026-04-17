@@ -2,7 +2,15 @@ import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import Stripe from 'stripe';
 import { ValidationError, NotFoundError, ConflictError } from '../../lib/errors';
-import { isDateAfterToday, formatDateForDB } from '../../lib/dates';
+import {
+  isDateAfterToday,
+  formatDateForDB,
+  getTodayInTimezone,
+  eachCalendarDateInRangeInclusive,
+} from '../../lib/dates';
+import { isValidInternationalPhone } from '../../lib/phone';
+import { notifyOrderPaid } from '../../lib/orderNotifications';
+import { isTimeWithinWindow, isValidHhRoundHour } from '../../lib/timeOfDay';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
   apiVersion: '2025-02-24.acacia',
@@ -10,6 +18,10 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
 
 const checkoutSchema = z.object({
   pickupDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  pickupTime: z
+    .string()
+    .min(1)
+    .regex(/^([01]\d|2[0-3]):00$/, 'Hora de levantamento: apenas horas cheias (ex.: 13:00, 14:00).'),
   items: z
     .array(
       z.object({
@@ -19,9 +31,15 @@ const checkoutSchema = z.object({
     )
     .min(1),
   customerName: z.string().min(1).max(200),
-  customerPhone: z.string().min(1).max(50),
+  customerPhone: z
+    .string()
+    .min(1)
+    .max(50)
+    .refine((s) => isValidInternationalPhone(s), {
+      message: 'Telefone inválido (8–15 dígitos; + e código do país permitidos).',
+    }),
   customerEmail: z.string().email().optional(),
-  notes: z.string().max(100).optional(),
+  notes: z.string().max(40).optional(),
 });
 
 export async function publicRoutes(fastify: FastifyInstance) {
@@ -32,6 +50,32 @@ export async function publicRoutes(fastify: FastifyInstance) {
       throw new NotFoundError('Tenant not found. Use X-Tenant-Slug header or correct Host header.');
     }
   };
+
+  // GET /public/bakery — nome público da padaria (resolve por X-Tenant-Slug)
+  fastify.get(
+    '/public/bakery',
+    {
+      schema: {
+        description: 'Dados públicos da padaria (nome)',
+        tags: ['public'],
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              name: { type: 'string' },
+              slug: { type: 'string' },
+            },
+          },
+        },
+      },
+      onRequest: [requireTenant],
+    },
+    async (request, reply) => {
+      const tenant = request.tenant!;
+      return { name: tenant.name, slug: tenant.slug };
+    }
+  );
+
   // GET /public/available-days
   fastify.get(
     '/public/available-days',
@@ -48,6 +92,8 @@ export async function publicRoutes(fastify: FastifyInstance) {
                 id: { type: 'string' },
                 pickupDate: { type: 'string', format: 'date' },
                 orderDeadline: { type: 'string', format: 'date-time' },
+                pickupTimeMin: { type: 'string' },
+                pickupTimeMax: { type: 'string' },
                 canOrder: { type: 'boolean' },
                 dayCapTotal: { type: 'number', nullable: true },
               },
@@ -59,38 +105,50 @@ export async function publicRoutes(fastify: FastifyInstance) {
     },
     async (request, reply) => {
       const tenant = request.tenant!;
-      const today = new Date();
-      const todayStr = formatDateForDB(today);
+      const todayStr = formatDateForDB(getTodayInTimezone(tenant.timezone));
+      const now = new Date();
 
-      const availableDays = await fastify.prisma.availableDay.findMany({
+      const rows = await fastify.prisma.availableDay.findMany({
         where: {
           bakeryId: tenant.bakeryId,
           active: true,
-          pickupDate: {
-            gte: new Date(todayStr),
-          },
         },
         orderBy: {
           pickupDate: 'asc',
         },
       });
 
-      const now = new Date();
+      const expanded: Array<{
+        id: string;
+        pickupDate: string;
+        orderDeadline: string;
+        pickupTimeMin: string;
+        pickupTimeMax: string;
+        canOrder: boolean;
+        dayCapTotal: number | null;
+      }> = [];
 
-      return availableDays.map((day) => {
-        const canOrder =
-          new Date(day.pickupDate) > today &&
-          new Date(day.orderDeadline) > now &&
-          isDateAfterToday(day.pickupDate, tenant.timezone);
+      for (const row of rows) {
+        const start = formatDateForDB(row.pickupDate);
+        const end = formatDateForDB(row.pickupEndDate);
+        const dates = eachCalendarDateInRangeInclusive(start, end, tenant.timezone);
+        for (const pickupDate of dates) {
+          if (pickupDate < todayStr) continue;
+          const canOrder =
+            isDateAfterToday(pickupDate, tenant.timezone) && new Date(row.orderDeadline) > now;
+          expanded.push({
+            id: row.id,
+            pickupDate,
+            orderDeadline: row.orderDeadline.toISOString(),
+            pickupTimeMin: row.pickupTimeMin,
+            pickupTimeMax: row.pickupTimeMax,
+            canOrder,
+            dayCapTotal: row.dayCapTotal,
+          });
+        }
+      }
 
-        return {
-          id: day.id,
-          pickupDate: formatDateForDB(day.pickupDate),
-          orderDeadline: day.orderDeadline.toISOString(),
-          canOrder,
-          dayCapTotal: day.dayCapTotal,
-        };
-      });
+      return expanded.sort((a, b) => a.pickupDate.localeCompare(b.pickupDate));
     }
   );
 
@@ -117,6 +175,7 @@ export async function publicRoutes(fastify: FastifyInstance) {
                 name: { type: 'string' },
                 variant: { type: 'string' },
                 priceCents: { type: 'number' },
+                imageUrl: { type: 'string', nullable: true },
               },
             },
           },
@@ -128,11 +187,6 @@ export async function publicRoutes(fastify: FastifyInstance) {
       const tenant = request.tenant!;
       const { pickupDate } = request.query as { pickupDate?: string };
 
-      // Ensure Prisma is available
-      if (!fastify.prisma) {
-        throw new Error('Prisma client not available');
-      }
-
       const where: any = {
         bakeryId: tenant.bakeryId,
         active: true,
@@ -140,15 +194,19 @@ export async function publicRoutes(fastify: FastifyInstance) {
 
       // If pickupDate provided, verify the day is active
       if (pickupDate) {
-        const availableDay = await fastify.prisma.availableDay.findFirst({
+        const windows = await fastify.prisma.availableDay.findMany({
           where: {
             bakeryId: tenant.bakeryId,
-            pickupDate: new Date(pickupDate),
             active: true,
           },
         });
+        const match = windows.find((r) => {
+          const s = formatDateForDB(r.pickupDate);
+          const e = formatDateForDB(r.pickupEndDate);
+          return pickupDate >= s && pickupDate <= e;
+        });
 
-        if (!availableDay) {
+        if (!match) {
           return [];
         }
       }
@@ -166,6 +224,7 @@ export async function publicRoutes(fastify: FastifyInstance) {
         name: p.name,
         variant: p.variant,
         priceCents: p.priceCents,
+        imageUrl: p.imageUrl,
       }));
     }
   );
@@ -179,9 +238,10 @@ export async function publicRoutes(fastify: FastifyInstance) {
         tags: ['public'],
         body: {
           type: 'object',
-          required: ['pickupDate', 'items', 'customerName', 'customerPhone'],
+          required: ['pickupDate', 'pickupTime', 'items', 'customerName', 'customerPhone'],
           properties: {
             pickupDate: { type: 'string', format: 'date' },
+            pickupTime: { type: 'string', description: 'HH:00 (hora cheia)' },
             items: {
               type: 'array',
               items: {
@@ -195,7 +255,7 @@ export async function publicRoutes(fastify: FastifyInstance) {
             customerName: { type: 'string' },
             customerPhone: { type: 'string' },
             customerEmail: { type: 'string', format: 'email' },
-            notes: { type: 'string', maxLength: 100 },
+            notes: { type: 'string', maxLength: 40 },
           },
         },
         response: {
@@ -224,16 +284,20 @@ export async function publicRoutes(fastify: FastifyInstance) {
         throw new ValidationError('Pickup date must be in the future');
       }
 
-      // Find available day
-      const availableDay = await fastify.prisma.availableDay.findFirst({
+      const windows = await fastify.prisma.availableDay.findMany({
         where: {
           bakeryId: tenant.bakeryId,
-          pickupDate: new Date(data.pickupDate),
           active: true,
         },
         include: {
           productCaps: true,
         },
+      });
+
+      const availableDay = windows.find((r) => {
+        const s = formatDateForDB(r.pickupDate);
+        const e = formatDateForDB(r.pickupEndDate);
+        return data.pickupDate >= s && data.pickupDate <= e;
       });
 
       if (!availableDay) {
@@ -243,6 +307,18 @@ export async function publicRoutes(fastify: FastifyInstance) {
       // Check deadline
       if (new Date(availableDay.orderDeadline) < new Date()) {
         throw new ValidationError('Order deadline has passed');
+      }
+
+      const pt = data.pickupTime.trim();
+      if (!isValidHhRoundHour(pt)) {
+        throw new ValidationError('Hora de levantamento: apenas horas cheias (ex.: 13:00).');
+      }
+      if (
+        !isTimeWithinWindow(pt, availableDay.pickupTimeMin, availableDay.pickupTimeMax)
+      ) {
+        throw new ValidationError(
+          `Hora de levantamento tem de estar entre ${availableDay.pickupTimeMin} e ${availableDay.pickupTimeMax}.`
+        );
       }
 
       // Validate products and calculate total
@@ -339,10 +415,11 @@ export async function publicRoutes(fastify: FastifyInstance) {
           bakeryId: tenant.bakeryId,
           availableDayId: availableDay.id,
           pickupDate: new Date(data.pickupDate),
+          pickupTime: pt,
           customerName: data.customerName.trim(),
           customerPhone: data.customerPhone.trim(),
           customerEmail: data.customerEmail?.trim() || null,
-          notes: data.notes?.trim().substring(0, 100) || null,
+          notes: data.notes?.trim().substring(0, 40) || null,
           totalCents,
           paid: false,
           status: 'RECEIVED',
@@ -357,26 +434,38 @@ export async function publicRoutes(fastify: FastifyInstance) {
         throw new Error('Stripe not configured');
       }
 
-      const session = await stripe.checkout.sessions.create({
-        payment_method_types: ['card'],
-        line_items: orderItems.map((item) => ({
-          price_data: {
-            currency: 'eur',
-            product_data: {
-              name: `${item.productNameSnapshot} ${item.variantSnapshot}`,
+      const frontendBase =
+        process.env.FRONTEND_URL ||
+        (request.headers.origin as string | undefined) ||
+        'http://localhost:5173';
+
+      let session: Stripe.Checkout.Session;
+      try {
+        session = await stripe.checkout.sessions.create({
+          // cartão, MB WAY (Portugal); outros métodos podem ser ativados no Dashboard Stripe
+          payment_method_types: ['card', 'mb_way'] as Stripe.Checkout.SessionCreateParams.PaymentMethodType[],
+          line_items: orderItems.map((item) => ({
+            price_data: {
+              currency: 'eur',
+              product_data: {
+                name: `${item.productNameSnapshot} ${item.variantSnapshot}`,
+              },
+              unit_amount: item.unitPriceCentsSnapshot,
             },
-            unit_amount: item.unitPriceCentsSnapshot,
+            quantity: item.quantity,
+          })),
+          mode: 'payment',
+          success_url: `${frontendBase.replace(/\/$/, '')}/loja/${tenant.slug}/sucesso?session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: `${frontendBase.replace(/\/$/, '')}/loja/${tenant.slug}/cancelar`,
+          metadata: {
+            orderId: order.id,
+            bakeryId: tenant.bakeryId,
           },
-          quantity: item.quantity,
-        })),
-        mode: 'payment',
-        success_url: `${request.headers.origin || 'http://localhost:3000'}/success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${request.headers.origin || 'http://localhost:3000'}/cancel`,
-        metadata: {
-          orderId: order.id,
-          bakeryId: tenant.bakeryId,
-        },
-      });
+        });
+      } catch (stripeErr: unknown) {
+        request.log.error({ err: stripeErr }, 'Stripe checkout.sessions.create failed');
+        throw new ValidationError('Não foi possível iniciar o pagamento. Tenta novamente.');
+      }
 
       // Update order with session ID
       await fastify.prisma.order.update({
@@ -427,15 +516,24 @@ export async function publicRoutes(fastify: FastifyInstance) {
         const orderId = session.metadata?.orderId;
 
         if (orderId) {
-          await fastify.prisma.order.update({
-            where: { id: orderId },
-            data: {
-              paid: true,
-              stripeSessionId: session.id,
-            },
-          });
-
-          request.log.info({ orderId }, 'Order marked as paid');
+          const existing = await fastify.prisma.order.findUnique({ where: { id: orderId } });
+          if (!existing) {
+            request.log.warn({ orderId }, 'Webhook: encomenda não encontrada');
+          } else if (existing.paid) {
+            request.log.info({ orderId }, 'Webhook: encomenda já paga, ignorando duplicado');
+          } else {
+            await fastify.prisma.order.update({
+              where: { id: orderId },
+              data: {
+                paid: true,
+                stripeSessionId: session.id,
+              },
+            });
+            request.log.info({ orderId }, 'Order marked as paid');
+            await notifyOrderPaid(orderId, fastify.prisma, request.log).catch((e) => {
+              request.log.error({ err: e }, 'notifyOrderPaid failed');
+            });
+          }
         }
       }
 

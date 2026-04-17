@@ -1,11 +1,9 @@
+import fp from 'fastify-plugin';
 import { FastifyInstance, FastifyPluginOptions, FastifyRequest } from 'fastify';
 import fastifyJwt from '@fastify/jwt';
 import { UnauthorizedError, ForbiddenError } from '../lib/errors';
 
-export async function authPlugin(
-  fastify: FastifyInstance,
-  options: FastifyPluginOptions
-) {
+async function authPluginFn(fastify: FastifyInstance, _options: FastifyPluginOptions) {
   const jwtSecret = process.env.JWT_SECRET;
   if (!jwtSecret) {
     throw new Error('JWT_SECRET environment variable is required');
@@ -58,4 +56,8 @@ export async function authPlugin(
   });
 }
 
+/** fastify-plugin: JWT e decorators ficam no mesmo contexto que as rotas (evita fastify.jwt undefined). */
+export const authPlugin = fp(authPluginFn, {
+  name: 'comebolos-auth',
+});
 

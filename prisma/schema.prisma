@@ -62,6 +62,7 @@ model Product {
   name        String
   variant     String
   priceCents  Int
+  imageUrl    String?
   active      Boolean  @default(true)
   createdAt   DateTime @default(now())
 
@@ -76,7 +77,12 @@ model AvailableDay {
   id            String   @id @default(uuid())
   bakeryId      String
   pickupDate    DateTime @db.Date
+  pickupEndDate DateTime @db.Date
   orderDeadline DateTime
+  /// Primeira hora de levantamento permitida (HH:00, hora cheia)
+  pickupTimeMin String   @default("08:00")
+  /// Última hora de levantamento permitida (HH:00, hora cheia)
+  pickupTimeMax String   @default("20:00")
   active        Boolean  @default(true)
   dayCapTotal   Int?
   createdAt     DateTime @default(now())
@@ -85,7 +91,7 @@ model AvailableDay {
   orders       Order[]
   productCaps  AvailableDayProductCap[]
 
-  @@unique([bakeryId, pickupDate])
+  @@index([bakeryId, pickupDate])
   @@map("available_days")
 }
 
@@ -109,6 +115,8 @@ model Order {
   bakeryId       String
   availableDayId String
   pickupDate     DateTime    @db.Date
+  /// Hora de levantamento escolhida (HH:00, hora cheia)
+  pickupTime     String
   customerName   String
   customerPhone  String
   customerEmail  String?

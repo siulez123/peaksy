@@ -1,14 +1,15 @@
+import fp from 'fastify-plugin';
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import bcrypt from 'bcryptjs';
-import { UnauthorizedError, ValidationError } from '../../lib/errors';
+import { UnauthorizedError } from '../../lib/errors';
 
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
 });
 
-export async function authRoutes(fastify: FastifyInstance) {
+async function authRoutesImpl(fastify: FastifyInstance) {
   // Helper functions for hooks
   const authenticate = async (request: any, reply: any) => {
     await fastify.authenticate(request);
@@ -87,6 +88,13 @@ export async function authRoutes(fastify: FastifyInstance) {
           role: user.role,
           bakeryId: user.bakeryId,
         },
+        bakery: user.bakery
+          ? {
+              id: user.bakery.id,
+              name: user.bakery.name,
+              slug: user.bakery.slug,
+            }
+          : null,
       };
     }
   );
@@ -148,4 +156,9 @@ export async function authRoutes(fastify: FastifyInstance) {
     }
   );
 }
+
+export const authRoutes = fp(authRoutesImpl, {
+  name: 'comebolos-auth-routes',
+  dependencies: ['prisma-plugin', 'comebolos-auth'],
+});
 

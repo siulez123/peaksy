@@ -122,9 +122,14 @@ async function tenantResolverPluginFn(
 
     request.log.info({ slug, hostWithoutPort }, 'Extracted slug');
 
+    // Host “genérico” (ex.: comebolos.up.railway.app, domínio custom sem sub-padaria): não há tenant no Host.
+    // O SPA na raiz e rotas /auth funcionam sem tenant; a API pública usa X-Tenant-Slug (ex.: /loja/padariademo no FE).
     if (!slug) {
-      request.log.warn({ hostWithoutPort }, 'No slug extracted, throwing error');
-      throw new NotFoundError('Bakery not found');
+      request.log.info(
+        { hostWithoutPort },
+        'Sem subdomínio de padaria — continua sem tenant (resolve depois por header nas rotas que precisem)'
+      );
+      return;
     }
 
     // Load bakery from database

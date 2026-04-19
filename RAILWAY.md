@@ -41,10 +41,20 @@ O servidor **não chega a escutar** na porta se o processo morrer no arranque. C
 | `HOST` | Predefinido `0.0.0.0`. |
 | `PORT` | A Railway define automaticamente. |
 
-## Domínio e subdomínios de padarias
+## Domínio e URLs da loja
 
-- O **tenant** pode ser resolvido por cabeçalho `Host` (`padariademo.teudominio.com`) se configurares DNS a apontar para o Railway e o plugin de tenant no backend estiver alinhado com o domínio em produção.
-- Em desenvolvimento usa-se muitas vezes `X-Tenant-Slug`; em produção confirma o comportamento em `src/plugins/tenantResolver.ts` e variáveis como `VITE_APP_DOMAIN` no frontend se aplicável.
+No URL por defeito da Railway (`https://<serviço>.up.railway.app`) **não há subdomínio por padaria**. O host é só da plataforma; o resolver **não** exige tenant nesse caso.
+
+| O que queres | URL (exemplo) |
+|----------------|---------------|
+| Página inicial da plataforma (super admin, texto genérico) | `https://comebolos.up.railway.app/` |
+| Loja da padaria `padariademo` (slug na path) | `https://comebolos.up.railway.app/loja/padariademo` |
+| Login admin dessa padaria | `https://comebolos.up.railway.app/admin/padariademo/entrar` |
+| Super admin | `https://comebolos.up.railway.app/super/entrar` |
+
+Com **domínio próprio** no formato `padariademo.comebolos.com` (DNS a apontar para o Railway), o tenant pode ser resolvido pelo `Host` sem `/loja/...` — vê `src/plugins/tenantResolver.ts` e `VITE_APP_DOMAIN` no frontend.
+
+Em desenvolvimento usa-se muitas vezes o header `X-Tenant-Slug`; o browser envia-o nas chamadas à API quando estás numa rota com slug.
 
 ## Build local do Docker
 

@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
 import { Pencil, Trash2 } from 'lucide-react';
 import { adminApi, formatMoney, productImageUrl } from '../../api';
 import { useAuth } from '../../context/AuthContext';
 import { Button, Card, Input, Label } from '../../components/ui';
+import { useResolvedTenantSlug } from '../../lib/tenantHost';
 
 export function AdminProducts() {
-  const { slug = '' } = useParams();
+  const slug = useResolvedTenantSlug();
   const { token } = useAuth();
   const [items, setItems] = useState<
     Array<{

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { ChevronUp, ImageIcon, Minus, Plus, ShoppingBag, Trash2, X } from 'lucide-react';
 import { publicApi, formatMoney, productImageUrl } from '../../api';
 import { isValidInternationalPhone, phoneFieldHint } from '../../lib/phone';
@@ -7,7 +7,10 @@ import {
   formatPickupHourLabelPt,
   pickupHourSlotsBetween,
 } from '../../lib/timeOfDay';
-import { Button, Card, Input, Label, PageHeader } from '../../components/ui';
+import { ShopPublicHeader } from '../../components/ShopPublicHeader';
+import { BakeryNotFoundPage } from '../BakeryNotFoundPage';
+import { Button, Card, Input, Label } from '../../components/ui';
+import { useHostTenantSlug } from '../../lib/tenantHost';
 
 const NOTES_MAX_LENGTH = 40;
 
@@ -344,7 +347,9 @@ function CheckoutModal({
 }
 
 export function ShopPage() {
-  const { slug = '' } = useParams();
+  const { slug: slugParam } = useParams();
+  const hostSlug = useHostTenantSlug();
+  const slug = slugParam ?? hostSlug ?? '';
   const [days, setDays] = useState<ShopDayRow[]>([]);
   const [pickupDate, setPickupDate] = useState<string>('');
   const [pickupTime, setPickupTime] = useState('');
@@ -388,6 +393,16 @@ export function ShopPage() {
 
   useEffect(() => {
     let cancelled = false;
+    if (!slug) return;
+    if (bakeryHead === 'loading') return;
+    if (bakeryHead === 'fail') {
+      setDays([]);
+      setPickupDate('');
+      setPickupTime('');
+      setLoading(false);
+      setLoadErr(null);
+      return;
+    }
     (async () => {
       try {
         setLoading(true);
@@ -407,16 +422,20 @@ export function ShopPage() {
       } catch (e) {
         setLoadErr(e instanceof Error ? e.message : 'Erro ao carregar');
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [slug]);
+  }, [slug, bakeryHead]);
 
   useEffect(() => {
-    if (!pickupDate) {
+    if (!pickupDate || !slug) {
+      setProducts([]);
+      return;
+    }
+    if (bakeryHead === 'loading' || bakeryHead === 'fail') {
       setProducts([]);
       return;
     }
@@ -432,7 +451,7 @@ export function ShopPage() {
     return () => {
       cancelled = true;
     };
-  }, [slug, pickupDate]);
+  }, [slug, pickupDate, bakeryHead]);
 
   /** Ao mudar o dia, mantém no carrinho só artigos que existem no catálogo desse dia (evita apagar tudo). */
   useEffect(() => {
@@ -588,6 +607,8 @@ export function ShopPage() {
         customerPhone,
         customerEmail: customerEmail || undefined,
         notes: notes || undefined,
+        successPath: hostSlug ? '/sucesso' : `/loja/${slug}/sucesso`,
+        cancelPath: hostSlug ? '/cancelar' : `/loja/${slug}/cancelar`,
       });
       window.location.href = checkoutUrl;
     } catch (e) {
@@ -615,16 +636,29 @@ export function ShopPage() {
 
   const hasOpenPickupDays = days.some((d) => d.canOrder);
 
+  if (!slug) {
+    return (
+      <div className="mx-auto max-w-lg px-4 py-16 text-center">
+        <p className="text-stone-600">
+          Não foi possível identificar a padaria. Usa o subdomínio (ex.: padariademo.localhost) ou{' '}
+          <a href="/loja" className="text-orange-600 hover:underline">
+            escolhe a padaria por slug
+          </a>
+          .
+        </p>
+      </div>
+    );
+  }
+
+  if (bakeryHead === 'fail') {
+    return <BakeryNotFoundPage slug={slug} />;
+  }
+
   return (
     <div
       className={`mx-auto max-w-6xl px-4 pt-8 sm:pt-10 ${lines.length > 0 ? 'pb-28 lg:pb-10' : 'pb-8 sm:pb-10'}`}
     >
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
-        <PageHeader title={shopTitle} subtitle={shopSubtitle} className="!mb-0 sm:!mb-0" />
-        <Link to="/" className="text-sm text-orange-600 hover:underline">
-          Início
-        </Link>
-      </div>
+      <ShopPublicHeader bakeryLabel={shopTitle} subtitle={shopSubtitle} />
 
       {loading && <p className="text-stone-500">A carregar…</p>}
       {loadErr && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{loadErr}</p>}

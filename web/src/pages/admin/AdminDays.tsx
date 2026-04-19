@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
 import { adminApi } from '../../api';
 import { useAuth } from '../../context/AuthContext';
 import { Button, Card, Input, Label } from '../../components/ui';
+import { useResolvedTenantSlug } from '../../lib/tenantHost';
 import { isValidHhRoundHour, normalizeTimeToHourSlot, parseTimeToMinutes } from '../../lib/timeOfDay';
 
 /** Amanhã (data local do browser) em YYYY-MM-DD — alinhado com validação no servidor. */
@@ -47,7 +47,7 @@ const emptyForm = () => ({
 });
 
 export function AdminDays() {
-  const { slug = '' } = useParams();
+  const slug = useResolvedTenantSlug();
   const { token } = useAuth();
   const [days, setDays] = useState<DayRow[]>([]);
   const [products, setProducts] = useState<Array<{ id: string; name: string; variant: string }>>([]);

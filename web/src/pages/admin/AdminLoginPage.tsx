@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { auth, publicApi } from '../../api';
 import { useAuth } from '../../context/AuthContext';
 import { Button, Card, Input, Label, PageHeader } from '../../components/ui';
+import { useAdminPathBase, useResolvedTenantSlug } from '../../lib/tenantHost';
 
 export function AdminLoginPage() {
-  const { slug = '' } = useParams();
+  const slug = useResolvedTenantSlug();
+  const adminBase = useAdminPathBase();
   const { setSession } = useAuth();
   const nav = useNavigate();
   const [email, setEmail] = useState('');
@@ -53,7 +55,7 @@ export function AdminLoginPage() {
         return;
       }
       setSession(data);
-      nav(`/admin/${slug}`);
+      nav(adminBase);
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Falha no login');
     } finally {

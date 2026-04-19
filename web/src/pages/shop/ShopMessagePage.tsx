@@ -1,9 +1,13 @@
 import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { useHostTenantSlug } from '../../lib/tenantHost';
 import { CheckCircle2, XCircle } from 'lucide-react';
 import { Card } from '../../components/ui';
 
 export function ShopSuccessPage() {
-  const { slug = '' } = useParams();
+  const { slug: slugParam } = useParams();
+  const hostSlug = useHostTenantSlug();
+  const slug = slugParam ?? hostSlug ?? '';
+  const shopHome = hostSlug ? '/' : `/loja/${slug}`;
   const [sp] = useSearchParams();
   const session = sp.get('session_id');
   return (
@@ -19,7 +23,7 @@ export function ShopSuccessPage() {
           <p className="mt-2 break-all font-mono text-xs text-stone-400">Sessão: {session}</p>
         )}
         <Link
-          to={`/loja/${slug}`}
+          to={shopHome}
           className="mt-6 inline-block rounded-xl bg-orange-500 px-5 py-2.5 text-sm font-medium text-white hover:bg-orange-600"
         >
           Voltar à loja
@@ -30,7 +34,10 @@ export function ShopSuccessPage() {
 }
 
 export function ShopCancelPage() {
-  const { slug = '' } = useParams();
+  const { slug: slugParam } = useParams();
+  const hostSlug = useHostTenantSlug();
+  const slug = slugParam ?? hostSlug ?? '';
+  const shopHome = hostSlug ? '/' : `/loja/${slug}`;
   return (
     <div className="mx-auto max-w-lg px-4 py-16 text-center">
       <Card>
@@ -38,7 +45,7 @@ export function ShopCancelPage() {
         <h1 className="mt-4 text-xl font-semibold text-stone-900">Pagamento cancelado</h1>
         <p className="mt-2 text-stone-600">Podes voltar a tentar quando quiseres.</p>
         <Link
-          to={`/loja/${slug}`}
+          to={shopHome}
           className="mt-6 inline-block rounded-xl bg-orange-500 px-5 py-2.5 text-sm font-medium text-white hover:bg-orange-600"
         >
           Voltar à loja

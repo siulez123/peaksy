@@ -1,14 +1,24 @@
 import { sanitizeClientErrorMessage } from './lib/safeErrorMessage';
 
-const rawBase = import.meta.env.VITE_API_URL || '';
-/** Em dev, usar proxy Vite em /api para evitar CORS; em prod, URL absoluta da API. */
-export const apiBase = rawBase || (import.meta.env.DEV ? '/api' : 'http://localhost:3000');
+const rawBase = import.meta.env.VITE_API_URL;
+const hasCustomApiUrl =
+  rawBase !== undefined && rawBase !== null && String(rawBase).trim() !== '';
 
-/** Origem do servidor API (sem `/api`) para imagens em `/uploads/...`. */
+/**
+ * Base dos pedidos: dev com proxy → `/api`; prod no mesmo host (Railway) → `''`.
+ * Define `VITE_API_URL` só se a API estiver noutro domínio.
+ */
+export const apiBase = hasCustomApiUrl
+  ? String(rawBase).replace(/\/$/, '')
+  : import.meta.env.DEV
+    ? '/api'
+    : '';
+
+/** Origem para `/uploads` (vazio = mesma origem). */
 export function apiAssetOrigin(): string {
-  if (import.meta.env.DEV && !rawBase) return '';
-  const base = rawBase || 'http://localhost:3000';
-  return base.replace(/\/api\/?$/, '');
+  if (import.meta.env.DEV && !hasCustomApiUrl) return '';
+  if (!hasCustomApiUrl) return '';
+  return String(rawBase).replace(/\/api\/?$/, '');
 }
 
 export function productImageUrl(path: string | null | undefined): string | null {
@@ -117,6 +127,9 @@ export const publicApi = {
       customerPhone: string;
       customerEmail?: string;
       notes?: string;
+      /** Subdomínio da loja na raiz: `/sucesso` e `/cancelar`; em /loja/:slug omitir. */
+      successPath?: string;
+      cancelPath?: string;
     }
   ) => apiFetch<{ checkoutUrl: string }>('/public/checkout', { method: 'POST', tenantSlug: slug, body: JSON.stringify(body) }),
 };
@@ -221,11 +234,24 @@ export const adminApi = {
           status: string;
           totalCents: number;
           paid: boolean;
-          items: Array<{ quantity: number; productNameSnapshot: string; variantSnapshot: string }>;
+          items: Array<{
+          id: string;
+          quantity: number;
+          productNameSnapshot: string;
+          variantSnapshot: string;
+          ready: boolean;
+        }>;
         }>
       >(`/admin/orders${s ? `?${s}` : ''}`, { token, tenantSlug: slug });
     },
-    setStatus: (token: string, slug: string, id: string, status: 'READY' | 'PICKED_UP') =>
+    setItemReady: (token: string, slug: string, orderId: string, itemId: string, ready: boolean) =>
+      apiFetch(`/admin/orders/${orderId}/items/${itemId}`, {
+        method: 'PATCH',
+        token,
+        tenantSlug: slug,
+        body: JSON.stringify({ ready }),
+      }),
+    setStatus: (token: string, slug: string, id: string, status: 'PICKED_UP') =>
       apiFetch(`/admin/orders/${id}/status`, {
         method: 'PATCH',
         token,

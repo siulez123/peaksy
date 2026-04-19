@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
 import { adminApi } from '../../api';
 import { useAuth } from '../../context/AuthContext';
 import { Button, Card, Input, Label } from '../../components/ui';
+import { useResolvedTenantSlug } from '../../lib/tenantHost';
 
 const PICKUP_HOURS = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`);
 
@@ -60,7 +60,7 @@ function BarChartByProduct({
 }
 
 export function AdminProduction() {
-  const { slug = '' } = useParams();
+  const slug = useResolvedTenantSlug();
   const { token } = useAuth();
 
   const [dateFrom, setDateFrom] = useState(() => new Date().toISOString().slice(0, 10));

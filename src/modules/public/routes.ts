@@ -3,10 +3,10 @@ import { z } from 'zod';
 import Stripe from 'stripe';
 import { ValidationError, NotFoundError, ConflictError } from '../../lib/errors';
 import {
-  isDateAfterToday,
   formatDateForDB,
   getTodayInTimezone,
   eachCalendarDateInRangeInclusive,
+  isDateTodayOrAfter,
 } from '../../lib/dates';
 import { isValidInternationalPhone } from '../../lib/phone';
 import { notifyOrderPaid } from '../../lib/orderNotifications';
@@ -15,6 +15,28 @@ import { isTimeWithinWindow, isValidHhRoundHour } from '../../lib/timeOfDay';
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
   apiVersion: '2025-02-24.acacia',
 });
+
+function validateStripeReturnPath(
+  path: string,
+  tenantSlug: string,
+  kind: 'success' | 'cancel'
+): string {
+  const trimmed = path.trim();
+  if (!trimmed.startsWith('/') || trimmed.includes('..') || trimmed.includes('//')) {
+    throw new ValidationError('Caminho de retorno inválido.');
+  }
+  const okSuccess =
+    trimmed === '/sucesso' || trimmed === `/loja/${tenantSlug}/sucesso`;
+  const okCancel =
+    trimmed === '/cancelar' || trimmed === `/loja/${tenantSlug}/cancelar`;
+  if (kind === 'success' && !okSuccess) {
+    throw new ValidationError('Caminho de sucesso após pagamento não permitido.');
+  }
+  if (kind === 'cancel' && !okCancel) {
+    throw new ValidationError('Caminho de cancelamento não permitido.');
+  }
+  return trimmed;
+}
 
 const checkoutSchema = z.object({
   pickupDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -40,6 +62,9 @@ const checkoutSchema = z.object({
     }),
   customerEmail: z.string().email().optional(),
   notes: z.string().max(40).optional(),
+  /** Caminhos relativos no FRONTEND_URL (loja na raiz do subdomínio ou /loja/:slug). */
+  successPath: z.string().optional(),
+  cancelPath: z.string().optional(),
 });
 
 export async function publicRoutes(fastify: FastifyInstance) {
@@ -134,8 +159,9 @@ export async function publicRoutes(fastify: FastifyInstance) {
         const dates = eachCalendarDateInRangeInclusive(start, end, tenant.timezone);
         for (const pickupDate of dates) {
           if (pickupDate < todayStr) continue;
-          const canOrder =
-            isDateAfterToday(pickupDate, tenant.timezone) && new Date(row.orderDeadline) > now;
+          // Encomendas para levantamento "hoje" são válidas enquanto orderDeadline não passou
+          // (antes exigíamos dia de levantamento > hoje, o que bloqueava o próprio dia de levantamento).
+          const canOrder = new Date(row.orderDeadline) > now;
           expanded.push({
             id: row.id,
             pickupDate,
@@ -256,6 +282,8 @@ export async function publicRoutes(fastify: FastifyInstance) {
             customerPhone: { type: 'string' },
             customerEmail: { type: 'string', format: 'email' },
             notes: { type: 'string', maxLength: 40 },
+            successPath: { type: 'string', description: 'Caminho relativo pós-pagamento (ex. /sucesso ou /loja/slug/sucesso)' },
+            cancelPath: { type: 'string', description: 'Caminho relativo ao cancelar Stripe' },
           },
         },
         response: {
@@ -279,9 +307,9 @@ export async function publicRoutes(fastify: FastifyInstance) {
       const tenant = request.tenant!;
       const data = checkoutSchema.parse(request.body);
 
-      // Validate pickup date is in the future
-      if (!isDateAfterToday(data.pickupDate, tenant.timezone)) {
-        throw new ValidationError('Pickup date must be in the future');
+      // Dia de levantamento: hoje ou futuro (no calendário da padaria), não apenas "depois de hoje"
+      if (!isDateTodayOrAfter(data.pickupDate, tenant.timezone)) {
+        throw new ValidationError('A data de levantamento não pode ser anterior a hoje.');
       }
 
       const windows = await fastify.prisma.availableDay.findMany({
@@ -439,6 +467,14 @@ export async function publicRoutes(fastify: FastifyInstance) {
         (request.headers.origin as string | undefined) ||
         'http://localhost:5173';
 
+      const baseUrl = frontendBase.replace(/\/$/, '');
+      const successRel = data.successPath
+        ? validateStripeReturnPath(data.successPath, tenant.slug, 'success')
+        : `/loja/${tenant.slug}/sucesso`;
+      const cancelRel = data.cancelPath
+        ? validateStripeReturnPath(data.cancelPath, tenant.slug, 'cancel')
+        : `/loja/${tenant.slug}/cancelar`;
+
       let session: Stripe.Checkout.Session;
       try {
         session = await stripe.checkout.sessions.create({
@@ -455,8 +491,8 @@ export async function publicRoutes(fastify: FastifyInstance) {
             quantity: item.quantity,
           })),
           mode: 'payment',
-          success_url: `${frontendBase.replace(/\/$/, '')}/loja/${tenant.slug}/sucesso?session_id={CHECKOUT_SESSION_ID}`,
-          cancel_url: `${frontendBase.replace(/\/$/, '')}/loja/${tenant.slug}/cancelar`,
+          success_url: `${baseUrl}${successRel}?session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: `${baseUrl}${cancelRel}`,
           metadata: {
             orderId: order.id,
             bakeryId: tenant.bakeryId,

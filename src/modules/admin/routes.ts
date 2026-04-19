@@ -117,8 +117,31 @@ const availableDayUpdateSchema = z
   );
 
 const orderStatusUpdateSchema = z.object({
-  status: z.enum(['READY', 'PICKED_UP']),
+  status: z.literal('PICKED_UP'),
 });
+
+const orderItemReadySchema = z.object({
+  ready: z.boolean(),
+});
+
+async function syncOrderStatusFromItemReadiness(
+  prisma: FastifyInstance['prisma'],
+  orderId: string
+): Promise<void> {
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    select: { status: true, items: { select: { ready: true } } },
+  });
+  if (!order || order.status === 'PICKED_UP') return;
+
+  const allReady =
+    order.items.length > 0 && order.items.every((i) => i.ready);
+  if (allReady && order.status !== 'READY') {
+    await prisma.order.update({ where: { id: orderId }, data: { status: 'READY' } });
+  } else if (!allReady && order.status === 'READY') {
+    await prisma.order.update({ where: { id: orderId }, data: { status: 'RECEIVED' } });
+  }
+}
 
 async function assertProductCapsForBakery(
   prisma: FastifyInstance['prisma'],
@@ -1066,12 +1089,81 @@ export async function adminRoutes(fastify: FastifyInstance) {
     }
   );
 
-  // PATCH /admin/orders/:id/status
+  // PATCH /admin/orders/:orderId/items/:itemId — marcar artigo pronto / não pronto
+  fastify.patch(
+    '/admin/orders/:orderId/items/:itemId',
+    {
+      schema: {
+        description: 'Marcar linha de artigo como pronta ou não (a encomenda fica Pronta quando todos os artigos estão prontos)',
+        tags: ['admin'],
+        security: [{ bearerAuth: [] }],
+        params: {
+          type: 'object',
+          properties: {
+            orderId: { type: 'string' },
+            itemId: { type: 'string' },
+          },
+        },
+        body: {
+          type: 'object',
+          required: ['ready'],
+          properties: {
+            ready: { type: 'boolean' },
+          },
+        },
+      },
+      onRequest: [requireBakeryAdmin, requireTenant],
+    },
+    async (request, reply) => {
+      const tenant = request.tenant!;
+      const user = request.user!;
+
+      if (user.bakeryId !== tenant.bakeryId) {
+        throw new ForbiddenError('Access denied');
+      }
+
+      const { orderId, itemId } = request.params as { orderId: string; itemId: string };
+      const { ready } = orderItemReadySchema.parse(request.body);
+
+      const existing = await fastify.prisma.order.findFirst({
+        where: { id: orderId, bakeryId: tenant.bakeryId },
+        select: { status: true },
+      });
+      if (!existing) {
+        throw new NotFoundError('Order not found');
+      }
+      if (existing.status === 'PICKED_UP') {
+        throw new ValidationError('Não é possível alterar artigos de uma encomenda já levantada.');
+      }
+
+      const updatedItem = await fastify.prisma.orderItem.updateMany({
+        where: { id: itemId, orderId },
+        data: { ready },
+      });
+      if (updatedItem.count === 0) {
+        throw new NotFoundError('Artigo não encontrado nesta encomenda');
+      }
+
+      await syncOrderStatusFromItemReadiness(fastify.prisma, orderId);
+
+      const updated = await fastify.prisma.order.findUnique({
+        where: { id: orderId },
+        include: { items: true },
+      });
+
+      return {
+        ...updated,
+        pickupDate: formatDateForDB(updated!.pickupDate),
+      };
+    }
+  );
+
+  // PATCH /admin/orders/:id/status — apenas "Levantado" quando a encomenda já está Pronta
   fastify.patch(
     '/admin/orders/:id/status',
     {
       schema: {
-        description: 'Update order status',
+        description: 'Marcar encomenda como levantada (só quando já está Pronta)',
         tags: ['admin'],
         security: [{ bearerAuth: [] }],
         params: {
@@ -1084,7 +1176,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
           type: 'object',
           required: ['status'],
           properties: {
-            status: { type: 'string', enum: ['READY', 'PICKED_UP'] },
+            status: { type: 'string', enum: ['PICKED_UP'] },
           },
         },
       },
@@ -1099,19 +1191,25 @@ export async function adminRoutes(fastify: FastifyInstance) {
       }
 
       const { id } = request.params as { id: string };
-      const { status } = orderStatusUpdateSchema.parse(request.body);
+      orderStatusUpdateSchema.parse(request.body);
 
-      const order = await fastify.prisma.order.updateMany({
-        where: {
-          id,
-          bakeryId: tenant.bakeryId,
-        },
-        data: { status },
+      const current = await fastify.prisma.order.findFirst({
+        where: { id, bakeryId: tenant.bakeryId },
+        select: { status: true },
       });
-
-      if (order.count === 0) {
+      if (!current) {
         throw new NotFoundError('Order not found');
       }
+      if (current.status !== 'READY') {
+        throw new ValidationError(
+          'Só podes marcar como levantada uma encomenda que já está pronta (todos os artigos prontos).'
+        );
+      }
+
+      await fastify.prisma.order.update({
+        where: { id },
+        data: { status: 'PICKED_UP' },
+      });
 
       const updated = await fastify.prisma.order.findUnique({
         where: { id },

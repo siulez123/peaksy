@@ -1,29 +1,27 @@
+# Build completo: API Fastify + frontend Vite (web/dist servido pelo mesmo processo em produção)
 FROM node:20-alpine
+
+RUN apk add --no-cache openssl libc6-compat
 
 WORKDIR /app
 
-# Install OpenSSL and other dependencies for Prisma
-RUN apk add --no-cache openssl openssl-dev libc6-compat
-
-# Copy package files
-COPY package*.json ./
+COPY package.json package-lock.json* ./
+COPY web/package.json web/package-lock.json* ./web/
 COPY prisma ./prisma/
+COPY patches ./patches/
 
-# Install all dependencies (needed for build)
 RUN npm ci
+RUN cd web && npm ci
 
-# Copy source code
 COPY . .
 
-# Generate Prisma Client and build
 RUN npm run prisma:generate
+RUN cd web && npm run build
 RUN npm run build
+RUN npm prune --omit=dev
 
-# Remove dev dependencies after build
-RUN npm prune --production
+ENV NODE_ENV=production
 
 EXPOSE 3000
 
-# Use production start command
-CMD ["npm", "start"]
-
+CMD ["npm", "run", "start:railway"]

@@ -142,6 +142,7 @@ model OrderItem {
   variantSnapshot        String
   unitPriceCentsSnapshot Int
   quantity               Int
+  ready                  Boolean  @default(false)
 
   order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)

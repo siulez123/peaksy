@@ -15,6 +15,7 @@ import { adminRoutes } from './modules/admin/routes';
 import { superRoutes } from './modules/super/routes';
 import { uploadsStaticPlugin } from './plugins/uploadsStaticPlugin';
 import { multipartPlugin } from './plugins/multipartPlugin';
+import { webDistPlugin } from './plugins/webDistPlugin';
 
 dotenv.config();
 
@@ -131,6 +132,9 @@ async function build() {
 
   // Error handler
   server.setErrorHandler(errorHandler);
+
+  // SPA (Vite build em web/dist) — último, para não sobrepor rotas da API
+  await server.register(webDistPlugin);
 
   return server;
 }

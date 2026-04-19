@@ -1,4 +1,4 @@
-import { NavLink, Outlet, Navigate, useParams } from 'react-router-dom';
+import { NavLink, Outlet, Navigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   Package,
@@ -10,32 +10,39 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { useAdminPathBase, useHostTenantSlug, useResolvedTenantSlug } from '../../lib/tenantHost';
 
-function adminNavLinks(slug: string) {
+function adminNavLinks(base: string) {
   return [
-    { to: `/admin/${slug}`, end: true as boolean | undefined, label: 'Resumo', icon: LayoutDashboard },
-    { to: `/admin/${slug}/produtos`, label: 'Produtos', icon: Package },
-    { to: `/admin/${slug}/dias`, label: 'Dias', icon: CalendarDays },
-    { to: `/admin/${slug}/pedidos`, label: 'Pedidos', icon: ClipboardList },
-    { to: `/admin/${slug}/producao`, label: 'Produção', icon: Factory },
+    { to: base, end: true as boolean | undefined, label: 'Resumo', icon: LayoutDashboard },
+    { to: `${base}/produtos`, label: 'Produtos', icon: Package },
+    { to: `${base}/dias`, label: 'Dias', icon: CalendarDays },
+    { to: `${base}/pedidos`, label: 'Pedidos', icon: ClipboardList },
+    { to: `${base}/producao`, label: 'Produção', icon: Factory },
   ];
 }
 
 export function AdminLayout() {
-  const { slug = '' } = useParams();
+  const slug = useResolvedTenantSlug();
+  const base = useAdminPathBase();
+  const hostTenant = useHostTenantSlug();
   const { token, user, bakery, logout } = useAuth();
   const [open, setOpen] = useState(false);
 
+  if (!slug) {
+    return <Navigate to="/" replace />;
+  }
+
   if (!token || !user || user.role !== 'BAKERY_ADMIN') {
-    return <Navigate to={`/admin/${slug}/entrar`} replace />;
+    return <Navigate to={`${base}/entrar`} replace />;
   }
   if (bakery && bakery.slug !== slug) {
-    return <Navigate to={`/admin/${bakery.slug}`} replace />;
+    return <Navigate to={hostTenant ? '/admin' : `/admin/${bakery.slug}`} replace />;
   }
 
   const nav = (
     <nav className="flex flex-col gap-1 sm:gap-0">
-      {adminNavLinks(slug).map(({ to, end, label, icon: Icon }) => (
+      {adminNavLinks(base).map(({ to, end, label, icon: Icon }) => (
         <NavLink
           key={to}
           to={to}
@@ -61,6 +68,12 @@ export function AdminLayout() {
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold text-stone-900">Comebolos</p>
             <p className="truncate text-xs text-stone-500">{bakery?.name ?? slug}</p>
+            <a
+              href={hostTenant ? '/' : `/loja/${slug}`}
+              className="mt-0.5 block truncate text-xs text-orange-600 hover:underline"
+            >
+              Ver loja (como cliente)
+            </a>
           </div>
           <button
             type="button"
@@ -76,7 +89,7 @@ export function AdminLayout() {
               type="button"
               onClick={() => {
                 logout();
-                window.location.href = `/admin/${slug}/entrar`;
+                window.location.href = `${base}/entrar`;
               }}
               className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-sm text-stone-600 hover:bg-stone-100"
             >
@@ -92,7 +105,7 @@ export function AdminLayout() {
               type="button"
               onClick={() => {
                 logout();
-                window.location.href = `/admin/${slug}/entrar`;
+                window.location.href = `${base}/entrar`;
               }}
               className="mt-2 flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-stone-600"
             >

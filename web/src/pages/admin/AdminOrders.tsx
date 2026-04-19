@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
 import { adminApi, formatMoney } from '../../api';
 import { useAuth } from '../../context/AuthContext';
 import { Button, Card, Input, Label } from '../../components/ui';
+import { useResolvedTenantSlug } from '../../lib/tenantHost';
 
 type OrderRow = {
   id: string;
@@ -13,7 +13,13 @@ type OrderRow = {
   status: string;
   totalCents: number;
   paid: boolean;
-  items: Array<{ quantity: number; productNameSnapshot: string; variantSnapshot: string }>;
+  items: Array<{
+    id: string;
+    quantity: number;
+    productNameSnapshot: string;
+    variantSnapshot: string;
+    ready: boolean;
+  }>;
 };
 
 const PICKUP_HOURS = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`);
@@ -45,7 +51,7 @@ function statusBadgeClass(status: string): string {
 }
 
 export function AdminOrders() {
-  const { slug = '' } = useParams();
+  const slug = useResolvedTenantSlug();
   const { token } = useAuth();
   const [orders, setOrders] = useState<OrderRow[]>([]);
 
@@ -61,6 +67,7 @@ export function AdminOrders() {
 
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
+  const [pendingItemId, setPendingItemId] = useState<string | null>(null);
 
   useEffect(() => {
     const t = window.setTimeout(() => setDebouncedName(nameInput.trim()), 400);
@@ -134,13 +141,27 @@ export function AdminOrders() {
     setDebouncedProduct('');
   };
 
-  const setStatus = async (id: string, status: 'READY' | 'PICKED_UP') => {
+  const setPickedUp = async (orderId: string) => {
     if (!token) return;
     try {
-      await adminApi.orders.setStatus(token, slug, id, status);
+      await adminApi.orders.setStatus(token, slug, orderId, 'PICKED_UP');
       await load();
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Erro');
+    }
+  };
+
+  const setItemReady = async (orderId: string, itemId: string, ready: boolean) => {
+    if (!token) return;
+    setPendingItemId(itemId);
+    setErr(null);
+    try {
+      await adminApi.orders.setItemReady(token, slug, orderId, itemId, ready);
+      await load();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Erro');
+    } finally {
+      setPendingItemId(null);
     }
   };
 
@@ -249,12 +270,14 @@ export function AdminOrders() {
                   <th className="px-4 py-3">Pagamento</th>
                   <th className="px-4 py-3 text-right">Total</th>
                   <th className="px-4 py-3">Artigos</th>
-                  <th className="px-4 py-3 text-right">Ações</th>
+                  <th className="sticky right-0 z-20 min-w-[8.5rem] bg-stone-50 px-4 py-3 text-right shadow-[-10px_0_14px_-6px_rgba(0,0,0,0.12)]">
+                    Ações
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-100">
                 {orders.map((o) => (
-                  <tr key={o.id} className="align-top hover:bg-stone-50/80">
+                  <tr key={o.id} className="group align-top hover:bg-stone-50/80">
                     <td className="whitespace-nowrap px-4 py-3 tabular-nums text-stone-800">{o.pickupDate}</td>
                     <td className="whitespace-nowrap px-4 py-3 tabular-nums text-stone-700">{o.pickupTime}</td>
                     <td className="max-w-[140px] px-4 py-3 font-medium text-stone-900">
@@ -283,29 +306,35 @@ export function AdminOrders() {
                         <span className="text-stone-400">—</span>
                       ) : (
                         <ul className="space-y-2">
-                          {o.items.map((it, i) => (
-                            <li key={i}>
-                              <span className="font-medium text-stone-900">{it.productNameSnapshot}</span>{' '}
-                              <span className="text-stone-500">{it.variantSnapshot}</span>
-                              <span className="tabular-nums text-stone-700"> × {it.quantity}</span>
+                          {o.items.map((it) => (
+                            <li key={it.id} className="flex flex-wrap items-start gap-2">
+                              <label className="flex cursor-pointer items-start gap-2">
+                                <input
+                                  type="checkbox"
+                                  className="mt-0.5 h-4 w-4 shrink-0 rounded border-stone-300 text-orange-600 focus:ring-orange-500"
+                                  checked={it.ready}
+                                  disabled={o.status === 'PICKED_UP' || pendingItemId === it.id}
+                                  onChange={(e) => void setItemReady(o.id, it.id, e.target.checked)}
+                                />
+                                <span>
+                                  <span className="font-medium text-stone-900">{it.productNameSnapshot}</span>{' '}
+                                  <span className="text-stone-500">{it.variantSnapshot}</span>
+                                  <span className="tabular-nums text-stone-700"> × {it.quantity}</span>
+                                </span>
+                              </label>
                             </li>
                           ))}
                         </ul>
                       )}
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right">
-                      <div className="flex flex-wrap justify-end gap-1">
-                        {o.status === 'RECEIVED' && (
-                          <Button type="button" className="text-xs" onClick={() => void setStatus(o.id, 'READY')}>
-                            Pronto
-                          </Button>
-                        )}
+                    <td className="sticky right-0 z-10 min-w-[8.5rem] bg-white px-3 py-3 text-right shadow-[-10px_0_14px_-6px_rgba(0,0,0,0.1)] group-hover:bg-stone-50/80">
+                      <div className="flex flex-col items-end justify-center gap-1.5 sm:flex-row sm:flex-wrap sm:justify-end">
                         {o.status === 'READY' && (
                           <Button
                             type="button"
                             variant="secondary"
-                            className="text-xs"
-                            onClick={() => void setStatus(o.id, 'PICKED_UP')}
+                            className="!px-3 !py-1.5 text-xs whitespace-nowrap"
+                            onClick={() => void setPickedUp(o.id)}
                           >
                             Levantado
                           </Button>
@@ -343,21 +372,27 @@ export function AdminOrders() {
                   {o.paid ? <span className="text-green-700">Pago</span> : <span className="text-amber-700">Não pago</span>}
                 </p>
                 <p className="mt-1 text-xs text-stone-400">#{o.id.slice(0, 8)}…</p>
-                <ul className="mt-3 space-y-1 border-t border-stone-100 pt-3 text-sm text-stone-600">
-                  {o.items.map((it, i) => (
-                    <li key={i}>
-                      {it.productNameSnapshot} {it.variantSnapshot} × {it.quantity}
+                <ul className="mt-3 space-y-2 border-t border-stone-100 pt-3 text-sm text-stone-600">
+                  {o.items.map((it) => (
+                    <li key={it.id}>
+                      <label className="flex cursor-pointer items-start gap-2">
+                        <input
+                          type="checkbox"
+                          className="mt-1 h-4 w-4 shrink-0 rounded border-stone-300 text-orange-600 focus:ring-orange-500"
+                          checked={it.ready}
+                          disabled={o.status === 'PICKED_UP' || pendingItemId === it.id}
+                          onChange={(e) => void setItemReady(o.id, it.id, e.target.checked)}
+                        />
+                        <span>
+                          {it.productNameSnapshot} {it.variantSnapshot} × {it.quantity}
+                        </span>
+                      </label>
                     </li>
                   ))}
                 </ul>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {o.status === 'RECEIVED' && (
-                    <Button type="button" className="text-sm" onClick={() => void setStatus(o.id, 'READY')}>
-                      Marcar pronto
-                    </Button>
-                  )}
                   {o.status === 'READY' && (
-                    <Button type="button" variant="secondary" className="text-sm" onClick={() => void setStatus(o.id, 'PICKED_UP')}>
+                    <Button type="button" variant="secondary" className="text-sm" onClick={() => void setPickedUp(o.id)}>
                       Levantado
                     </Button>
                   )}

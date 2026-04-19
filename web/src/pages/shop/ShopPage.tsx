@@ -5,7 +5,7 @@ import { publicApi, formatMoney, productImageUrl, type BakeryPublic } from '../.
 import { isValidInternationalPhone, phoneFieldHint } from '../../lib/phone';
 import {
   formatPickupHourLabelPt,
-  pickupHourSlotsBetween,
+  pickupHalfHourSlotsBetween,
 } from '../../lib/timeOfDay';
 import { ShopPublicFooter } from '../../components/ShopPublicFooter';
 import { ShopPublicHeader } from '../../components/ShopPublicHeader';
@@ -19,6 +19,7 @@ type ShopDayRow = {
   id: string;
   pickupDate: string;
   orderDeadline: string;
+  ordersOpenAt: string | null;
   pickupTimeMin: string;
   pickupTimeMax: string;
   canOrder: boolean;
@@ -265,7 +266,7 @@ function CheckoutModal({
                       disabled={!d.canOrder || paying}
                       onClick={() => {
                         setPickupDate(d.pickupDate);
-                        const slots = pickupHourSlotsBetween(d.pickupTimeMin, d.pickupTimeMax);
+                        const slots = pickupHalfHourSlotsBetween(d.pickupTimeMin, d.pickupTimeMax);
                         setPickupTime(slots[0] ?? '');
                       }}
                       className={`rounded-xl border px-3 py-2 text-sm ${
@@ -284,6 +285,12 @@ function CheckoutModal({
                   <>
                     <div className="mt-3">
                       <Label>Hora de levantamento</Label>
+                      {selectedDay.ordersOpenAt && new Date(selectedDay.ordersOpenAt) > new Date() && (
+                        <p className="mb-2 text-xs text-amber-800">
+                          Encomendas para este dia abrem a{' '}
+                          {new Date(selectedDay.ordersOpenAt).toLocaleString('pt-PT')}.
+                        </p>
+                      )}
                       {pickupHourSlots.length === 0 ? (
                         <p className="mt-1 text-sm text-amber-800" role="alert">
                           Não há horas disponíveis para este período. Contacta a padaria.
@@ -444,7 +451,7 @@ export function ShopPage() {
         const first = d.find((x) => x.canOrder);
         if (first) {
           setPickupDate(first.pickupDate);
-          const slots = pickupHourSlotsBetween(first.pickupTimeMin, first.pickupTimeMax);
+          const slots = pickupHalfHourSlotsBetween(first.pickupTimeMin, first.pickupTimeMax);
           setPickupTime(slots[0] ?? '');
         } else {
           setPickupDate('');
@@ -507,7 +514,7 @@ export function ShopPage() {
       setPickupTime('');
       return;
     }
-    const slots = pickupHourSlotsBetween(d.pickupTimeMin, d.pickupTimeMax);
+    const slots = pickupHalfHourSlotsBetween(d.pickupTimeMin, d.pickupTimeMax);
     if (slots.length === 0) {
       setPickupTime('');
       return;
@@ -596,7 +603,7 @@ export function ShopPage() {
   const pickupHourSlots = useMemo(
     () =>
       selectedDay
-        ? pickupHourSlotsBetween(selectedDay.pickupTimeMin, selectedDay.pickupTimeMax)
+        ? pickupHalfHourSlotsBetween(selectedDay.pickupTimeMin, selectedDay.pickupTimeMax)
         : [],
     [selectedDay?.pickupTimeMin, selectedDay?.pickupTimeMax]
   );

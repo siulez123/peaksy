@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { superApi, type SuperBakery } from '../../api';
 import { useAuth } from '../../context/AuthContext';
-import { Button, Card, Input, Label } from '../../components/ui';
+import { Button, Card, Input, Label, SheetDialog } from '../../components/ui';
 
 type EditForm = {
   name: string;
@@ -44,6 +44,8 @@ export function SuperBakeries() {
     phone: '',
   });
   const [err, setErr] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<SuperBakery | null>(null);
   const [editForm, setEditForm] = useState<EditForm | null>(null);
   const [saving, setSaving] = useState(false);
@@ -118,6 +120,8 @@ export function SuperBakeries() {
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!token) return;
+    setCreating(true);
+    setErr(null);
     try {
       await superApi.bakeries.create(token, {
         name: form.name.trim(),
@@ -135,9 +139,12 @@ export function SuperBakeries() {
         locality: '',
         phone: '',
       });
+      setCreateOpen(false);
       await load();
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Erro');
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -163,7 +170,26 @@ export function SuperBakeries() {
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-semibold text-stone-900">Padarias</h1>
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-2xl font-semibold text-stone-900">Padarias</h1>
+        <Button
+          type="button"
+          onClick={() => {
+            setErr(null);
+            setForm({
+              name: '',
+              slug: '',
+              addressLine: '',
+              postalCode: '',
+              locality: '',
+              phone: '',
+            });
+            setCreateOpen(true);
+          }}
+        >
+          Adicionar padaria
+        </Button>
+      </div>
       {err && <p className="mb-4 text-sm text-red-600">{err}</p>}
       <div className="space-y-3">
         {items.map((b) => (
@@ -192,8 +218,15 @@ export function SuperBakeries() {
           </Card>
         ))}
       </div>
-      <Card className="mt-8">
-        <h2 className="mb-4 font-semibold text-stone-900">Nova padaria</h2>
+
+      <SheetDialog
+        open={createOpen}
+        onClose={() => !creating && setCreateOpen(false)}
+        title="Nova padaria"
+        titleId="super-create-bakery-title"
+        maxWidthClassName="max-w-lg"
+        closeDisabled={creating}
+      >
         <form onSubmit={create} className="grid gap-3 sm:grid-cols-2">
           <div className="sm:col-span-2">
             <Label>Nome</Label>
@@ -247,11 +280,16 @@ export function SuperBakeries() {
               required
             />
           </div>
-          <div className="sm:col-span-2">
-            <Button type="submit">Criar</Button>
+          <div className="flex flex-wrap gap-2 sm:col-span-2">
+            <Button type="submit" disabled={creating}>
+              {creating ? 'A criar…' : 'Criar padaria'}
+            </Button>
+            <Button type="button" variant="secondary" disabled={creating} onClick={() => setCreateOpen(false)}>
+              Cancelar
+            </Button>
           </div>
         </form>
-      </Card>
+      </SheetDialog>
 
       {editing && editForm && (
         <div

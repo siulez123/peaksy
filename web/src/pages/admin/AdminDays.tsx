@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
+import { Plus, Trash2 } from 'lucide-react';
 import { adminApi } from '../../api';
 import { useAuth } from '../../context/AuthContext';
-import { Button, Card, Input, Label } from '../../components/ui';
+import { Button, Card, Input, Label, SheetDialog } from '../../components/ui';
 import { useResolvedTenantSlug } from '../../lib/tenantHost';
-import { isValidHhRoundHour, normalizeTimeToHourSlot, parseTimeToMinutes } from '../../lib/timeOfDay';
+import { isValidHhHalfHour, normalizeTimeToHalfHourSlot, parseTimeToMinutes } from '../../lib/timeOfDay';
 
 /** Amanhã (data local do browser) em YYYY-MM-DD — alinhado com validação no servidor. */
 function tomorrowLocalYmd(): string {
@@ -22,28 +23,30 @@ function toDatetimeLocalValue(iso: string): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+type DateRuleRow = { pickupDate: string; orderDeadline: string };
+
 type DayRow = {
   id: string;
   pickupDate: string;
   pickupEndDate: string;
-  orderDeadline: string;
+  ordersOpenAt: string | null;
   pickupTimeMin: string;
   pickupTimeMax: string;
   active: boolean;
   dayCapTotal: number | null;
   _count: { orders: number };
+  pickupDateRules: Array<{ id: string; pickupDate: string; orderDeadline: string }>;
   productCaps: Array<{ id: string; cap: number; productId: string; product: { name: string; variant: string } }>;
 };
 
 type CapRow = { productId: string; cap: string };
 
 const emptyForm = () => ({
-  pickupDate: '',
-  pickupEndDate: '',
-  orderDeadline: '',
+  ordersOpenAt: '',
   pickupTimeMin: '08:00',
   pickupTimeMax: '20:00',
   dayCapTotal: '',
+  dateRules: [{ pickupDate: '', orderDeadline: '' }] as DateRuleRow[],
 });
 
 export function AdminDays() {
@@ -55,6 +58,7 @@ export function AdminDays() {
   const [err, setErr] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [dayModalOpen, setDayModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [capRows, setCapRows] = useState<CapRow[]>([]);
@@ -87,14 +91,24 @@ export function AdminDays() {
     return () => window.clearTimeout(t);
   }, [successMsg]);
 
-  const resetCreateForm = () => {
+  const resetFormFields = () => {
     setEditingId(null);
     setForm(emptyForm());
     setCapRows([]);
-    setSuccessMsg(null);
   };
 
-  /** Lista de caps ou `null` se a validação falhar (linhas incompletas ou produto repetido). */
+  const closeDayModal = () => {
+    setDayModalOpen(false);
+    resetFormFields();
+  };
+
+  const openCreateModal = () => {
+    setErr(null);
+    setSuccessMsg(null);
+    resetFormFields();
+    setDayModalOpen(true);
+  };
+
   const buildProductCaps = (): Array<{ productId: string; cap: number }> | null => {
     for (const r of capRows) {
       const pid = r.productId.trim();
@@ -123,44 +137,50 @@ export function AdminDays() {
     return caps;
   };
 
-  const validatePeriod = (): boolean => {
-    const deadline = new Date(form.orderDeadline);
-    if (Number.isNaN(deadline.getTime())) {
-      setErr('Data limite inválida');
-      return false;
-    }
-    const minPickup = tomorrowLocalYmd();
-    if (form.pickupDate < minPickup) {
-      setErr('A data de levantamento tem de ser no futuro (mínimo: amanhã).');
-      return false;
-    }
-    const dlY = deadline.getFullYear();
-    const dlM = String(deadline.getMonth() + 1).padStart(2, '0');
-    const dlD = String(deadline.getDate()).padStart(2, '0');
-    const deadlineDayStr = `${dlY}-${dlM}-${dlD}`;
-    if (deadlineDayStr < form.pickupDate) {
-      setErr('O limite de encomenda tem de ser no mesmo dia ou depois do dia de levantamento.');
-      return false;
-    }
-    const endStr = form.pickupEndDate.trim() || form.pickupDate;
-    if (endStr < form.pickupDate) {
-      setErr('A data de fim de levantamento não pode ser anterior à data de início.');
-      return false;
-    }
+  const validateForm = (isCreate: boolean): boolean => {
     const tMin = parseTimeToMinutes(form.pickupTimeMin);
     const tMax = parseTimeToMinutes(form.pickupTimeMax);
     if (tMin === null || tMax === null) {
       setErr('Indica horas de levantamento válidas.');
       return false;
     }
-    if (!isValidHhRoundHour(form.pickupTimeMin) || !isValidHhRoundHour(form.pickupTimeMax)) {
-      setErr('As horas têm de ser horas cheias (ex.: 08:00, 14:00), sem minutos intermédios.');
+    if (!isValidHhHalfHour(form.pickupTimeMin) || !isValidHhHalfHour(form.pickupTimeMax)) {
+      setErr('As horas têm de ser em horas cheias ou meias (ex.: 08:00, 08:30).');
       return false;
     }
     if (tMin > tMax) {
       setErr('A primeira hora de levantamento tem de ser anterior ou igual à última.');
       return false;
     }
+
+    const rules = form.dateRules.filter((r) => r.pickupDate.trim() || r.orderDeadline.trim());
+    if (rules.length === 0) {
+      setErr('Indica pelo menos uma data de levantamento com limite de encomenda.');
+      return false;
+    }
+    for (const r of rules) {
+      if (!r.pickupDate.trim() || !r.orderDeadline.trim()) {
+        setErr('Preenche a data e o limite de encomenda em cada linha.');
+        return false;
+      }
+      const dl = new Date(r.orderDeadline);
+      if (Number.isNaN(dl.getTime())) {
+        setErr('Data/hora de limite inválida.');
+        return false;
+      }
+    }
+    const dates = rules.map((r) => r.pickupDate.trim());
+    if (new Set(dates).size !== dates.length) {
+      setErr('Não repitas a mesma data de levantamento.');
+      return false;
+    }
+
+    const minPickup = [...dates].sort()[0];
+    if (isCreate && minPickup < tomorrowLocalYmd()) {
+      setErr('A data de levantamento mais cedo tem de ser no futuro (mínimo: amanhã).');
+      return false;
+    }
+
     return true;
   };
 
@@ -169,40 +189,46 @@ export function AdminDays() {
     if (!token) return;
     setErr(null);
     setSuccessMsg(null);
-    if (!validatePeriod()) return;
+    const isCreate = !editingId;
+    if (!validateForm(isCreate)) return;
     const caps = buildProductCaps();
     if (caps === null) return;
-    const deadline = new Date(form.orderDeadline);
+
+    const pickupDates = form.dateRules
+      .filter((r) => r.pickupDate.trim() && r.orderDeadline.trim())
+      .map((r) => ({
+        pickupDate: r.pickupDate.trim(),
+        orderDeadline: new Date(r.orderDeadline).toISOString(),
+      }));
 
     setSaving(true);
     try {
       if (editingId) {
         const body: Record<string, unknown> = {
-          pickupDate: form.pickupDate,
-          orderDeadline: deadline.toISOString(),
+          pickupDates,
           pickupTimeMin: form.pickupTimeMin,
           pickupTimeMax: form.pickupTimeMax,
           productCaps: caps,
         };
-        if (form.pickupEndDate.trim()) body.pickupEndDate = form.pickupEndDate.trim();
-        else body.pickupEndDate = form.pickupDate;
-        body.dayCapTotal = form.dayCapTotal ? parseInt(form.dayCapTotal, 10) : null;
+        body.ordersOpenAt = form.ordersOpenAt.trim() ? new Date(form.ordersOpenAt).toISOString() : null;
+        body.dayCapTotal = form.dayCapTotal.trim() ? parseInt(form.dayCapTotal, 10) : null;
         await adminApi.days.patch(token, slug, editingId, body);
-        resetCreateForm();
+        setDayModalOpen(false);
+        resetFormFields();
         setSuccessMsg('Alterações guardadas com sucesso.');
       } else {
         const body: Record<string, unknown> = {
-          pickupDate: form.pickupDate,
-          orderDeadline: deadline.toISOString(),
+          pickupDates,
           pickupTimeMin: form.pickupTimeMin,
           pickupTimeMax: form.pickupTimeMax,
           active: true,
           productCaps: caps,
         };
-        if (form.pickupEndDate.trim()) body.pickupEndDate = form.pickupEndDate.trim();
-        if (form.dayCapTotal) body.dayCapTotal = parseInt(form.dayCapTotal, 10);
+        body.ordersOpenAt = form.ordersOpenAt.trim() ? new Date(form.ordersOpenAt).toISOString() : null;
+        if (form.dayCapTotal.trim()) body.dayCapTotal = parseInt(form.dayCapTotal, 10);
         await adminApi.days.create(token, slug, body);
-        resetCreateForm();
+        setDayModalOpen(false);
+        resetFormFields();
         setSuccessMsg('Período criado com sucesso.');
       }
       await load();
@@ -217,16 +243,22 @@ export function AdminDays() {
   const startEdit = (d: DayRow) => {
     setEditingId(d.id);
     setForm({
-      pickupDate: d.pickupDate,
-      pickupEndDate: d.pickupEndDate !== d.pickupDate ? d.pickupEndDate : '',
-      orderDeadline: toDatetimeLocalValue(d.orderDeadline),
-      pickupTimeMin: normalizeTimeToHourSlot(d.pickupTimeMin) || d.pickupTimeMin,
-      pickupTimeMax: normalizeTimeToHourSlot(d.pickupTimeMax) || d.pickupTimeMax,
+      ordersOpenAt: d.ordersOpenAt ? toDatetimeLocalValue(d.ordersOpenAt) : '',
+      pickupTimeMin: normalizeTimeToHalfHourSlot(d.pickupTimeMin) || d.pickupTimeMin,
+      pickupTimeMax: normalizeTimeToHalfHourSlot(d.pickupTimeMax) || d.pickupTimeMax,
       dayCapTotal: d.dayCapTotal != null ? String(d.dayCapTotal) : '',
+      dateRules:
+        d.pickupDateRules.length > 0
+          ? d.pickupDateRules.map((r) => ({
+              pickupDate: r.pickupDate,
+              orderDeadline: toDatetimeLocalValue(r.orderDeadline),
+            }))
+          : [{ pickupDate: '', orderDeadline: '' }],
     });
     setCapRows(d.productCaps.map((c) => ({ productId: c.productId, cap: String(c.cap) })));
     setErr(null);
     setSuccessMsg(null);
+    setDayModalOpen(true);
   };
 
   const delDay = async (id: string) => {
@@ -235,7 +267,7 @@ export function AdminDays() {
     setSuccessMsg(null);
     try {
       await adminApi.days.remove(token, slug, id);
-      if (editingId === id) resetCreateForm();
+      if (editingId === id) closeDayModal();
       setSuccessMsg('Período apagado.');
       await load();
     } catch (e) {
@@ -244,12 +276,26 @@ export function AdminDays() {
     }
   };
 
+  const addDateRule = () =>
+    setForm((f) => ({ ...f, dateRules: [...f.dateRules, { pickupDate: '', orderDeadline: '' }] }));
+  const removeDateRule = (i: number) =>
+    setForm((f) => ({
+      ...f,
+      dateRules: f.dateRules.length > 1 ? f.dateRules.filter((_, j) => j !== i) : f.dateRules,
+    }));
+
   const addCapRow = () => setCapRows((rows) => [...rows, { productId: '', cap: '' }]);
   const removeCapRow = (i: number) => setCapRows((rows) => rows.filter((_, j) => j !== i));
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-semibold text-stone-900">Dias de levantamento</h1>
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-2xl font-semibold text-stone-900">Dias de levantamento</h1>
+        <Button type="button" onClick={openCreateModal}>
+          <Plus className="h-4 w-4" aria-hidden />
+          Adicionar período
+        </Button>
+      </div>
       {successMsg && (
         <p className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
           {successMsg}
@@ -271,14 +317,28 @@ export function AdminDays() {
                       ? `${d.pickupDate} → ${d.pickupEndDate}`
                       : d.pickupDate}
                   </p>
-                  <p className="text-sm text-stone-500">
-                    Limite: {new Date(d.orderDeadline).toLocaleString('pt-PT')}
-                  </p>
-                  <p className="text-sm text-stone-500">
+                  {d.ordersOpenAt && (
+                    <p className="text-sm text-stone-600">
+                      Encomendas abertas a partir de:{' '}
+                      {new Date(d.ordersOpenAt).toLocaleString('pt-PT')}
+                    </p>
+                  )}
+                  <ul className="mt-2 space-y-1 text-sm text-stone-600">
+                    {d.pickupDateRules.map((r) => (
+                      <li key={r.id}>
+                        <span className="font-medium text-stone-800">{r.pickupDate}</span>
+                        {' · limite '}
+                        {new Date(r.orderDeadline).toLocaleString('pt-PT')}
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="mt-2 text-sm text-stone-500">
                     Levantamento: {d.pickupTimeMin} – {d.pickupTimeMax}
                   </p>
                   {d.dayCapTotal != null && (
-                    <p className="text-xs text-stone-500">Cap. total período: {d.dayCapTotal}</p>
+                    <p className="text-xs text-stone-500">
+                      Máx. encomendas pagas no período: {d.dayCapTotal}
+                    </p>
                   )}
                   {d._count.orders > 0 && (
                     <p className="text-xs text-amber-800">{d._count.orders} pedido(s) — não pode apagar</p>
@@ -299,7 +359,7 @@ export function AdminDays() {
                 <ul className="mt-3 text-sm text-stone-600">
                   {d.productCaps.map((c) => (
                     <li key={c.id}>
-                      {c.product.name} {c.product.variant}: máx. {c.cap}
+                      {c.product.name} {c.product.variant}: máx. {c.cap} (por dia de levantamento)
                     </li>
                   ))}
                 </ul>
@@ -309,93 +369,146 @@ export function AdminDays() {
         </div>
       )}
 
-      <Card className="mt-8">
-        <h2 className="mb-4 font-semibold text-stone-900">
-          {editingId ? 'Editar período de levantamento' : 'Novo período de levantamento'}
-        </h2>
+      <SheetDialog
+        open={dayModalOpen}
+        onClose={() => !saving && closeDayModal()}
+        title={editingId ? 'Editar período de levantamento' : 'Novo período de levantamento'}
+        titleId="admin-day-modal-title"
+        maxWidthClassName="max-w-2xl"
+        closeDisabled={saving}
+      >
         {editingId && (
           <p className="mb-4 text-sm text-stone-600">
-            Ajusta datas, limite de encomenda e limites por produto. Guarda para aplicar.
+            Ajusta datas, limites por dia, horários e limites por produto. Guarda para aplicar.
           </p>
         )}
         <form onSubmit={submit} className="space-y-6">
+          <div>
+            <Label>Encomendas abertas a partir de (opcional)</Label>
+            <Input
+              type="datetime-local"
+              value={form.ordersOpenAt}
+              onChange={(e) => setForm((f) => ({ ...f, ordersOpenAt: e.target.value }))}
+            />
+            <p className="mt-1 text-xs text-stone-500">
+              Se definires, os clientes só podem encomendar a partir desta data/hora. O limite por dia de
+              levantamento aplica-se na mesma.
+            </p>
+          </div>
+
+          <div>
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <Label>Datas de levantamento e limite de encomenda por dia</Label>
+              <Button type="button" variant="secondary" className="!py-1 text-xs" onClick={addDateRule}>
+                + Dia
+              </Button>
+            </div>
+            <p className="mb-3 text-xs text-stone-500">
+              Para cada dia em que se levantam encomendas, define até quando podem ser feitas (normalmente o dia
+              anterior, ex. levantamento 24/12 → limite 23/12 às 17h).
+            </p>
+            <div className="space-y-3">
+              {form.dateRules.map((row, i) => (
+                <div
+                  key={i}
+                  className="flex flex-col gap-2 rounded-xl border border-stone-100 bg-stone-50/50 p-3 sm:flex-row sm:items-end"
+                >
+                  <div className="min-w-0 flex-1">
+                    <Label>Data de levantamento</Label>
+                    <Input
+                      type="date"
+                      min={editingId ? undefined : tomorrowLocalYmd()}
+                      value={row.pickupDate}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          dateRules: f.dateRules.map((r, j) =>
+                            j === i ? { ...r, pickupDate: e.target.value } : r
+                          ),
+                        }))
+                      }
+                      required
+                    />
+                  </div>
+                  <div className="min-w-0 flex-[1.2]">
+                    <Label>Limite de encomenda (data e hora local)</Label>
+                    <Input
+                      type="datetime-local"
+                      value={row.orderDeadline}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          dateRules: f.dateRules.map((r, j) =>
+                            j === i ? { ...r, orderDeadline: e.target.value } : r
+                          ),
+                        }))
+                      }
+                      required
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="shrink-0"
+                    disabled={form.dateRules.length <= 1}
+                    onClick={() => removeDateRule(i)}
+                    aria-label="Remover dia"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </div>
+
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
-              <Label>Primeiro dia de levantamento</Label>
+              <Label>Primeira hora de levantamento</Label>
               <Input
-                type="date"
-                min={tomorrowLocalYmd()}
-                value={form.pickupDate}
-                onChange={(e) => setForm((f) => ({ ...f, pickupDate: e.target.value }))}
+                type="time"
+                step={1800}
+                value={form.pickupTimeMin}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    pickupTimeMin: normalizeTimeToHalfHourSlot(e.target.value),
+                  }))
+                }
                 required
               />
+              <p className="mt-1 text-xs text-stone-500">Horas cheias ou meias (ex.: 07:30, 08:00).</p>
             </div>
             <div>
-              <Label>Último dia de levantamento (opcional)</Label>
+              <Label>Última hora de levantamento (máx.)</Label>
               <Input
-                type="date"
-                min={form.pickupDate || tomorrowLocalYmd()}
-                value={form.pickupEndDate}
-                onChange={(e) => setForm((f) => ({ ...f, pickupEndDate: e.target.value }))}
-                placeholder="Igual ao primeiro se vazio"
+                type="time"
+                step={1800}
+                value={form.pickupTimeMax}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    pickupTimeMax: normalizeTimeToHalfHourSlot(e.target.value),
+                  }))
+                }
+                required
               />
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div>
-                <Label>Primeira hora de levantamento</Label>
-                <Input
-                  type="time"
-                  step={3600}
-                  value={form.pickupTimeMin}
-                  onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      pickupTimeMin: normalizeTimeToHourSlot(e.target.value),
-                    }))
-                  }
-                  required
-                />
-                <p className="mt-1 text-xs text-stone-500">Apenas horas cheias (08:00, 09:00…).</p>
-              </div>
-              <div>
-                <Label>Última hora de levantamento (máx.)</Label>
-                <Input
-                  type="time"
-                  step={3600}
-                  value={form.pickupTimeMax}
-                  onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      pickupTimeMax: normalizeTimeToHourSlot(e.target.value),
-                    }))
-                  }
-                  required
-                />
-                <p className="mt-1 text-xs text-stone-500">Apenas horas cheias.</p>
-              </div>
             </div>
             <div className="sm:col-span-2">
-              <Label>Limite encomenda (data e hora local)</Label>
+              <Label>Máx. encomendas pagas no período (opcional)</Label>
               <Input
-                type="datetime-local"
-                value={form.orderDeadline}
-                onChange={(e) => setForm((f) => ({ ...f, orderDeadline: e.target.value }))}
-                required
-              />
-            </div>
-            <div>
-              <Label>Cap. total período (opcional)</Label>
-              <Input
-                placeholder="ex. 500"
+                placeholder="ex. 200"
                 value={form.dayCapTotal}
                 onChange={(e) => setForm((f) => ({ ...f, dayCapTotal: e.target.value }))}
               />
+              <p className="mt-1 text-xs text-stone-500">
+                Limite global de encomendas pagas para este período (todas as datas de levantamento).
+              </p>
             </div>
           </div>
 
           <div>
             <div className="mb-2 flex items-center justify-between gap-2">
-              <Label>Limite por produto (opcional)</Label>
+              <Label>Limite por produto por dia de levantamento (opcional)</Label>
               <Button type="button" variant="secondary" className="!py-1 text-xs" onClick={addCapRow}>
                 + Linha
               </Button>
@@ -448,14 +561,12 @@ export function AdminDays() {
             <Button type="submit" disabled={saving}>
               {saving ? 'A guardar…' : editingId ? 'Guardar alterações' : 'Criar período'}
             </Button>
-            {editingId ? (
-              <Button type="button" variant="secondary" disabled={saving} onClick={() => resetCreateForm()}>
-                Cancelar edição
-              </Button>
-            ) : null}
+            <Button type="button" variant="secondary" disabled={saving} onClick={() => closeDayModal()}>
+              Cancelar
+            </Button>
           </div>
         </form>
-      </Card>
+      </SheetDialog>
     </div>
   );
 }

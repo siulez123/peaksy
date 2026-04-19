@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { superApi, type SuperBakery, type SuperUser, type UserRole } from '../../api';
 import { useAuth } from '../../context/AuthContext';
-import { Button, Card, Input, Label } from '../../components/ui';
+import { Button, Card, Input, Label, SheetDialog } from '../../components/ui';
 
 type EditForm = {
   email: string;
@@ -31,6 +31,8 @@ export function SuperUsers() {
     bakeryId: '',
   });
   const [err, setErr] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<SuperUser | null>(null);
   const [editForm, setEditForm] = useState<EditForm | null>(null);
   const [saving, setSaving] = useState(false);
@@ -112,6 +114,8 @@ export function SuperUsers() {
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!token) return;
+    setCreating(true);
+    setErr(null);
     try {
       await superApi.users.create(token, {
         email: form.email.trim(),
@@ -120,9 +124,12 @@ export function SuperUsers() {
         bakeryId: form.role === 'BAKERY_ADMIN' ? form.bakeryId : undefined,
       });
       setForm({ email: '', password: '', role: 'BAKERY_ADMIN', bakeryId: '' });
+      setCreateOpen(false);
       await load();
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Erro');
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -138,7 +145,19 @@ export function SuperUsers() {
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-semibold text-stone-900">Utilizadores</h1>
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-2xl font-semibold text-stone-900">Utilizadores</h1>
+        <Button
+          type="button"
+          onClick={() => {
+            setErr(null);
+            setForm({ email: '', password: '', role: 'BAKERY_ADMIN', bakeryId: '' });
+            setCreateOpen(true);
+          }}
+        >
+          Adicionar utilizador
+        </Button>
+      </div>
       {err && <p className="mb-4 text-sm text-red-600">{err}</p>}
       <div className="space-y-3">
         {items.map((u) => (
@@ -166,8 +185,15 @@ export function SuperUsers() {
           </Card>
         ))}
       </div>
-      <Card className="mt-8">
-        <h2 className="mb-4 font-semibold text-stone-900">Novo utilizador</h2>
+
+      <SheetDialog
+        open={createOpen}
+        onClose={() => !creating && setCreateOpen(false)}
+        title="Novo utilizador"
+        titleId="super-create-user-title"
+        maxWidthClassName="max-w-lg"
+        closeDisabled={creating}
+      >
         <form onSubmit={create} className="grid gap-3 sm:grid-cols-2">
           <div>
             <Label>Email</Label>
@@ -191,7 +217,7 @@ export function SuperUsers() {
           <div>
             <Label>Função</Label>
             <select
-              className="w-full rounded-xl border border-stone-200 px-3 py-2.5 text-sm"
+              className="w-full rounded-xl border border-stone-200 bg-white px-3 py-2.5 text-sm text-stone-900 focus:border-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-200"
               value={form.role}
               onChange={(e) => setForm((f) => ({ ...f, role: e.target.value as UserRole }))}
             >
@@ -203,7 +229,7 @@ export function SuperUsers() {
             <div>
               <Label>Padaria</Label>
               <select
-                className="w-full rounded-xl border border-stone-200 px-3 py-2.5 text-sm"
+                className="w-full rounded-xl border border-stone-200 bg-white px-3 py-2.5 text-sm text-stone-900 focus:border-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-200"
                 value={form.bakeryId}
                 onChange={(e) => setForm((f) => ({ ...f, bakeryId: e.target.value }))}
                 required
@@ -217,11 +243,16 @@ export function SuperUsers() {
               </select>
             </div>
           )}
-          <div className="sm:col-span-2">
-            <Button type="submit">Criar</Button>
+          <div className="flex flex-wrap gap-2 sm:col-span-2">
+            <Button type="submit" disabled={creating}>
+              {creating ? 'A criar…' : 'Criar utilizador'}
+            </Button>
+            <Button type="button" variant="secondary" disabled={creating} onClick={() => setCreateOpen(false)}>
+              Cancelar
+            </Button>
           </div>
         </form>
-      </Card>
+      </SheetDialog>
 
       {editing && editForm && (
         <div

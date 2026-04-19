@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { PrismaClient, OrderStatus } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
@@ -112,10 +113,18 @@ async function main() {
       bakeryId: padariademo.id,
       pickupDate: d1,
       pickupEndDate: d1,
-      orderDeadline: orderDeadlineFar,
+      ordersOpenAt: null,
       pickupTimeMin: '08:00',
       pickupTimeMax: '19:00',
       active: true,
+      pickupDateRules: {
+        create: {
+          id: randomUUID(),
+          bakeryId: padariademo.id,
+          pickupDate: d1,
+          orderDeadline: orderDeadlineFar,
+        },
+      },
     },
   });
 
@@ -124,10 +133,18 @@ async function main() {
       bakeryId: padariademo.id,
       pickupDate: d2,
       pickupEndDate: d2,
-      orderDeadline: orderDeadlineFar,
+      ordersOpenAt: null,
       pickupTimeMin: '09:00',
       pickupTimeMax: '18:00',
       active: true,
+      pickupDateRules: {
+        create: {
+          id: randomUUID(),
+          bakeryId: padariademo.id,
+          pickupDate: d2,
+          orderDeadline: orderDeadlineFar,
+        },
+      },
     },
   });
 
@@ -263,10 +280,18 @@ async function main() {
       bakeryId: flordeesmoriz.id,
       pickupDate: d1,
       pickupEndDate: d1,
-      orderDeadline: orderDeadlineFar,
+      ordersOpenAt: null,
       pickupTimeMin: '07:30',
       pickupTimeMax: '20:00',
       active: true,
+      pickupDateRules: {
+        create: {
+          id: randomUUID(),
+          bakeryId: flordeesmoriz.id,
+          pickupDate: d1,
+          orderDeadline: orderDeadlineFar,
+        },
+      },
     },
   });
 
@@ -275,10 +300,18 @@ async function main() {
       bakeryId: flordeesmoriz.id,
       pickupDate: d2,
       pickupEndDate: d2,
-      orderDeadline: orderDeadlineFar,
+      ordersOpenAt: null,
       pickupTimeMin: '08:00',
       pickupTimeMax: '19:30',
       active: true,
+      pickupDateRules: {
+        create: {
+          id: randomUUID(),
+          bakeryId: flordeesmoriz.id,
+          pickupDate: d2,
+          orderDeadline: orderDeadlineFar,
+        },
+      },
     },
   });
 

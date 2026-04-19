@@ -4,12 +4,19 @@ const HH_MM = /^([01]\d|2[0-3]):([0-5]\d)$/;
 /** Hora em ponto (minutos 00), ex.: 08:00, 14:00 */
 const HH_ROUND = /^([01]\d|2[0-3]):00$/;
 
+/** Hora em ponto ou meia (minutos 00 ou 30), ex.: 07:30, 08:00, 19:30 */
+const HH_HALF = /^([01]\d|2[0-3]):(00|30)$/;
+
 export function isValidHhMm(s: string): boolean {
   return HH_MM.test(s.trim());
 }
 
 export function isValidHhRoundHour(s: string): boolean {
   return HH_ROUND.test(s.trim());
+}
+
+export function isValidHhHalfHour(s: string): boolean {
+  return HH_HALF.test(s.trim());
 }
 
 /** Normaliza para HH:00 (vazio se inválido). */

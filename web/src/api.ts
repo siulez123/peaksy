@@ -134,6 +134,7 @@ export const publicApi = {
         id: string;
         pickupDate: string;
         orderDeadline: string;
+        ordersOpenAt: string | null;
         pickupTimeMin: string;
         pickupTimeMax: string;
         canOrder: boolean;
@@ -202,12 +203,13 @@ export const adminApi = {
           id: string;
           pickupDate: string;
           pickupEndDate: string;
-          orderDeadline: string;
+          ordersOpenAt: string | null;
           pickupTimeMin: string;
           pickupTimeMax: string;
           active: boolean;
           dayCapTotal: number | null;
           _count: { orders: number };
+          pickupDateRules: Array<{ id: string; pickupDate: string; orderDeadline: string }>;
           productCaps: Array<{ id: string; cap: number; productId: string; product: { name: string; variant: string } }>;
         }>
       >(`/admin/available-days${q}`, { token, tenantSlug: slug });

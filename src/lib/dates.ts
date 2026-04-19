@@ -48,17 +48,19 @@ export function isFuturePickupCalendarDate(dateStr: string, timezone: string): b
   return pickup > today;
 }
 
-/** Dia civil do limite de encomenda (no fuso da padaria) tem de ser o mesmo ou posterior ao dia de levantamento. */
-export function isOrderDeadlineOnOrAfterPickupDay(
+/**
+ * Limite de encomenda tem de ser **antes** do início do dia civil de levantamento
+ * (ex.: levantamento a 24/12 → encomendas até 23/12 17h).
+ */
+export function isOrderDeadlineBeforePickupCalendarDay(
   orderDeadline: Date,
   pickupDateStr: string,
   timezone: string
 ): boolean {
-  const pickupDay = DateTime.fromISO(pickupDateStr, { zone: timezone }).startOf('day');
+  const pickupStart = DateTime.fromISO(pickupDateStr, { zone: timezone }).startOf('day');
   const deadline = DateTime.fromJSDate(orderDeadline).setZone(timezone);
-  if (!pickupDay.isValid || !deadline.isValid) return false;
-  const deadlineDay = deadline.startOf('day');
-  return deadlineDay >= pickupDay;
+  if (!pickupStart.isValid || !deadline.isValid) return false;
+  return deadline < pickupStart;
 }
 
 /** Intervalos [aStart,aEnd] e [bStart,bEnd] em YYYY-MM-DD sobrepostos. */

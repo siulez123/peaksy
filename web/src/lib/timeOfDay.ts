@@ -1,5 +1,6 @@
 const HH_MM = /^([01]\d|2[0-3]):([0-5]\d)$/;
 const HH_ROUND = /^([01]\d|2[0-3]):00$/;
+const HH_HALF = /^([01]\d|2[0-3]):(00|30)$/;
 
 export function isValidHhMm(s: string): boolean {
   return HH_MM.test(s.trim());
@@ -10,13 +11,25 @@ export function isValidHhRoundHour(s: string): boolean {
   return HH_ROUND.test(s.trim());
 }
 
-/** Normaliza o valor de um `<input type="time">` para HH:00 (vazio se inválido). */
-export function normalizeTimeToHourSlot(raw: string): string {
+export function isValidHhHalfHour(s: string): boolean {
+  return HH_HALF.test(s.trim());
+}
+
+/** Normaliza para HH:00 ou HH:30 (a partir de `<input type="time" step="1800">`). */
+export function normalizeTimeToHalfHourSlot(raw: string): string {
   const t = raw.trim();
   if (!t) return '';
-  const h = parseInt(t.split(':')[0] ?? '', 10);
-  if (Number.isNaN(h) || h < 0 || h > 23) return '';
-  return `${String(h).padStart(2, '0')}:00`;
+  const m = t.match(HH_MM);
+  if (!m) return '';
+  const h = parseInt(m[1], 10);
+  const min = parseInt(m[2], 10);
+  if (min !== 0 && min !== 30) return '';
+  return `${String(h).padStart(2, '0')}:${min === 0 ? '00' : '30'}`;
+}
+
+/** @deprecated Prefer normalizeTimeToHalfHourSlot */
+export function normalizeTimeToHourSlot(raw: string): string {
+  return normalizeTimeToHalfHourSlot(raw);
 }
 
 export function parseTimeToMinutes(t: string): number | null {
@@ -34,21 +47,26 @@ export function isTimeWithinWindow(time: string, min: string, max: string): bool
   return p >= a || p <= b;
 }
 
-/** Valores `HH:00` entre min e max (inclusive), de hora em hora. */
-export function pickupHourSlotsBetween(minHhMm: string, maxHhMm: string): string[] {
+/** Slots HH:00 ou HH:30 entre min e max (inclusive), de 30 em 30 minutos. */
+export function pickupHalfHourSlotsBetween(minHhMm: string, maxHhMm: string): string[] {
   const a = parseTimeToMinutes(minHhMm);
   const b = parseTimeToMinutes(maxHhMm);
   if (a === null || b === null || a > b) return [];
   const slots: string[] = [];
-  for (let m = a; m <= b; m += 60) {
+  for (let m = a; m <= b; m += 30) {
     const h = Math.floor(m / 60);
-    slots.push(`${String(h).padStart(2, '0')}:00`);
+    const mm = m % 60;
+    slots.push(`${String(h).padStart(2, '0')}:${mm === 0 ? '00' : '30'}`);
   }
   return slots;
 }
 
-/** Apresentação só com a hora, ex. `13h` (valor interno continua `HH:00`). */
+/** Apresentação legível, ex. `13h`, `13h30`. */
 export function formatPickupHourLabelPt(hhMm: string): string {
-  const h = parseInt(hhMm.trim().slice(0, 2), 10);
-  return Number.isFinite(h) ? `${h}h` : hhMm.trim();
+  const t = hhMm.trim();
+  const mins = t.slice(3, 5);
+  const h = parseInt(t.slice(0, 2), 10);
+  if (!Number.isFinite(h)) return t;
+  if (mins === '30') return `${h}h30`;
+  return `${h}h`;
 }

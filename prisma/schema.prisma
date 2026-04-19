@@ -43,7 +43,8 @@ model Bakery {
   products         Product[]
   availableDays    AvailableDay[]
   orders           Order[]
-  productCaps      AvailableDayProductCap[]
+  productCaps               AvailableDayProductCap[]
+  availableDayPickupDates   AvailableDayPickupDate[]
 
   @@map("bakeries")
 }
@@ -81,23 +82,44 @@ model Product {
 model AvailableDay {
   id            String   @id @default(uuid())
   bakeryId      String
+  /// Primeiro dia de levantamento do período (cache = mínimo das regras)
   pickupDate    DateTime @db.Date
+  /// Último dia de levantamento do período (cache = máximo das regras)
   pickupEndDate DateTime @db.Date
-  orderDeadline DateTime
-  /// Primeira hora de levantamento permitida (HH:00, hora cheia)
+  /// A partir de quando os clientes podem encomendar para este período (opcional = sem restrição extra)
+  ordersOpenAt  DateTime?
+  /// Primeira hora de levantamento permitida (HH:00 ou HH:30)
   pickupTimeMin String   @default("08:00")
-  /// Última hora de levantamento permitida (HH:00, hora cheia)
+  /// Última hora de levantamento permitida (HH:00 ou HH:30)
   pickupTimeMax String   @default("20:00")
   active        Boolean  @default(true)
+  /// Máximo de encomendas pagas no período (todas as datas de levantamento deste registo)
   dayCapTotal   Int?
   createdAt     DateTime @default(now())
 
-  bakery       Bakery                   @relation(fields: [bakeryId], references: [id], onDelete: Cascade)
-  orders       Order[]
-  productCaps  AvailableDayProductCap[]
+  bakery          Bakery                   @relation(fields: [bakeryId], references: [id], onDelete: Cascade)
+  orders          Order[]
+  productCaps     AvailableDayProductCap[]
+  pickupDateRules AvailableDayPickupDate[]
 
   @@index([bakeryId, pickupDate])
   @@map("available_days")
+}
+
+/// Uma data civil de levantamento com o respetivo limite de encomenda (antes do dia de levantamento).
+model AvailableDayPickupDate {
+  id             String   @id @default(uuid())
+  bakeryId       String
+  availableDayId String
+  pickupDate     DateTime @db.Date
+  orderDeadline  DateTime
+
+  bakery       Bakery       @relation(fields: [bakeryId], references: [id], onDelete: Cascade)
+  availableDay AvailableDay @relation(fields: [availableDayId], references: [id], onDelete: Cascade)
+
+  @@unique([availableDayId, pickupDate])
+  @@index([bakeryId, pickupDate])
+  @@map("available_day_pickup_dates")
 }
 
 model AvailableDayProductCap {
@@ -120,7 +142,7 @@ model Order {
   bakeryId       String
   availableDayId String
   pickupDate     DateTime    @db.Date
-  /// Hora de levantamento escolhida (HH:00, hora cheia)
+  /// Hora de levantamento escolhida (HH:00 ou HH:30)
   pickupTime     String
   customerName   String
   customerPhone  String

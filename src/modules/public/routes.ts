@@ -5,12 +5,11 @@ import { ValidationError, NotFoundError, ConflictError } from '../../lib/errors'
 import {
   formatDateForDB,
   getTodayInTimezone,
-  eachCalendarDateInRangeInclusive,
   isDateTodayOrAfter,
 } from '../../lib/dates';
 import { isValidInternationalPhone } from '../../lib/phone';
 import { notifyOrderPaid } from '../../lib/orderNotifications';
-import { isTimeWithinWindow, isValidHhRoundHour } from '../../lib/timeOfDay';
+import { isTimeWithinWindow, isValidHhHalfHour } from '../../lib/timeOfDay';
 
 /** Só instanciar com chave real — `new Stripe('')` rebenta ao carregar o módulo (ex.: Railway sem Stripe). */
 let stripeSingleton: Stripe | null = null;
@@ -54,7 +53,10 @@ const checkoutSchema = z.object({
   pickupTime: z
     .string()
     .min(1)
-    .regex(/^([01]\d|2[0-3]):00$/, 'Hora de levantamento: apenas horas cheias (ex.: 13:00, 14:00).'),
+    .regex(
+      /^([01]\d|2[0-3]):(00|30)$/,
+      'Hora de levantamento: horas cheias ou meias (ex.: 13:00, 13:30).'
+    ),
   items: z
     .array(
       z.object({
@@ -146,6 +148,7 @@ export async function publicRoutes(fastify: FastifyInstance) {
                 id: { type: 'string' },
                 pickupDate: { type: 'string', format: 'date' },
                 orderDeadline: { type: 'string', format: 'date-time' },
+                ordersOpenAt: { type: 'string', format: 'date-time', nullable: true },
                 pickupTimeMin: { type: 'string' },
                 pickupTimeMax: { type: 'string' },
                 canOrder: { type: 'boolean' },
@@ -170,12 +173,16 @@ export async function publicRoutes(fastify: FastifyInstance) {
         orderBy: {
           pickupDate: 'asc',
         },
+        include: {
+          pickupDateRules: { orderBy: { pickupDate: 'asc' } },
+        },
       });
 
       const expanded: Array<{
         id: string;
         pickupDate: string;
         orderDeadline: string;
+        ordersOpenAt: string | null;
         pickupTimeMin: string;
         pickupTimeMax: string;
         canOrder: boolean;
@@ -183,18 +190,16 @@ export async function publicRoutes(fastify: FastifyInstance) {
       }> = [];
 
       for (const row of rows) {
-        const start = formatDateForDB(row.pickupDate);
-        const end = formatDateForDB(row.pickupEndDate);
-        const dates = eachCalendarDateInRangeInclusive(start, end, tenant.timezone);
-        for (const pickupDate of dates) {
+        for (const rule of row.pickupDateRules) {
+          const pickupDate = formatDateForDB(rule.pickupDate);
           if (pickupDate < todayStr) continue;
-          // Encomendas para levantamento "hoje" são válidas enquanto orderDeadline não passou
-          // (antes exigíamos dia de levantamento > hoje, o que bloqueava o próprio dia de levantamento).
-          const canOrder = new Date(row.orderDeadline) > now;
+          const openOk = !row.ordersOpenAt || new Date(row.ordersOpenAt) <= now;
+          const canOrder = openOk && new Date(rule.orderDeadline) > now;
           expanded.push({
             id: row.id,
             pickupDate,
-            orderDeadline: row.orderDeadline.toISOString(),
+            orderDeadline: rule.orderDeadline.toISOString(),
+            ordersOpenAt: row.ordersOpenAt ? row.ordersOpenAt.toISOString() : null,
             pickupTimeMin: row.pickupTimeMin,
             pickupTimeMax: row.pickupTimeMax,
             canOrder,
@@ -254,12 +259,11 @@ export async function publicRoutes(fastify: FastifyInstance) {
             bakeryId: tenant.bakeryId,
             active: true,
           },
+          include: { pickupDateRules: true },
         });
-        const match = windows.find((r) => {
-          const s = formatDateForDB(r.pickupDate);
-          const e = formatDateForDB(r.pickupEndDate);
-          return pickupDate >= s && pickupDate <= e;
-        });
+        const match = windows.find((w) =>
+          w.pickupDateRules.some((r) => formatDateForDB(r.pickupDate) === pickupDate)
+        );
 
         if (!match) {
           return [];
@@ -296,7 +300,7 @@ export async function publicRoutes(fastify: FastifyInstance) {
           required: ['pickupDate', 'pickupTime', 'items', 'customerName', 'customerPhone'],
           properties: {
             pickupDate: { type: 'string', format: 'date' },
-            pickupTime: { type: 'string', description: 'HH:00 (hora cheia)' },
+            pickupTime: { type: 'string', description: 'HH:00 ou HH:30' },
             items: {
               type: 'array',
               items: {
@@ -347,6 +351,7 @@ export async function publicRoutes(fastify: FastifyInstance) {
           active: true,
         },
         include: {
+          pickupDateRules: true,
           productCaps: true,
         },
       });
@@ -361,14 +366,24 @@ export async function publicRoutes(fastify: FastifyInstance) {
         throw new NotFoundError('Available day not found');
       }
 
-      // Check deadline
-      if (new Date(availableDay.orderDeadline) < new Date()) {
+      const pickupRule = availableDay.pickupDateRules.find(
+        (rule) => formatDateForDB(rule.pickupDate) === data.pickupDate
+      );
+      if (!pickupRule) {
+        throw new NotFoundError('Available day not found');
+      }
+
+      if (availableDay.ordersOpenAt && new Date(availableDay.ordersOpenAt) > new Date()) {
+        throw new ValidationError('As encomendas para este período ainda não estão abertas.');
+      }
+
+      if (new Date(pickupRule.orderDeadline) < new Date()) {
         throw new ValidationError('Order deadline has passed');
       }
 
       const pt = data.pickupTime.trim();
-      if (!isValidHhRoundHour(pt)) {
-        throw new ValidationError('Hora de levantamento: apenas horas cheias (ex.: 13:00).');
+      if (!isValidHhHalfHour(pt)) {
+        throw new ValidationError('Hora de levantamento: horas cheias ou meias (ex.: 13:00, 13:30).');
       }
       if (
         !isTimeWithinWindow(pt, availableDay.pickupTimeMin, availableDay.pickupTimeMax)
@@ -412,13 +427,13 @@ export async function publicRoutes(fastify: FastifyInstance) {
           (cap) => cap.productId === product.id
         );
         if (productCap) {
-          // Count paid orders for this product on this day
           const paidOrdersForProduct = await fastify.prisma.orderItem.aggregate({
             where: {
               productId: product.id,
               order: {
                 availableDayId: availableDay.id,
                 paid: true,
+                pickupDate: new Date(`${data.pickupDate}T12:00:00.000Z`),
               },
             },
             _sum: {
@@ -447,22 +462,15 @@ export async function publicRoutes(fastify: FastifyInstance) {
         });
       }
 
-      // Check day cap if exists
       if (availableDay.dayCapTotal) {
-        const paidOrdersTotal = await fastify.prisma.order.aggregate({
+        const paidOrderCount = await fastify.prisma.order.count({
           where: {
             availableDayId: availableDay.id,
             paid: true,
           },
-          _sum: {
-            totalCents: true,
-          },
         });
-
-        const currentTotal = (paidOrdersTotal._sum.totalCents || 0) + totalCents;
-        if (currentTotal > availableDay.dayCapTotal * 100) {
-          // dayCapTotal is in euros, convert to cents
-          throw new ConflictError('Day total cap exceeded');
+        if (paidOrderCount >= availableDay.dayCapTotal) {
+          throw new ConflictError('Limite de encomendas para este período atingido.');
         }
       }
 

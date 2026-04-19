@@ -6,10 +6,9 @@ import { NotFoundError, ValidationError, ForbiddenError, ConflictError } from '.
 import {
   formatDateForDB,
   isFuturePickupCalendarDate,
-  isOrderDeadlineOnOrAfterPickupDay,
-  ymdRangesOverlap,
+  isOrderDeadlineBeforePickupCalendarDay,
 } from '../../lib/dates';
-import { parseTimeToMinutes } from '../../lib/timeOfDay';
+import { isValidHhHalfHour, parseTimeToMinutes } from '../../lib/timeOfDay';
 import {
   ensureProductUploadDir,
   saveProductImageFile,
@@ -62,21 +61,25 @@ const productCapsArraySchema = z
     { message: 'Cada produto só pode aparecer uma vez.' }
   );
 
-/** Horas cheias apenas (HH:00) */
-const pickupHourSchema = z
+/** Horas cheias ou meias (HH:00 ou HH:30) */
+const pickupHalfHourSchema = z
   .string()
-  .regex(/^([01]\d|2[0-3]):00$/, 'Usa horas cheias (ex.: 08:00, 14:00), sem minutos intermédios.');
+  .regex(/^([01]\d|2[0-3]):(00|30)$/, 'Usa horas cheias ou meias (ex.: 08:00, 08:30, 19:30).');
+
+const pickupDateRuleSchema = z.object({
+  pickupDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  orderDeadline: z.string().datetime(),
+});
 
 const availableDayCreateSchema = z
   .object({
-    pickupDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-    pickupEndDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-    orderDeadline: z.string().datetime(),
-    pickupTimeMin: pickupHourSchema,
-    pickupTimeMax: pickupHourSchema,
+    ordersOpenAt: z.string().datetime().nullable().optional(),
+    pickupTimeMin: pickupHalfHourSchema,
+    pickupTimeMax: pickupHalfHourSchema,
     active: z.boolean().optional().default(true),
     dayCapTotal: z.number().int().positive().optional(),
     productCaps: productCapsArraySchema.optional().default([]),
+    pickupDates: z.array(pickupDateRuleSchema).min(1),
   })
   .refine(
     (d) => {
@@ -85,18 +88,21 @@ const availableDayCreateSchema = z
       return a !== null && b !== null && a <= b;
     },
     { message: 'A hora de início de levantamento tem de ser anterior ou igual à hora máxima.' }
+  )
+  .refine(
+    (d) => new Set(d.pickupDates.map((r) => r.pickupDate)).size === d.pickupDates.length,
+    { message: 'Datas de levantamento repetidas.' }
   );
 
 const availableDayUpdateSchema = z
   .object({
-    pickupDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-    pickupEndDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-    orderDeadline: z.string().datetime().optional(),
-    pickupTimeMin: pickupHourSchema.optional(),
-    pickupTimeMax: pickupHourSchema.optional(),
+    ordersOpenAt: z.string().datetime().nullable().optional(),
+    pickupTimeMin: pickupHalfHourSchema.optional(),
+    pickupTimeMax: pickupHalfHourSchema.optional(),
     active: z.boolean().optional(),
     dayCapTotal: z.number().int().positive().optional().nullable(),
     productCaps: productCapsArraySchema.optional(),
+    pickupDates: z.array(pickupDateRuleSchema).min(1).optional(),
   })
   .refine((d) => Object.keys(d).length > 0, { message: 'Nada para atualizar.' })
   .refine(
@@ -114,6 +120,12 @@ const availableDayUpdateSchema = z
       return a !== null && b !== null && a <= b;
     },
     { message: 'A hora de início de levantamento tem de ser anterior ou igual à hora máxima.' }
+  )
+  .refine(
+    (d) =>
+      d.pickupDates === undefined ||
+      new Set(d.pickupDates.map((r) => r.pickupDate)).size === d.pickupDates.length,
+    { message: 'Datas de levantamento repetidas.' }
   );
 
 const orderStatusUpdateSchema = z.object({
@@ -158,27 +170,41 @@ async function assertProductCapsForBakery(
   }
 }
 
-async function assertPickupRangeNoOverlap(
-  prisma: FastifyInstance['prisma'],
-  bakeryId: string,
-  startStr: string,
-  endStr: string,
-  excludeId?: string
-): Promise<void> {
-  const others = await prisma.availableDay.findMany({
-    where: {
-      bakeryId,
-      ...(excludeId ? { id: { not: excludeId } } : {}),
-    },
-  });
-  for (const o of others) {
-    const oStart = formatDateForDB(o.pickupDate);
-    const oEnd = formatDateForDB(o.pickupEndDate);
-    if (ymdRangesOverlap(startStr, endStr, oStart, oEnd)) {
+function validatePickupDeadlineRules(
+  rules: Array<{ pickupDate: string; orderDeadline: string }>,
+  timezone: string
+): void {
+  for (const r of rules) {
+    const dl = new Date(r.orderDeadline);
+    if (!isOrderDeadlineBeforePickupCalendarDay(dl, r.pickupDate, timezone)) {
       throw new ValidationError(
-        'Este período de levantamento sobrepõe-se a outro já existente.'
+        `O limite de encomenda para ${r.pickupDate} tem de ser antes desse dia de levantamento.`
       );
     }
+  }
+}
+
+async function assertPickupDatesNoOverlap(
+  prisma: FastifyInstance['prisma'],
+  bakeryId: string,
+  pickupDateStrs: string[],
+  excludeAvailableDayId?: string
+): Promise<void> {
+  const unique = [...new Set(pickupDateStrs)];
+  if (unique.length === 0) return;
+  const asDates = unique.map((s) => new Date(`${s}T12:00:00.000Z`));
+  const clashes = await prisma.availableDayPickupDate.findMany({
+    where: {
+      bakeryId,
+      pickupDate: { in: asDates },
+      ...(excludeAvailableDayId ? { availableDayId: { not: excludeAvailableDayId } } : {}),
+    },
+    select: { pickupDate: true },
+  });
+  if (clashes.length > 0) {
+    throw new ValidationError(
+      'Uma ou mais datas de levantamento já estão em uso noutro período.'
+    );
   }
 }
 
@@ -524,6 +550,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
         where,
         orderBy: { pickupDate: 'asc' },
         include: {
+          pickupDateRules: { orderBy: { pickupDate: 'asc' } },
           productCaps: {
             include: {
               product: true,
@@ -546,6 +573,12 @@ export async function adminRoutes(fastify: FastifyInstance) {
         ...day,
         pickupDate: formatDateForDB(day.pickupDate),
         pickupEndDate: formatDateForDB(day.pickupEndDate),
+        ordersOpenAt: day.ordersOpenAt?.toISOString() ?? null,
+        pickupDateRules: day.pickupDateRules.map((r) => ({
+          id: r.id,
+          pickupDate: formatDateForDB(r.pickupDate),
+          orderDeadline: r.orderDeadline.toISOString(),
+        })),
       }));
     }
   );
@@ -560,16 +593,24 @@ export async function adminRoutes(fastify: FastifyInstance) {
         security: [{ bearerAuth: [] }],
         body: {
           type: 'object',
-          required: ['pickupDate', 'orderDeadline', 'pickupTimeMin', 'pickupTimeMax'],
+          required: ['pickupTimeMin', 'pickupTimeMax', 'pickupDates'],
           properties: {
-            pickupDate: { type: 'string', format: 'date' },
-            pickupEndDate: { type: 'string', format: 'date' },
-            orderDeadline: { type: 'string', format: 'date-time' },
-            pickupTimeMin: { type: 'string', description: 'HH:00 (hora cheia)' },
-            pickupTimeMax: { type: 'string', description: 'HH:00 (hora cheia)' },
+            ordersOpenAt: { type: 'string', format: 'date-time', nullable: true },
+            pickupTimeMin: { type: 'string', description: 'HH:00 ou HH:30' },
+            pickupTimeMax: { type: 'string', description: 'HH:00 ou HH:30' },
             active: { type: 'boolean' },
-            dayCapTotal: { type: 'number' },
+            dayCapTotal: { type: 'number', description: 'Máximo de encomendas pagas no período' },
             productCaps: { type: 'array' },
+            pickupDates: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  pickupDate: { type: 'string', format: 'date' },
+                  orderDeadline: { type: 'string', format: 'date-time' },
+                },
+              },
+            },
           },
         },
       },
@@ -585,38 +626,49 @@ export async function adminRoutes(fastify: FastifyInstance) {
 
       const data = availableDayCreateSchema.parse(request.body);
 
-      const endStr = data.pickupEndDate ?? data.pickupDate;
-      if (endStr < data.pickupDate) {
-        throw new ValidationError('A data de fim de levantamento não pode ser anterior à data de início.');
+      const sorted = [...data.pickupDates].sort((a, b) => a.pickupDate.localeCompare(b.pickupDate));
+      const minPickup = sorted[0].pickupDate;
+      const maxPickup = sorted[sorted.length - 1].pickupDate;
+
+      if (!isFuturePickupCalendarDate(minPickup, tenant.timezone)) {
+        throw new ValidationError('A primeira data de levantamento tem de ser posterior a hoje.');
       }
 
-      if (!isFuturePickupCalendarDate(data.pickupDate, tenant.timezone)) {
-        throw new ValidationError('A data de levantamento tem de ser posterior a hoje.');
-      }
-
-      const orderDeadlineDate = new Date(data.orderDeadline);
-      if (!isOrderDeadlineOnOrAfterPickupDay(orderDeadlineDate, data.pickupDate, tenant.timezone)) {
-        throw new ValidationError(
-          'O limite de encomenda tem de ser no mesmo dia ou depois do dia de levantamento.'
-        );
-      }
-
-      await assertPickupRangeNoOverlap(fastify.prisma, tenant.bakeryId, data.pickupDate, endStr);
+      validatePickupDeadlineRules(sorted, tenant.timezone);
+      await assertPickupDatesNoOverlap(
+        fastify.prisma,
+        tenant.bakeryId,
+        sorted.map((r) => r.pickupDate)
+      );
       await assertProductCapsForBakery(fastify.prisma, tenant.bakeryId, data.productCaps);
 
       const day = await fastify.prisma.$transaction(async (tx) => {
         const created = await tx.availableDay.create({
           data: {
             bakeryId: tenant.bakeryId,
-            pickupDate: new Date(data.pickupDate),
-            pickupEndDate: new Date(endStr),
-            orderDeadline: orderDeadlineDate,
+            pickupDate: new Date(`${minPickup}T12:00:00.000Z`),
+            pickupEndDate: new Date(`${maxPickup}T12:00:00.000Z`),
+            ordersOpenAt:
+              data.ordersOpenAt !== undefined && data.ordersOpenAt !== null
+                ? new Date(data.ordersOpenAt)
+                : null,
             pickupTimeMin: data.pickupTimeMin,
             pickupTimeMax: data.pickupTimeMax,
             active: data.active ?? true,
             dayCapTotal: data.dayCapTotal,
           },
         });
+        for (const r of sorted) {
+          await tx.availableDayPickupDate.create({
+            data: {
+              id: randomUUID(),
+              bakeryId: tenant.bakeryId,
+              availableDayId: created.id,
+              pickupDate: new Date(`${r.pickupDate}T12:00:00.000Z`),
+              orderDeadline: new Date(r.orderDeadline),
+            },
+          });
+        }
         if (data.productCaps.length > 0) {
           await tx.availableDayProductCap.createMany({
             data: data.productCaps.map((pc) => ({
@@ -633,6 +685,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
       const full = await fastify.prisma.availableDay.findUniqueOrThrow({
         where: { id: day.id },
         include: {
+          pickupDateRules: { orderBy: { pickupDate: 'asc' } },
           productCaps: { include: { product: true } },
           _count: { select: { orders: true } },
         },
@@ -642,6 +695,12 @@ export async function adminRoutes(fastify: FastifyInstance) {
         ...full,
         pickupDate: formatDateForDB(full.pickupDate),
         pickupEndDate: formatDateForDB(full.pickupEndDate),
+        ordersOpenAt: full.ordersOpenAt?.toISOString() ?? null,
+        pickupDateRules: full.pickupDateRules.map((r) => ({
+          id: r.id,
+          pickupDate: formatDateForDB(r.pickupDate),
+          orderDeadline: r.orderDeadline.toISOString(),
+        })),
       });
     }
   );
@@ -685,30 +744,14 @@ export async function adminRoutes(fastify: FastifyInstance) {
         throw new NotFoundError('Available day not found');
       }
 
-      if (data.pickupDate && !isFuturePickupCalendarDate(data.pickupDate, tenant.timezone)) {
-        throw new ValidationError('A data de levantamento tem de ser posterior a hoje.');
-      }
-
-      const nextPickupStr = data.pickupDate ?? formatDateForDB(existing.pickupDate);
-      const nextEndStr = data.pickupEndDate ?? formatDateForDB(existing.pickupEndDate);
-      if (nextEndStr < nextPickupStr) {
-        throw new ValidationError('A data de fim de levantamento não pode ser anterior à data de início.');
-      }
-
-      await assertPickupRangeNoOverlap(
-        fastify.prisma,
-        tenant.bakeryId,
-        nextPickupStr,
-        nextEndStr,
-        id
-      );
-
-      const nextDeadline =
-        data.orderDeadline !== undefined ? new Date(data.orderDeadline) : existing.orderDeadline;
-
-      if (!isOrderDeadlineOnOrAfterPickupDay(nextDeadline, nextPickupStr, tenant.timezone)) {
-        throw new ValidationError(
-          'O limite de encomenda tem de ser no mesmo dia ou depois do dia de levantamento.'
+      if (data.pickupDates) {
+        const sorted = [...data.pickupDates].sort((a, b) => a.pickupDate.localeCompare(b.pickupDate));
+        validatePickupDeadlineRules(sorted, tenant.timezone);
+        await assertPickupDatesNoOverlap(
+          fastify.prisma,
+          tenant.bakeryId,
+          sorted.map((r) => r.pickupDate),
+          id
         );
       }
 
@@ -717,13 +760,22 @@ export async function adminRoutes(fastify: FastifyInstance) {
       }
 
       const updateData: Record<string, unknown> = {};
-      if (data.pickupDate !== undefined) updateData.pickupDate = new Date(data.pickupDate);
-      if (data.pickupEndDate !== undefined) updateData.pickupEndDate = new Date(data.pickupEndDate);
-      if (data.orderDeadline !== undefined) updateData.orderDeadline = new Date(data.orderDeadline);
+      if (data.ordersOpenAt !== undefined) {
+        updateData.ordersOpenAt =
+          data.ordersOpenAt === null ? null : new Date(data.ordersOpenAt as string);
+      }
       if (data.active !== undefined) updateData.active = data.active;
       if (data.dayCapTotal !== undefined) updateData.dayCapTotal = data.dayCapTotal;
       if (data.pickupTimeMin !== undefined) updateData.pickupTimeMin = data.pickupTimeMin;
       if (data.pickupTimeMax !== undefined) updateData.pickupTimeMax = data.pickupTimeMax;
+
+      if (data.pickupDates) {
+        const sorted = [...data.pickupDates].sort((a, b) => a.pickupDate.localeCompare(b.pickupDate));
+        const minPickup = sorted[0].pickupDate;
+        const maxPickup = sorted[sorted.length - 1].pickupDate;
+        updateData.pickupDate = new Date(`${minPickup}T12:00:00.000Z`);
+        updateData.pickupEndDate = new Date(`${maxPickup}T12:00:00.000Z`);
+      }
 
       const hasDayUpdates = Object.keys(updateData).length > 0;
 
@@ -733,6 +785,20 @@ export async function adminRoutes(fastify: FastifyInstance) {
             where: { id },
             data: updateData as any,
           });
+        }
+        if (data.pickupDates) {
+          await tx.availableDayPickupDate.deleteMany({ where: { availableDayId: id } });
+          for (const r of data.pickupDates.sort((a, b) => a.pickupDate.localeCompare(b.pickupDate))) {
+            await tx.availableDayPickupDate.create({
+              data: {
+                id: randomUUID(),
+                bakeryId: tenant.bakeryId,
+                availableDayId: id,
+                pickupDate: new Date(`${r.pickupDate}T12:00:00.000Z`),
+                orderDeadline: new Date(r.orderDeadline),
+              },
+            });
+          }
         }
         if (data.productCaps !== undefined) {
           await tx.availableDayProductCap.deleteMany({ where: { availableDayId: id } });
@@ -752,6 +818,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
       const updated = await fastify.prisma.availableDay.findUniqueOrThrow({
         where: { id },
         include: {
+          pickupDateRules: { orderBy: { pickupDate: 'asc' } },
           productCaps: { include: { product: true } },
           _count: { select: { orders: true } },
         },
@@ -761,6 +828,12 @@ export async function adminRoutes(fastify: FastifyInstance) {
         ...updated,
         pickupDate: formatDateForDB(updated.pickupDate),
         pickupEndDate: formatDateForDB(updated.pickupEndDate),
+        ordersOpenAt: updated.ordersOpenAt?.toISOString() ?? null,
+        pickupDateRules: updated.pickupDateRules.map((r) => ({
+          id: r.id,
+          pickupDate: formatDateForDB(r.pickupDate),
+          orderDeadline: r.orderDeadline.toISOString(),
+        })),
       };
     }
   );
@@ -1005,7 +1078,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
           type: 'object',
           properties: {
             pickupDate: { type: 'string', format: 'date' },
-            pickupTime: { type: 'string', description: 'HH:00' },
+            pickupTime: { type: 'string', description: 'HH:00 ou HH:30' },
             status: { type: 'string', enum: ['RECEIVED', 'READY', 'PICKED_UP'] },
             customerName: { type: 'string' },
             customerPhone: { type: 'string' },
@@ -1046,8 +1119,8 @@ export async function adminRoutes(fastify: FastifyInstance) {
 
       const pt = q.pickupTime?.trim();
       if (pt) {
-        if (!/^([01]\d|2[0-3]):00$/.test(pt)) {
-          throw new ValidationError('pickupTime inválido (usa HH:00).');
+        if (!isValidHhHalfHour(pt)) {
+          throw new ValidationError('pickupTime inválido (usa HH:00 ou HH:30).');
         }
         where.pickupTime = pt;
       }
@@ -1320,7 +1393,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
           properties: {
             pickupDate: { type: 'string', format: 'date' },
             pickupDateTo: { type: 'string', format: 'date' },
-            pickupTime: { type: 'string', description: 'HH:00' },
+            pickupTime: { type: 'string', description: 'HH:00 ou HH:30' },
             productIds: { type: 'string', description: 'UUIDs separados por vírgula' },
           },
         },
@@ -1358,8 +1431,8 @@ export async function adminRoutes(fastify: FastifyInstance) {
       }
 
       const pt = q.pickupTime?.trim();
-      if (pt && !/^([01]\d|2[0-3]):00$/.test(pt)) {
-        throw new ValidationError('pickupTime inválido (usa HH:00).');
+      if (pt && !isValidHhHalfHour(pt)) {
+        throw new ValidationError('pickupTime inválido (usa HH:00 ou HH:30).');
       }
 
       const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;

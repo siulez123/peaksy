@@ -1,13 +1,16 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { auth, publicApi } from '../../api';
 import { useAuth } from '../../context/AuthContext';
 import { Button, Card, Input, Label, PageHeader } from '../../components/ui';
 import { useAdminPathBase, useResolvedTenantSlug } from '../../lib/tenantHost';
 
 export function AdminLoginPage() {
+  const { slug: pathSlug } = useParams<{ slug?: string }>();
   const slug = useResolvedTenantSlug();
   const adminBase = useAdminPathBase();
+  /** Loja no apex (ex. Railway): slug vem do path → /loja/:slug. Com subdomínio, a loja é a raiz /. */
+  const shopHomeHref = pathSlug ? `/loja/${encodeURIComponent(pathSlug)}` : '/';
   const { setSession } = useAuth();
   const nav = useNavigate();
   const [email, setEmail] = useState('');
@@ -95,7 +98,7 @@ export function AdminLoginPage() {
         </form>
       </Card>
       <p className="mt-4 text-center text-sm text-stone-500">
-        <Link to="/" className="text-orange-600 hover:underline">
+        <Link to={shopHomeHref} className="text-orange-600 hover:underline">
           Início
         </Link>
       </p>

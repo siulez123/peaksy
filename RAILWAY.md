@@ -2,6 +2,14 @@
 
 Um único **serviço** Docker serve a API e o frontend estático (`web/dist`) na mesma origem.
 
+## Healthcheck a falhar (“service unavailable” no `/health`)
+
+O servidor **não chega a escutar** na porta se o processo morrer no arranque. Causas típicas:
+
+1. **Falta `JWT_SECRET`** — o arranque lança erro e o contentor termina. **Obrigatório** definir (ex.: `openssl rand -base64 32`).
+2. **`prisma migrate deploy` falha** — `DATABASE_URL` errada ou Postgres ainda não ligado ao serviço. Vê **Deploy Logs** (mensagens do Prisma).
+3. Não é preciso definir `PORT` manualmente — a Railway injeta-o.
+
 ## Passos
 
 1. Cria um projeto na [Railway](https://railway.app) e liga o repositório Git deste projeto.
@@ -21,8 +29,8 @@ Um único **serviço** Docker serve a API e o frontend estático (`web/dist`) na
 | Variável | Descrição |
 |----------|-----------|
 | `FRONTEND_URL` | URL pública do teu serviço (ex.: `https://xxx.up.railway.app`). Usada no Stripe para redirecionamentos após pagamento. Deve coincidir com o domínio onde os clientes abrem a loja. |
-| `STRIPE_SECRET_KEY` | Chave secreta Stripe (modo test ou live). |
-| `STRIPE_WEBHOOK_SECRET` | Segredo do webhook Stripe; configura o endpoint `https://<teu-dominio>/public/webhooks/stripe` no dashboard Stripe. |
+| `STRIPE_SECRET_KEY` | Chave secreta Stripe. **Podes deixar em branco** para testar só o site e a API; o checkout de pagamento só funciona com chave definida. |
+| `STRIPE_WEBHOOK_SECRET` | Segredo do webhook Stripe; endpoint `https://<teu-dominio>/public/webhooks/stripe`. Opcional até configurares pagamentos. |
 
 ## Opcionais
 

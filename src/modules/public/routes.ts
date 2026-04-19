@@ -12,9 +12,20 @@ import { isValidInternationalPhone } from '../../lib/phone';
 import { notifyOrderPaid } from '../../lib/orderNotifications';
 import { isTimeWithinWindow, isValidHhRoundHour } from '../../lib/timeOfDay';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-  apiVersion: '2025-02-24.acacia',
-});
+/** Só instanciar com chave real — `new Stripe('')` rebenta ao carregar o módulo (ex.: Railway sem Stripe). */
+let stripeSingleton: Stripe | null = null;
+function getStripe(): Stripe {
+  const key = process.env.STRIPE_SECRET_KEY?.trim();
+  if (!key) {
+    throw new ValidationError('Pagamentos Stripe não estão configurados (STRIPE_SECRET_KEY).');
+  }
+  if (!stripeSingleton) {
+    stripeSingleton = new Stripe(key, {
+      apiVersion: '2025-02-24.acacia',
+    });
+  }
+  return stripeSingleton;
+}
 
 function validateStripeReturnPath(
   path: string,
@@ -457,11 +468,6 @@ export async function publicRoutes(fastify: FastifyInstance) {
         },
       });
 
-      // Create Stripe Checkout Session
-      if (!process.env.STRIPE_SECRET_KEY) {
-        throw new Error('Stripe not configured');
-      }
-
       const frontendBase =
         process.env.FRONTEND_URL ||
         (request.headers.origin as string | undefined) ||
@@ -477,7 +483,7 @@ export async function publicRoutes(fastify: FastifyInstance) {
 
       let session: Stripe.Checkout.Session;
       try {
-        session = await stripe.checkout.sessions.create({
+        session = await getStripe().checkout.sessions.create({
           // cartão, MB WAY (Portugal); outros métodos podem ser ativados no Dashboard Stripe
           payment_method_types: ['card', 'mb_way'] as Stripe.Checkout.SessionCreateParams.PaymentMethodType[],
           line_items: orderItems.map((item) => ({
@@ -529,10 +535,15 @@ export async function publicRoutes(fastify: FastifyInstance) {
     },
     async (request, reply) => {
       const sig = request.headers['stripe-signature'] as string;
-      const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+      const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET?.trim();
 
+      if (!process.env.STRIPE_SECRET_KEY?.trim()) {
+        request.log.warn('Stripe webhook chamado mas STRIPE_SECRET_KEY não está definida');
+        return reply.status(503).send({ error: 'Stripe não configurado' });
+      }
       if (!webhookSecret) {
-        throw new Error('Stripe webhook secret not configured');
+        request.log.warn('STRIPE_WEBHOOK_SECRET em falta');
+        return reply.status(503).send({ error: 'Webhook Stripe não configurado' });
       }
 
       let event: Stripe.Event;
@@ -541,7 +552,7 @@ export async function publicRoutes(fastify: FastifyInstance) {
         // Fastify raw body handling
         const body = (request as any).rawBody || request.body || '';
         const bodyString = typeof body === 'string' ? body : body.toString();
-        event = stripe.webhooks.constructEvent(bodyString, sig, webhookSecret);
+        event = getStripe().webhooks.constructEvent(bodyString, sig, webhookSecret);
       } catch (err: any) {
         request.log.warn({ err }, 'Stripe webhook signature verification failed');
         return reply.status(400).send({ error: 'Invalid signature' });

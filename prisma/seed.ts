@@ -59,13 +59,24 @@ async function main() {
   // —— Padaria Demo ——
   const padariademo = await prisma.bakery.upsert({
     where: { slug: 'padariademo' },
-    update: { name: 'Padaria Demo', active: true },
+    update: {
+      name: 'Padaria Demo',
+      active: true,
+      addressLine: 'Rua da Padaria Demo, 123',
+      postalCode: '1000-001',
+      locality: 'Lisboa',
+      phone: '+351211000000',
+    },
     create: {
       name: 'Padaria Demo',
       slug: 'padariademo',
       timezone: 'Europe/Lisbon',
       active: true,
       plan: 'STARTER',
+      addressLine: 'Rua da Padaria Demo, 123',
+      postalCode: '1000-001',
+      locality: 'Lisboa',
+      phone: '+351211000000',
     },
   });
 
@@ -199,13 +210,24 @@ async function main() {
   // —— Flor de Esmoriz ——
   const flordeesmoriz = await prisma.bakery.upsert({
     where: { slug: 'flordeesmoriz' },
-    update: { name: 'Pastelaria Flor de Esmoriz', active: true },
+    update: {
+      name: 'Pastelaria Flor de Esmoriz',
+      active: true,
+      addressLine: 'Avenida Central, 45',
+      postalCode: '3885-000',
+      locality: 'Esmoriz',
+      phone: '+351256000000',
+    },
     create: {
       name: 'Pastelaria Flor de Esmoriz',
       slug: 'flordeesmoriz',
       timezone: 'Europe/Lisbon',
       active: true,
       plan: 'STARTER',
+      addressLine: 'Avenida Central, 45',
+      postalCode: '3885-000',
+      locality: 'Esmoriz',
+      phone: '+351256000000',
     },
   });
 

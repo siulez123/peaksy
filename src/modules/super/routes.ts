@@ -10,9 +10,25 @@ const bakeryCreateSchema = z.object({
   timezone: z.string().default('Europe/Lisbon'),
   active: z.boolean().default(true),
   plan: z.enum(['STARTER', 'PRO', 'PREMIUM']).default('STARTER'),
+  addressLine: z.string().min(1).max(500),
+  postalCode: z.string().min(1).max(20),
+  locality: z.string().min(1).max(120),
+  phone: z.string().min(6).max(50),
 });
 
-const bakeryUpdateSchema = bakeryCreateSchema.partial();
+/** PATCH: todos os campos opcionais; `domain` pode ser `null` para limpar. */
+const bakeryUpdateSchema = z.object({
+  name: z.string().min(1).max(200).optional(),
+  slug: z.string().min(1).max(100).regex(/^[a-z0-9-]+$/).optional(),
+  domain: z.union([z.string().max(255), z.null()]).optional(),
+  timezone: z.string().min(1).optional(),
+  active: z.boolean().optional(),
+  plan: z.enum(['STARTER', 'PRO', 'PREMIUM']).optional(),
+  addressLine: z.string().min(1).max(500).optional(),
+  postalCode: z.string().min(1).max(20).optional(),
+  locality: z.string().min(1).max(120).optional(),
+  phone: z.string().min(6).max(50).optional(),
+});
 
 const userCreateSchema = z.object({
   email: z.string().email(),
@@ -87,7 +103,7 @@ export async function superRoutes(fastify: FastifyInstance) {
         security: [{ bearerAuth: [] }],
         body: {
           type: 'object',
-          required: ['name', 'slug'],
+          required: ['name', 'slug', 'addressLine', 'postalCode', 'locality', 'phone'],
           properties: {
             name: { type: 'string' },
             slug: { type: 'string' },
@@ -95,6 +111,10 @@ export async function superRoutes(fastify: FastifyInstance) {
             timezone: { type: 'string' },
             active: { type: 'boolean' },
             plan: { type: 'string', enum: ['STARTER', 'PRO', 'PREMIUM'] },
+            addressLine: { type: 'string' },
+            postalCode: { type: 'string' },
+            locality: { type: 'string' },
+            phone: { type: 'string' },
           },
         },
       },
@@ -430,14 +450,22 @@ export async function superRoutes(fastify: FastifyInstance) {
         throw new NotFoundError('User not found');
       }
 
-      // Validate role changes
-      const newRole = data.role || user.role;
-      if (newRole === 'BAKERY_ADMIN' && !data.bakeryId && !user.bakeryId) {
-        throw new ValidationError('Bakery admin must have a bakeryId');
+      const newRole = data.role ?? user.role;
+
+      if (newRole === 'BAKERY_ADMIN') {
+        const effectiveBakeryId =
+          data.bakeryId !== undefined && data.bakeryId !== null ? data.bakeryId : user.bakeryId;
+        if (!effectiveBakeryId) {
+          throw new ValidationError('Bakery admin must have a bakeryId');
+        }
       }
 
-      if (newRole === 'SUPER_ADMIN' && (data.bakeryId !== undefined || user.bakeryId)) {
-        throw new ValidationError('Super admin cannot have a bakeryId');
+      if (newRole === 'SUPER_ADMIN') {
+        const effectiveBakeryId =
+          data.bakeryId !== undefined ? data.bakeryId : user.bakeryId;
+        if (effectiveBakeryId != null) {
+          throw new ValidationError('Super admin cannot have a bakeryId');
+        }
       }
 
       // Check email uniqueness if updating

@@ -42,6 +42,26 @@ export interface BakeryRef {
   slug: string;
 }
 
+/** Utilizador na área de super-admin (lista / edição). */
+export type SuperUser = {
+  id: string;
+  email: string;
+  role: UserRole;
+  bakeryId: string | null;
+  bakery: BakeryRef | null;
+  createdAt: string;
+};
+
+/** Dados públicos da padaria (GET /public/bakery). */
+export interface BakeryPublic {
+  name: string;
+  slug: string;
+  addressLine: string;
+  postalCode: string;
+  locality: string;
+  phone: string;
+}
+
 export interface LoginResponse {
   token: string;
   user: AuthUser;
@@ -85,8 +105,18 @@ export async function apiFetch<T>(
 }
 
 export const auth = {
-  login: (email: string, password: string) =>
-    apiFetch<LoginResponse>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
+  /** `tenantSlug` obrigatório para login de BAKERY_ADMIN (deve ser o slug da padaria do ecrã de login). */
+  login: (email: string, password: string, tenantSlug?: string | null) =>
+    apiFetch<LoginResponse>('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({
+        email,
+        password,
+        ...(tenantSlug != null && String(tenantSlug).trim() !== ''
+          ? { tenantSlug: String(tenantSlug).trim() }
+          : {}),
+      }),
+    }),
   me: (token: string, tenantSlug?: string | null) =>
     apiFetch<{
       id: string;
@@ -97,8 +127,7 @@ export const auth = {
 };
 
 export const publicApi = {
-  bakery: (slug: string) =>
-    apiFetch<{ name: string; slug: string }>('/public/bakery', { tenantSlug: slug }),
+  bakery: (slug: string) => apiFetch<BakeryPublic>('/public/bakery', { tenantSlug: slug }),
   availableDays: (slug: string) =>
     apiFetch<
       Array<{
@@ -299,20 +328,28 @@ export const adminApi = {
   },
 };
 
+/** Padaria na área de super-admin (lista ou GET). */
+export type SuperBakery = {
+  id: string;
+  name: string;
+  slug: string;
+  domain: string | null;
+  timezone: string;
+  active: boolean;
+  plan: string;
+  addressLine: string;
+  postalCode: string;
+  locality: string;
+  phone: string;
+  createdAt?: string;
+  _count: { users: number; products: number; orders: number };
+};
+
 export const superApi = {
   bakeries: {
     list: (token: string, active?: boolean) => {
       const q = active !== undefined ? `?active=${active}` : '';
-      return apiFetch<
-        Array<{
-          id: string;
-          name: string;
-          slug: string;
-          active: boolean;
-          plan: string;
-          _count: { users: number; products: number; orders: number };
-        }>
-      >(`/super/bakeries${q}`, { token });
+      return apiFetch<Array<SuperBakery>>(`/super/bakeries${q}`, { token });
     },
     create: (token: string, body: Record<string, unknown>) =>
       apiFetch('/super/bakeries', { method: 'POST', token, body: JSON.stringify(body) }),
@@ -333,16 +370,7 @@ export const superApi = {
       if (q?.role) p.set('role', q.role);
       if (q?.bakeryId) p.set('bakeryId', q.bakeryId);
       const s = p.toString();
-      return apiFetch<
-        Array<{
-          id: string;
-          email: string;
-          role: UserRole;
-          bakeryId: string | null;
-          bakery: BakeryRef | null;
-          createdAt: string;
-        }>
-      >(`/super/users${s ? `?${s}` : ''}`, { token });
+      return apiFetch<Array<SuperUser>>(`/super/users${s ? `?${s}` : ''}`, { token });
     },
     create: (token: string, body: Record<string, unknown>) =>
       apiFetch('/super/users', { method: 'POST', token, body: JSON.stringify(body) }),

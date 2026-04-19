@@ -103,10 +103,10 @@ Como você não tem permissões para editar `/etc/hosts`, use o header `X-Tenant
 # Listar produtos da padaria demo
 curl -H "X-Tenant-Slug: padariademo" http://localhost:3000/public/products
 
-# Fazer login como admin da padaria
+# Fazer login como admin da padaria (tenantSlug = slug da padaria da conta)
 curl -X POST http://localhost:3000/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"admin@padariademo.local","password":"Admin123!"}'
+  -d '{"email":"admin@padariademo.local","password":"Admin123!","tenantSlug":"padariademo"}'
 
 # Usar o token retornado para acessar endpoints admin
 curl -H "X-Tenant-Slug: padariademo" \

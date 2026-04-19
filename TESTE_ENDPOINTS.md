@@ -10,10 +10,10 @@ O header `X-Tenant-Slug` não está funcionando corretamente. Use uma das soluç
 # Listar produtos
 curl -H "Host: padariademo.comebolos.local" http://localhost:3000/public/products
 
-# Fazer login
+# Fazer login (admin de padaria: incluir tenantSlug)
 curl -X POST http://localhost:3000/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"admin@padariademo.local","password":"Admin123!"}'
+  -d '{"email":"admin@padariademo.local","password":"Admin123!","tenantSlug":"padariademo"}'
 ```
 
 ## Solução 2: Endpoints que não precisam de tenant
@@ -25,10 +25,10 @@ curl http://localhost:3000/health
 # Swagger docs
 open http://localhost:3000/docs
 
-# Login (não precisa de tenant)
+# Login admin de padaria (tenantSlug obrigatório)
 curl -X POST http://localhost:3000/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"admin@padariademo.local","password":"Admin123!"}'
+  -d '{"email":"admin@padariademo.local","password":"Admin123!","tenantSlug":"padariademo"}'
 ```
 
 ## Solução 3: Endpoints Super Admin (não precisam de tenant)

@@ -2,11 +2,13 @@ import fp from 'fastify-plugin';
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import bcrypt from 'bcryptjs';
-import { UnauthorizedError } from '../../lib/errors';
+import { ForbiddenError, UnauthorizedError, ValidationError } from '../../lib/errors';
 
-const loginSchema = z.object({
+const loginBodySchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
+  /** Obrigatório para BAKERY_ADMIN: tem de coincidir com a padaria da conta (slug). */
+  tenantSlug: z.string().min(1).optional(),
 });
 
 async function authRoutesImpl(fastify: FastifyInstance) {
@@ -27,6 +29,7 @@ async function authRoutesImpl(fastify: FastifyInstance) {
           properties: {
             email: { type: 'string', format: 'email' },
             password: { type: 'string' },
+            tenantSlug: { type: 'string' },
           },
         },
         response: {
@@ -43,6 +46,15 @@ async function authRoutesImpl(fastify: FastifyInstance) {
                   bakeryId: { type: 'string', nullable: true },
                 },
               },
+              bakery: {
+                type: 'object',
+                nullable: true,
+                properties: {
+                  id: { type: 'string' },
+                  name: { type: 'string' },
+                  slug: { type: 'string' },
+                },
+              },
             },
           },
         },
@@ -55,7 +67,7 @@ async function authRoutesImpl(fastify: FastifyInstance) {
       },
     },
     async (request, reply) => {
-      const { email, password } = loginSchema.parse(request.body);
+      const { email, password, tenantSlug } = loginBodySchema.parse(request.body);
 
       const user = await fastify.prisma.user.findUnique({
         where: { email },
@@ -71,6 +83,19 @@ async function authRoutesImpl(fastify: FastifyInstance) {
       const isValid = await bcrypt.compare(password, user.passwordHash);
       if (!isValid) {
         throw new UnauthorizedError('Invalid credentials');
+      }
+
+      if (user.role === 'BAKERY_ADMIN') {
+        if (!user.bakery) {
+          throw new ForbiddenError('Conta de administrador sem padaria associada.');
+        }
+        const ts = tenantSlug?.trim();
+        if (!ts) {
+          throw new ValidationError('Indica a padaria (tenantSlug) no pedido de login.');
+        }
+        if (user.bakery.slug.toLowerCase() !== ts.toLowerCase()) {
+          throw new ForbiddenError('Esta conta não pertence a esta padaria.');
+        }
       }
 
       const token = fastify.jwt.sign({

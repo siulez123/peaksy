@@ -48,13 +48,9 @@ export function AdminLoginPage() {
     setErr(null);
     setLoading(true);
     try {
-      const data = await auth.login(email, password);
+      const data = await auth.login(email, password, slug);
       if (data.user.role !== 'BAKERY_ADMIN') {
         setErr('Esta área é só para administradores de padaria.');
-        return;
-      }
-      if (data.bakery && data.bakery.slug !== slug) {
-        setErr('Esta conta pertence a outra padaria.');
         return;
       }
       setSession(data);

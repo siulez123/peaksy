@@ -32,6 +32,11 @@ model Bakery {
   timezone  String   @default("Europe/Lisbon")
   active    Boolean  @default(true)
   plan      Plan     @default(STARTER)
+  // Morada pública (rodapé da loja)
+  addressLine String @default("")
+  postalCode  String @default("")
+  locality    String @default("")
+  phone       String @default("")
   createdAt DateTime @default(now())
 
   users            User[]

@@ -100,6 +100,10 @@ export async function publicRoutes(fastify: FastifyInstance) {
             properties: {
               name: { type: 'string' },
               slug: { type: 'string' },
+              addressLine: { type: 'string' },
+              postalCode: { type: 'string' },
+              locality: { type: 'string' },
+              phone: { type: 'string' },
             },
           },
         },
@@ -108,7 +112,21 @@ export async function publicRoutes(fastify: FastifyInstance) {
     },
     async (request, reply) => {
       const tenant = request.tenant!;
-      return { name: tenant.name, slug: tenant.slug };
+      const bakery = await fastify.prisma.bakery.findUnique({
+        where: { id: tenant.bakeryId },
+        select: {
+          name: true,
+          slug: true,
+          addressLine: true,
+          postalCode: true,
+          locality: true,
+          phone: true,
+        },
+      });
+      if (!bakery) {
+        throw new NotFoundError('Bakery not found');
+      }
+      return bakery;
     }
   );
 

@@ -67,9 +67,12 @@ A documentação Swagger está disponível em:
 POST /auth/login
 {
   "email": "admin@padariademo.local",
-  "password": "Admin123!"
+  "password": "Admin123!",
+  "tenantSlug": "padariademo"
 }
 ```
+
+Para **admin de padaria**, `tenantSlug` é obrigatório e tem de ser o slug da padaria dessa conta. **Super admin** não usa `tenantSlug`.
 
 O token JWT retornado deve ser incluído no header `Authorization: Bearer <token>` para endpoints protegidos.
 

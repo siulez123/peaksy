@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { ChevronUp, ImageIcon, Minus, Plus, ShoppingBag, Trash2, X } from 'lucide-react';
-import { publicApi, formatMoney, productImageUrl } from '../../api';
+import { publicApi, formatMoney, productImageUrl, type BakeryPublic } from '../../api';
 import { isValidInternationalPhone, phoneFieldHint } from '../../lib/phone';
 import {
   formatPickupHourLabelPt,
   pickupHourSlotsBetween,
 } from '../../lib/timeOfDay';
+import { ShopPublicFooter } from '../../components/ShopPublicFooter';
 import { ShopPublicHeader } from '../../components/ShopPublicHeader';
 import { BakeryNotFoundPage } from '../BakeryNotFoundPage';
 import { Button, Card, Input, Label } from '../../components/ui';
@@ -33,7 +34,7 @@ type CartPanelProps = {
   canEncomendar: boolean;
   variant: 'sidebar' | 'sheet';
   onCloseSheet?: () => void;
-  onRemoveLine: (productId: string) => void;
+  onSetLineQty: (productId: string, qty: number) => void;
 };
 
 function CartPanel({
@@ -44,7 +45,7 @@ function CartPanel({
   canEncomendar,
   variant,
   onCloseSheet,
-  onRemoveLine,
+  onSetLineQty,
 }: CartPanelProps) {
   const isSheet = variant === 'sheet';
 
@@ -55,7 +56,7 @@ function CartPanel({
       >
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <ShoppingBag className="h-5 w-5 shrink-0 text-orange-600" />
-          <span className="truncate">Carrinho</span>
+          <span>Carrinho</span>
           {lines.length > 0 && (
             <span className="shrink-0 rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-900">
               {itemCount} {itemCount === 1 ? 'artigo' : 'artigos'}
@@ -77,25 +78,55 @@ function CartPanel({
       {lines.length === 0 ? (
         <p className="text-sm text-stone-500">O carrinho está vazio.</p>
       ) : (
-        <ul className="mb-3 space-y-2 text-sm">
+        <ul className="mb-3 space-y-3 text-sm">
           {lines.map((l) => (
-            <li key={l.productId} className="flex items-center gap-2">
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-medium text-stone-900">{l.name}</p>
-                <p className="truncate text-xs text-stone-500">
-                  {l.variant}
-                  <span className="text-stone-600"> · ×{l.qty}</span>
+            <li
+              key={l.productId}
+              className="rounded-xl border border-stone-100 bg-stone-50/50 p-3"
+            >
+              <div className="min-w-0">
+                <p className="break-words font-medium leading-snug text-stone-900">{l.name}</p>
+                <p className="mt-1 break-words text-xs leading-snug text-stone-600">{l.variant}</p>
+                <p className="mt-1 text-xs tabular-nums text-stone-500">
+                  {formatMoney(l.priceCents)} <span className="text-stone-400">/ un.</span>
                 </p>
               </div>
-              <span className="shrink-0 tabular-nums">{formatMoney(l.priceCents * l.qty)}</span>
-              <button
-                type="button"
-                className="shrink-0 rounded-lg p-1.5 text-stone-400 transition hover:bg-red-50 hover:text-red-700"
-                onClick={() => onRemoveLine(l.productId)}
-                aria-label={`Remover ${l.name} ${l.variant}`}
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-stone-100/80 pt-3">
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    className="rounded-lg border border-stone-200 bg-white p-2 hover:bg-stone-100"
+                    onClick={() => onSetLineQty(l.productId, l.qty - 1)}
+                    aria-label={`Menos um ${l.name}`}
+                  >
+                    <Minus className="h-4 w-4" />
+                  </button>
+                  <span className="min-w-[2.5rem] text-center text-base font-semibold tabular-nums text-stone-900">
+                    {l.qty}
+                  </span>
+                  <button
+                    type="button"
+                    className="rounded-lg border border-stone-200 bg-white p-2 hover:bg-stone-100"
+                    onClick={() => onSetLineQty(l.productId, l.qty + 1)}
+                    aria-label={`Mais um ${l.name}`}
+                  >
+                    <Plus className="h-4 w-4" />
+                  </button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-right text-base font-semibold tabular-nums text-stone-900">
+                    {formatMoney(l.priceCents * l.qty)}
+                  </span>
+                  <button
+                    type="button"
+                    className="rounded-lg p-1.5 text-stone-400 transition hover:bg-red-50 hover:text-red-700"
+                    onClick={() => onSetLineQty(l.productId, 0)}
+                    aria-label={`Remover linha ${l.name} ${l.variant}`}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
             </li>
           ))}
           <li className="flex justify-between border-t border-stone-100 pt-2 font-semibold">
@@ -367,7 +398,7 @@ export function ShopPage() {
   const [mobileCartOpen, setMobileCartOpen] = useState(false);
   const [orderModalOpen, setOrderModalOpen] = useState(false);
   const [checkoutErr, setCheckoutErr] = useState<string | null>(null);
-  type BakeryHead = 'loading' | { name: string } | 'fail';
+  type BakeryHead = 'loading' | BakeryPublic | 'fail';
   const [bakeryHead, setBakeryHead] = useState<BakeryHead>('loading');
 
   useEffect(() => {
@@ -376,7 +407,7 @@ export function ShopPage() {
     void publicApi
       .bakery(slug)
       .then((b) => {
-        if (!cancelled) setBakeryHead({ name: b.name });
+        if (!cancelled) setBakeryHead(b);
       })
       .catch(() => {
         if (!cancelled) setBakeryHead('fail');
@@ -500,8 +531,6 @@ export function ShopPage() {
       return next;
     });
   };
-
-  const removeLine = (productId: string) => setQty(productId, 0);
 
   const lines = Object.values(cart);
   const totalCents = lines.reduce((s, l) => s + l.priceCents * l.qty, 0);
@@ -628,7 +657,7 @@ export function ShopPage() {
       setMobileCartOpen(false);
     },
     canEncomendar: Boolean(pickupDate && lines.length > 0),
-    onRemoveLine: removeLine,
+    onSetLineQty: setQty,
   };
 
   const bakeryLabel =
@@ -656,7 +685,9 @@ export function ShopPage() {
 
   return (
     <div
-      className={`mx-auto max-w-6xl px-4 pt-8 sm:pt-10 ${lines.length > 0 ? 'pb-28 lg:pb-10' : 'pb-8 sm:pb-10'}`}
+      className={`mx-auto max-w-6xl px-4 pt-8 sm:pt-10 ${
+        lines.length > 0 ? 'pb-32 lg:pb-14' : 'pb-10 sm:pb-12'
+      }`}
     >
       <ShopPublicHeader bakeryLabel={shopTitle} subtitle={shopSubtitle} />
 
@@ -750,6 +781,12 @@ export function ShopPage() {
           </Card>
         </div>
       </div>
+
+      <ShopPublicFooter
+        bakeryName={shopTitle}
+        subtitle={shopSubtitle}
+        bakery={bakeryHead === 'loading' ? null : bakeryHead}
+      />
 
       {lines.length > 0 && (
         <div

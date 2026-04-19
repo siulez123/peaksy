@@ -24,4 +24,5 @@ ENV NODE_ENV=production
 
 EXPOSE 3000
 
-CMD ["npm", "run", "start:railway"]
+# `start` inclui migrate deploy — necessário se a plataforma usar `npm start` por defeito (ex. Railway)
+CMD ["npm", "start"]

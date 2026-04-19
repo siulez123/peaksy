@@ -15,7 +15,7 @@ O servidor **não chega a escutar** na porta se o processo morrer no arranque. C
 1. Cria um projeto na [Railway](https://railway.app) e liga o repositório Git deste projeto.
 2. Adiciona a base de dados **PostgreSQL** (plugin) e copia a variável `DATABASE_URL` para o serviço da aplicação (ou usa a referência `${{Postgres.DATABASE_URL}}` na UI).
 3. Define as variáveis abaixo no serviço da app.
-4. O primeiro deploy corre `prisma migrate deploy` antes de iniciar o servidor (`npm run start:railway`).
+4. O arranque corre **`prisma migrate deploy`** antes do Node (`npm start`). Se na Railway tiveres **Start Command** personalizado, usa `npm start` ou `npx prisma migrate deploy && node dist/server.js` — **não** uses só `node dist/server.js` ou as tabelas não são criadas.
 
 ## Variáveis obrigatórias
 

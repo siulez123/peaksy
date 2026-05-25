@@ -5,6 +5,7 @@ import { auth, type LojaPublic } from '../api';
 import { useAuth } from '../context/AuthContext';
 import { googleMapsSearchUrl, telHref } from '../lib/lojaContact';
 import { useAdminPathBase, useResolvedTenantSlug } from '../lib/tenantHost';
+import { PoweredByLine } from './PoweredByLine';
 import { Button, Input, Label } from './ui';
 import { useI18n } from '../i18n/context';
 
@@ -185,17 +186,7 @@ export function ShopPublicFooter({ lojaName, subtitle, lojaPublic }: Props) {
           </div>
 
           <div className="flex flex-col gap-4 border-t border-border/5 pt-6 sm:col-span-2 sm:border-0 sm:pt-0 lg:col-span-3 lg:border-t-0">
-            <p className="text-xs font-medium leading-relaxed text-muted">
-              Powered by{' '}
-              <a
-                href="https://slicesofbravery.pt"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-bold text-ink underline decoration-ink/20 underline-offset-2 transition hover:text-primary"
-              >
-                Slices of Bravery Lda
-              </a>
-            </p>
+            <PoweredByLine />
             <p className="text-xs font-medium text-muted">{t('footer.rights')}</p>
           </div>
         </div>

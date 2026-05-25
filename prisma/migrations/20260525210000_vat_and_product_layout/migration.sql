@@ -2,25 +2,25 @@
 CREATE TYPE "ProductDisplayLayout" AS ENUM ('LARGE', 'MEDIUM', 'SMALL');
 
 -- AlterTable
-ALTER TABLE "bakeries" ADD COLUMN "product_display_layout" "ProductDisplayLayout" NOT NULL DEFAULT 'LARGE';
+ALTER TABLE "bakeries" ADD COLUMN "productDisplayLayout" "ProductDisplayLayout" NOT NULL DEFAULT 'LARGE';
 
 -- CreateTable
 CREATE TABLE "vat_rates" (
     "id" TEXT NOT NULL,
-    "bakery_id" TEXT NOT NULL,
+    "bakeryId" TEXT NOT NULL,
     "label" TEXT NOT NULL,
-    "rate_percent" DECIMAL(5,2) NOT NULL,
-    "sort_order" INTEGER NOT NULL DEFAULT 0,
-    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "ratePercent" DECIMAL(5,2) NOT NULL,
+    "sortOrder" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "vat_rates_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
-CREATE INDEX "vat_rates_bakery_id_idx" ON "vat_rates"("bakery_id");
+CREATE INDEX "vat_rates_bakeryId_idx" ON "vat_rates"("bakeryId");
 
 -- AddForeignKey
-ALTER TABLE "vat_rates" ADD CONSTRAINT "vat_rates_bakery_id_fkey" FOREIGN KEY ("bakery_id") REFERENCES "bakeries"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "vat_rates" ADD CONSTRAINT "vat_rates_bakeryId_fkey" FOREIGN KEY ("bakeryId") REFERENCES "bakeries"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- Escalões padrão e associação aos produtos existentes
 DO $$
@@ -34,7 +34,7 @@ BEGIN
     vat_reduced := gen_random_uuid()::text;
     vat_inter := gen_random_uuid()::text;
     vat_normal := gen_random_uuid()::text;
-    INSERT INTO "vat_rates" ("id", "bakery_id", "label", "rate_percent", "sort_order")
+    INSERT INTO "vat_rates" ("id", "bakeryId", "label", "ratePercent", "sortOrder")
     VALUES
       (vat_reduced, loja.id, 'Reduzida', 6, 0),
       (vat_inter, loja.id, 'Intermédia', 13, 1),
@@ -42,16 +42,16 @@ BEGIN
   END LOOP;
 END $$;
 
-ALTER TABLE "products" ADD COLUMN "vat_rate_id" TEXT;
+ALTER TABLE "products" ADD COLUMN "vatRateId" TEXT;
 
 UPDATE "products" p
-SET "vat_rate_id" = (
+SET "vatRateId" = (
   SELECT v.id FROM "vat_rates" v
-  WHERE v."bakery_id" = p."bakery_id" AND v."label" = 'Normal'
+  WHERE v."bakeryId" = p."bakeryId" AND v."label" = 'Normal'
   LIMIT 1
 );
 
-ALTER TABLE "products" ALTER COLUMN "vat_rate_id" SET NOT NULL;
+ALTER TABLE "products" ALTER COLUMN "vatRateId" SET NOT NULL;
 
 -- AddForeignKey
-ALTER TABLE "products" ADD CONSTRAINT "products_vat_rate_id_fkey" FOREIGN KEY ("vat_rate_id") REFERENCES "vat_rates"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "products" ADD CONSTRAINT "products_vatRateId_fkey" FOREIGN KEY ("vatRateId") REFERENCES "vat_rates"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

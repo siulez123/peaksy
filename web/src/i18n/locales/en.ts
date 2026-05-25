@@ -135,6 +135,11 @@ export const en = {
     noTenantSuffix: '.',
     pickBySlug: 'choose shop by slug',
     products: 'Products',
+    infoClosedDesc:
+      'Online orders are not open at the moment. Use the contact details below or check back when the next ordering period starts.',
+    infoNoProductsDesc:
+      'There are no products available for ordering right now. Contact the shop using the details below.',
+    phone: 'Phone',
     noImage: 'No image',
     addToCart: 'Add',
     cart: 'Cart',

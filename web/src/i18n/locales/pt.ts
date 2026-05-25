@@ -136,6 +136,11 @@ export const pt = {
     noTenantSuffix: '.',
     pickBySlug: 'escolhe a loja por slug',
     products: 'Produtos',
+    infoClosedDesc:
+      'As encomendas online não estão abertas neste momento. Usa os contactos abaixo ou volta quando abrir o próximo período de encomendas.',
+    infoNoProductsDesc:
+      'Não há produtos disponíveis para encomendar neste momento. Contacta a loja através dos dados abaixo.',
+    phone: 'Telefone',
     noImage: 'Sem imagem',
     addToCart: 'Adicionar',
     cart: 'Carrinho',

@@ -7,6 +7,7 @@ import { formatPickupHourLabel, pickupHalfHourSlotsBetween } from '../../lib/tim
 import { useI18n } from '../../i18n/context';
 import { ShopPublicFooter } from '../../components/ShopPublicFooter';
 import { ShopPublicHeader } from '../../components/ShopPublicHeader';
+import { ShopPublicInfoCenter } from '../../components/ShopPublicInfoCenter';
 import { LojaNotFoundPage } from '../LojaNotFoundPage';
 import { Button, Card, Input, Label } from '../../components/ui';
 import { useHostTenantSlug } from '../../lib/tenantHost';
@@ -401,6 +402,7 @@ export function ShopPage() {
   const [products, setProducts] = useState<
     Array<{ id: string; name: string; variant: string; priceCents: number; imageUrl: string | null }>
   >([]);
+  const [productsLoading, setProductsLoading] = useState(false);
   const [cart, setCart] = useState<Record<string, Line>>({});
   const [loading, setLoading] = useState(true);
   const [loadErr, setLoadErr] = useState<string | null>(null);
@@ -482,19 +484,24 @@ export function ShopPage() {
   useEffect(() => {
     if (!pickupDate || !slug) {
       setProducts([]);
+      setProductsLoading(false);
       return;
     }
     if (lojaHead === 'loading' || lojaHead === 'fail') {
       setProducts([]);
+      setProductsLoading(false);
       return;
     }
     let cancelled = false;
+    setProductsLoading(true);
     (async () => {
       try {
         const p = await publicApi.products(slug, pickupDate);
         if (!cancelled) setProducts(p);
       } catch {
         if (!cancelled) setProducts([]);
+      } finally {
+        if (!cancelled) setProductsLoading(false);
       }
     })();
     return () => {
@@ -683,6 +690,14 @@ export function ShopPage() {
     lojaHead === 'loading' ? '…' : lojaHead === 'fail' ? t('shop.loja') : lojaHead.name;
 
   const hasOpenPickupDays = days.some((d) => d.canOrder);
+  const lojaPublic = typeof lojaHead === 'object' ? lojaHead : null;
+  const showOrderingUI =
+    !loading &&
+    lojaPublic !== null &&
+    hasOpenPickupDays &&
+    !productsLoading &&
+    products.length > 0;
+  const infoReason: 'closed' | 'noProducts' = hasOpenPickupDays ? 'noProducts' : 'closed';
 
   if (!slug) {
     return (
@@ -705,17 +720,25 @@ export function ShopPage() {
   return (
     <div
       className={`mx-auto max-w-6xl px-4 pt-8 sm:pt-10 ${
-        lines.length > 0 ? 'pb-32 lg:pb-14' : 'pb-10 sm:pb-12'
+        showOrderingUI && lines.length > 0 ? 'pb-32 lg:pb-14' : 'pb-10 sm:pb-12'
       }`}
     >
       <ShopPublicHeader lojaLabel={shopTitle} subtitle={shopSubtitle} />
 
-      {loading && <p className="text-muted">{t('common.loading')}</p>}
+      {loading && <p className="text-center text-muted py-12">{t('common.loading')}</p>}
       {loadErr && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{loadErr}</p>}
 
+      {!loading && lojaPublic && productsLoading && hasOpenPickupDays && (
+        <p className="text-center text-muted py-12">{t('common.loading')}</p>
+      )}
+
+      {!loading && lojaPublic && !productsLoading && !showOrderingUI && (
+        <ShopPublicInfoCenter loja={lojaPublic} reason={infoReason} />
+      )}
+
+      {showOrderingUI && (
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
-          {!loading && hasOpenPickupDays && (
             <Card>
               <h2 className="mb-3 font-semibold text-ink">{t('shop.products')}</h2>
               <ul className="grid grid-cols-1 gap-5 sm:grid-cols-2">
@@ -791,7 +814,6 @@ export function ShopPage() {
                 })}
               </ul>
             </Card>
-          )}
         </div>
 
         <div className="hidden lg:block">
@@ -800,13 +822,14 @@ export function ShopPage() {
           </Card>
         </div>
       </div>
+      )}
 
       <ShopPublicFooter
         lojaName={shopTitle}
-        lojaPublic={typeof lojaHead === 'object' ? lojaHead : null}
+        lojaPublic={lojaPublic}
       />
 
-      {lines.length > 0 && (
+      {showOrderingUI && lines.length > 0 && (
         <div
           className="fixed bottom-0 left-0 right-0 z-50 border-t border-border/90 bg-surface/95 shadow-[0_-8px_32px_rgba(0,0,0,0.1)] backdrop-blur-md lg:hidden"
           style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
@@ -839,7 +862,7 @@ export function ShopPage() {
         </div>
       )}
 
-      {mobileCartOpen && (
+      {showOrderingUI && mobileCartOpen && (
         <div className="fixed inset-0 z-[60] lg:hidden" role="dialog" aria-modal="true" aria-labelledby="cart-sheet-title">
           <button
             type="button"
@@ -862,6 +885,7 @@ export function ShopPage() {
         </div>
       )}
 
+      {showOrderingUI && (
       <CheckoutModal
         open={orderModalOpen}
         onClose={() => setOrderModalOpen(false)}
@@ -890,6 +914,7 @@ export function ShopPage() {
         onClearCheckoutErr={() => setCheckoutErr(null)}
         onPay={checkout}
       />
+      )}
     </div>
   );
 }

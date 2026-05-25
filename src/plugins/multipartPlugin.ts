@@ -10,5 +10,5 @@ export const multipartPlugin = fp(
       },
     });
   },
-  { name: 'comebolos-multipart' }
+  { name: 'peaksy-multipart' }
 );

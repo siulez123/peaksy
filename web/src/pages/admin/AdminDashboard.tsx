@@ -4,8 +4,10 @@ import { adminApi } from '../../api';
 import { useAuth } from '../../context/AuthContext';
 import { Card } from '../../components/ui';
 import { useAdminPathBase, useResolvedTenantSlug } from '../../lib/tenantHost';
+import { useI18n } from '../../i18n/context';
 
 export function AdminDashboard() {
+  const { t } = useI18n();
   const slug = useResolvedTenantSlug();
   const base = useAdminPathBase();
   const { token } = useAuth();
@@ -32,31 +34,31 @@ export function AdminDashboard() {
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-semibold text-stone-900">Resumo</h1>
+      <h1 className="mb-6 text-2xl font-semibold text-stone-900">{t('adminDashboard.title')}</h1>
       <div className="grid gap-4 sm:grid-cols-2">
         <Card>
-          <p className="text-sm text-stone-500">Pedidos (lista atual)</p>
+          <p className="text-sm text-stone-500">{t('adminDashboard.ordersCount')}</p>
           <p className="mt-1 text-3xl font-semibold text-stone-900">{loading ? '…' : orders}</p>
           <Link to={`${base}/pedidos`} className="mt-3 inline-block text-sm text-orange-600 hover:underline">
-            Ver pedidos
+            {t('adminDashboard.viewOrders')}
           </Link>
         </Card>
         <Card>
-          <p className="text-sm text-stone-500">Atalhos</p>
+          <p className="text-sm text-stone-500">{t('adminDashboard.shortcuts')}</p>
           <ul className="mt-2 space-y-2 text-sm">
             <li>
               <Link to={`${base}/produtos`} className="text-orange-600 hover:underline">
-                Gerir produtos
+                {t('adminDashboard.manageProducts')}
               </Link>
             </li>
             <li>
               <Link to={`${base}/dias`} className="text-orange-600 hover:underline">
-                Dias de levantamento
+                {t('adminDashboard.pickupDays')}
               </Link>
             </li>
             <li>
               <Link to={`${base}/producao`} className="text-orange-600 hover:underline">
-                Folha de produção
+                {t('adminDashboard.productionSheet')}
               </Link>
             </li>
           </ul>

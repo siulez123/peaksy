@@ -61,12 +61,21 @@ export function pickupHalfHourSlotsBetween(minHhMm: string, maxHhMm: string): st
   return slots;
 }
 
-/** Apresentação legível, ex. `13h`, `13h30`. */
-export function formatPickupHourLabelPt(hhMm: string): string {
+/** Apresentação legível conforme locale (ex. EN `13:30`, PT/FR `13h30`). */
+export function formatPickupHourLabel(hhMm: string, localeTag: string): string {
   const t = hhMm.trim();
   const mins = t.slice(3, 5);
   const h = parseInt(t.slice(0, 2), 10);
   if (!Number.isFinite(h)) return t;
+  if (localeTag.startsWith('en')) {
+    const hh = String(h).padStart(2, '0');
+    return mins === '30' ? `${hh}:30` : `${hh}:00`;
+  }
   if (mins === '30') return `${h}h30`;
   return `${h}h`;
+}
+
+/** @deprecated Use formatPickupHourLabel(hhMm, localeTag) */
+export function formatPickupHourLabelPt(hhMm: string): string {
+  return formatPickupHourLabel(hhMm, 'pt-PT');
 }

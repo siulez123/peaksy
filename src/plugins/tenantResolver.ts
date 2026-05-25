@@ -95,15 +95,15 @@ async function tenantResolverPluginFn(
       return;
     }
 
-    // Extract slug from subdomain pattern: {slug}.comebolos.com or {slug}.comebolos.local
+    // Extract slug from subdomain pattern: {slug}.peaksy.com or {slug}.peaksy.local
     let slug: string | null = null;
 
     request.log.info({ hostWithoutPort }, 'Extracting slug from host');
 
-    if (hostWithoutPort.endsWith('.comebolos.com')) {
-      slug = hostWithoutPort.replace('.comebolos.com', '');
-    } else if (hostWithoutPort.endsWith('.comebolos.local')) {
-      slug = hostWithoutPort.replace('.comebolos.local', '');
+    if (hostWithoutPort.endsWith('.peaksy.com')) {
+      slug = hostWithoutPort.replace('.peaksy.com', '');
+    } else if (hostWithoutPort.endsWith('.peaksy.local')) {
+      slug = hostWithoutPort.replace('.peaksy.local', '');
     } else {
       // Future: check custom domain
       const bakery = await fastify.prisma.bakery.findUnique({
@@ -122,8 +122,8 @@ async function tenantResolverPluginFn(
 
     request.log.info({ slug, hostWithoutPort }, 'Extracted slug');
 
-    // Host “genérico” (ex.: comebolos.up.railway.app, domínio custom sem sub-padaria): não há tenant no Host.
-    // O SPA na raiz e rotas /auth funcionam sem tenant; a API pública usa X-Tenant-Slug (ex.: /loja/padariademo no FE).
+    // Host “genérico” (ex.: peaksy.up.railway.app, domínio custom sem sub-padaria): não há tenant no Host.
+    // O SPA na raiz e rotas /auth funcionam sem tenant; a API pública usa X-Tenant-Slug (ex.: /loja/lojademo no FE).
     if (!slug) {
       request.log.info(
         { hostWithoutPort },
@@ -191,6 +191,6 @@ async function tenantResolverPluginFn(
 }
 
 export const tenantResolverPlugin = fp(tenantResolverPluginFn, {
-  name: 'comebolos-tenant-resolver',
+  name: 'peaksy-tenant-resolver',
   dependencies: ['prisma-plugin'],
 });

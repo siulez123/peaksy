@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
-const DEMO_SLUGS = ['padariademo', 'flordeesmoriz'] as const;
+const DEMO_SLUGS = ['lojademo', 'flordeesmoriz'] as const;
 
 /** Amanhã e depois de amanhã a partir de hoje (hora local). */
 function pickupDates(): { d1: Date; d2: Date } {
@@ -22,10 +22,10 @@ async function main() {
 
   const superAdminPasswordHash = await bcrypt.hash('Admin123!', 10);
   const superAdmin = await prisma.user.upsert({
-    where: { email: 'super@comebolos.local' },
+    where: { email: 'super@peaksy.local' },
     update: {},
     create: {
-      email: 'super@comebolos.local',
+      email: 'super@peaksy.local',
       passwordHash: superAdminPasswordHash,
       role: 'SUPER_ADMIN',
       bakeryId: null,
@@ -57,24 +57,24 @@ async function main() {
     jamon: '/uploads/seed/pao-de-jamon.jpg',
   };
 
-  // —— Padaria Demo ——
-  const padariademo = await prisma.bakery.upsert({
-    where: { slug: 'padariademo' },
+  // —— Loja Demo ——
+  const lojademo = await prisma.bakery.upsert({
+    where: { slug: 'lojademo' },
     update: {
-      name: 'Padaria Demo',
+      name: 'Loja Demo',
       active: true,
-      addressLine: 'Rua da Padaria Demo, 123',
+      addressLine: 'Rua da Loja Demo, 123',
       postalCode: '1000-001',
       locality: 'Lisboa',
       phone: '+351211000000',
     },
     create: {
-      name: 'Padaria Demo',
-      slug: 'padariademo',
+      name: 'Loja Demo',
+      slug: 'lojademo',
       timezone: 'Europe/Lisbon',
       active: true,
       plan: 'STARTER',
-      addressLine: 'Rua da Padaria Demo, 123',
+      addressLine: 'Rua da Loja Demo, 123',
       postalCode: '1000-001',
       locality: 'Lisboa',
       phone: '+351211000000',
@@ -82,13 +82,13 @@ async function main() {
   });
 
   await prisma.user.upsert({
-    where: { email: 'admin@padariademo.local' },
-    update: { passwordHash: adminPasswordHash, bakeryId: padariademo.id },
+    where: { email: 'admin@lojademo.local' },
+    update: { passwordHash: adminPasswordHash, bakeryId: lojademo.id },
     create: {
-      email: 'admin@padariademo.local',
+      email: 'admin@lojademo.local',
       passwordHash: adminPasswordHash,
       role: 'BAKERY_ADMIN',
-      bakeryId: padariademo.id,
+      bakeryId: lojademo.id,
     },
   });
 
@@ -103,14 +103,14 @@ async function main() {
   const demoProdRows = await Promise.all(
     productsDemo.map((p) =>
       prisma.product.create({
-        data: { ...p, bakeryId: padariademo.id, active: true },
+        data: { ...p, bakeryId: lojademo.id, active: true },
       })
     )
   );
 
   const dayDemoA = await prisma.availableDay.create({
     data: {
-      bakeryId: padariademo.id,
+      bakeryId: lojademo.id,
       pickupDate: d1,
       pickupEndDate: d1,
       ordersOpenAt: null,
@@ -120,7 +120,7 @@ async function main() {
       pickupDateRules: {
         create: {
           id: randomUUID(),
-          bakeryId: padariademo.id,
+          bakeryId: lojademo.id,
           pickupDate: d1,
           orderDeadline: orderDeadlineFar,
         },
@@ -130,7 +130,7 @@ async function main() {
 
   await prisma.availableDay.create({
     data: {
-      bakeryId: padariademo.id,
+      bakeryId: lojademo.id,
       pickupDate: d2,
       pickupEndDate: d2,
       ordersOpenAt: null,
@@ -140,7 +140,7 @@ async function main() {
       pickupDateRules: {
         create: {
           id: randomUUID(),
-          bakeryId: padariademo.id,
+          bakeryId: lojademo.id,
           pickupDate: d2,
           orderDeadline: orderDeadlineFar,
         },
@@ -152,7 +152,7 @@ async function main() {
 
   await prisma.order.create({
     data: {
-      bakeryId: padariademo.id,
+      bakeryId: lojademo.id,
       availableDayId: dayDemoA.id,
       pickupDate: d1,
       pickupTime: '10:00',
@@ -173,7 +173,7 @@ async function main() {
 
   await prisma.order.create({
     data: {
-      bakeryId: padariademo.id,
+      bakeryId: lojademo.id,
       availableDayId: dayDemoA.id,
       pickupDate: d1,
       pickupTime: '11:00',
@@ -190,7 +190,7 @@ async function main() {
 
   await prisma.order.create({
     data: {
-      bakeryId: padariademo.id,
+      bakeryId: lojademo.id,
       availableDayId: dayDemoA.id,
       pickupDate: d1,
       pickupTime: '14:00',
@@ -207,7 +207,7 @@ async function main() {
 
   await prisma.order.create({
     data: {
-      bakeryId: padariademo.id,
+      bakeryId: lojademo.id,
       availableDayId: dayDemoA.id,
       pickupDate: d1,
       pickupTime: '16:00',
@@ -222,7 +222,7 @@ async function main() {
     },
   });
 
-  console.log('✅ Padaria Demo: produtos, dias, 4 encomendas (vários estados)');
+  console.log('✅ Loja Demo: produtos, dias, 4 encomendas (vários estados)');
 
   // —— Flor de Esmoriz ——
   const flordeesmoriz = await prisma.bakery.upsert({

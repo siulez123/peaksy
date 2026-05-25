@@ -8,12 +8,12 @@ O header `X-Tenant-Slug` não está funcionando corretamente. Use uma das soluç
 
 ```bash
 # Listar produtos
-curl -H "Host: padariademo.comebolos.local" http://localhost:3000/public/products
+curl -H "Host: lojademo.peaksy.local" http://localhost:3000/public/products
 
 # Fazer login (admin de padaria: incluir tenantSlug)
 curl -X POST http://localhost:3000/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"admin@padariademo.local","password":"Admin123!","tenantSlug":"padariademo"}'
+  -d '{"email":"admin@lojademo.local","password":"Admin123!","tenantSlug":"lojademo"}'
 ```
 
 ## Solução 2: Endpoints que não precisam de tenant
@@ -28,7 +28,7 @@ open http://localhost:3000/docs
 # Login admin de padaria (tenantSlug obrigatório)
 curl -X POST http://localhost:3000/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"admin@padariademo.local","password":"Admin123!","tenantSlug":"padariademo"}'
+  -d '{"email":"admin@lojademo.local","password":"Admin123!","tenantSlug":"lojademo"}'
 ```
 
 ## Solução 3: Endpoints Super Admin (não precisam de tenant)

@@ -21,10 +21,10 @@ O servidor **não chega a escutar** na porta se o processo morrer no arranque. C
 
 O `migrate deploy` **não** insere utilizadores nem padarias. Se vires:
 
-- `Bakery with slug 'padariademo' not found or inactive`, ou
-- `Invalid credentials` com `super@comebolos.local` / `Admin123!`,
+- `Bakery with slug 'lojademo' not found or inactive`, ou
+- `Invalid credentials` com `super@peaksy.local` / `Admin123!`,
 
-é porque a base de dados de produção **ainda não correu o seed** (`prisma/seed.ts`), que cria a padaria demo, o super admin e o admin da padaria.
+é porque a base de dados de produção **ainda não correu o seed** (`prisma/seed.ts`), que cria a loja demo, o super admin e o admin da loja demo.
 
 **Corre o seed uma vez** a partir do teu computador (com o projeto instalado: `npm install`).
 
@@ -40,7 +40,7 @@ Se usares `railway run npx prisma db seed` ou copiares só o `DATABASE_URL` do P
 **Seed local (recomendado):** no dashboard Railway → serviço **Postgres** → **Variables** → copia **`DATABASE_PUBLIC_URL`** e corre:
 
 ```bash
-cd /caminho/para/comebolos
+cd /caminho/para/peaksy
 # Ligação externa ao proxy da Railway quase sempre precisa de SSL:
 export DATABASE_URL="postgresql://...@roundhouse.proxy.rlwy.net:PORTA/railway?sslmode=require"
 npx prisma db seed
@@ -87,7 +87,7 @@ O comando `railway run` **ainda executa no teu PC** — só injeta variáveis. P
 
 **1. SSH no contentor do serviço da aplicação** ([`railway ssh`](https://docs.railway.app/guides/cli))
 
-- Faz `railway link` ao **serviço da app** (Comebolos / API), **não** ao plugin Postgres.
+- Faz `railway link` ao **serviço da app** (Peaksy / API), **não** ao plugin Postgres.
 - No contentor, o `DATABASE_URL` já aponta para a BD interna — não precisas do URL público.
 
 No Dockerfile, após `npm prune --omit=dev`, o `tsx` pode não estar instalado; o `npx tsx` descarrega-o quando necessário:
@@ -114,7 +114,7 @@ Workflow que corre `npx prisma db seed` com `DATABASE_URL` num secret (podes usa
 
 ---
 
-Depois do seed bem sucedido, `/loja/padariademo` e o login do super admin com as credenciais do README devem funcionar. **Em produção real**, altera passwords e não relies nos dados de demo.
+Depois do seed bem sucedido, `/loja/lojademo` e o login do super admin com as credenciais do README devem funcionar. **Em produção real**, altera passwords e não relies nos dados de demo.
 
 ## Variáveis obrigatórias
 
@@ -146,20 +146,20 @@ No URL por defeito da Railway (`https://<serviço>.up.railway.app`) **não há s
 
 | O que queres | URL (exemplo) |
 |----------------|---------------|
-| Página inicial da plataforma (super admin, texto genérico) | `https://comebolos.up.railway.app/` |
-| Loja da padaria `padariademo` (slug na path) | `https://comebolos.up.railway.app/loja/padariademo` |
-| Login admin dessa padaria | `https://comebolos.up.railway.app/admin/padariademo/entrar` |
-| Super admin | `https://comebolos.up.railway.app/super/entrar` |
+| Página inicial da plataforma (super admin, texto genérico) | `https://peaksy.up.railway.app/` |
+| Loja demo `lojademo` (slug na path) | `https://peaksy.up.railway.app/loja/lojademo` |
+| Login admin da loja demo | `https://peaksy.up.railway.app/admin/lojademo/entrar` |
+| Super admin | `https://peaksy.up.railway.app/super/entrar` |
 
-Com **domínio próprio** no formato `padariademo.comebolos.com` (DNS a apontar para o Railway), o tenant pode ser resolvido pelo `Host` sem `/loja/...` — vê `src/plugins/tenantResolver.ts` e `VITE_APP_DOMAIN` no frontend.
+Com **domínio próprio** no formato `lojademo.peaksy.com` (DNS a apontar para o Railway), o tenant pode ser resolvido pelo `Host` sem `/loja/...` — vê `src/plugins/tenantResolver.ts` e `VITE_APP_DOMAIN` no frontend.
 
 Em desenvolvimento usa-se muitas vezes o header `X-Tenant-Slug`; o browser envia-o nas chamadas à API quando estás numa rota com slug.
 
 ## Build local do Docker
 
 ```bash
-docker build -t comebolos .
-docker run --rm -p 3000:3000 -e DATABASE_URL="postgresql://..." -e JWT_SECRET="..." comebolos
+docker build -t peaksy .
+docker run --rm -p 3000:3000 -e DATABASE_URL="postgresql://..." -eJWT_SECRET="..." peaksy
 ```
 
 Abre `http://localhost:3000/health` e a raiz para o site.

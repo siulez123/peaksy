@@ -1,10 +1,10 @@
 import { useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 
-const APP_DOMAIN = import.meta.env.VITE_APP_DOMAIN || 'comebolos.com';
+const APP_DOMAIN = import.meta.env.VITE_APP_DOMAIN || 'peaksy.com';
 
 /**
- * Resolve o slug da padaria a partir do hostname (ex.: padariademo.comebolos.com → padariademo).
+ * Resolve o slug da padaria a partir do hostname (ex.: lojademo.peaksy.com → lojademo).
  * Em localhost: usa VITE_DEV_TENANT_SLUG se definido; caso contrário null.
  * Reservado: super.<domínio>, www, apex.
  */
@@ -53,7 +53,7 @@ export function useResolvedTenantSlug(): string {
 
 /**
  * Prefixo de rotas admin: sem slug no path quando o tenant vem do subdomínio.
- * Ex.: /admin vs /admin/padariademo
+ * Ex.: /admin vs /admin/lojademo
  */
 export function useAdminPathBase(): string {
   const { slug: p } = useParams<{ slug?: string }>();

@@ -1,14 +1,15 @@
-# Comebolos API
+# Peaksy API
 
-Backend multi-tenant para SaaS de pré-encomendas de padaria white-label.
+Backend da plataforma **Peaksy** — SaaS multi-tenant de pré-encomendas em white-label (padarias e outros negócios com levantamento agendado).
 
 ## 🏗️ Arquitetura
 
-O sistema é multi-tenant, onde cada padaria tem um subdomínio dedicado:
-- `padariaX.comebolos.com` - Produção
-- `padariaX.comebolos.local` - Desenvolvimento local
+Cada **tenant** (ex.: uma padaria) pode ter subdomínio dedicado ou domínio próprio:
 
-A resolução de tenant é feita através do header `Host` da requisição.
+- `{slug}.peaksy.com` — produção (subdomínio da plataforma)
+- `{slug}.peaksy.local` — desenvolvimento local
+
+A resolução de tenant é feita pelo header `Host`, por domínio personalizado na base de dados, ou por `X-Tenant-Slug` em desenvolvimento.
 
 ## 🚀 Início Rápido
 
@@ -66,9 +67,9 @@ A documentação Swagger está disponível em:
 ```bash
 POST /auth/login
 {
-  "email": "admin@padariademo.local",
+  "email": "admin@lojademo.local",
   "password": "Admin123!",
-  "tenantSlug": "padariademo"
+  "tenantSlug": "lojademo"
 }
 ```
 
@@ -80,7 +81,7 @@ O token JWT retornado deve ser incluído no header `Authorization: Bearer <token
 
 O sistema resolve automaticamente o tenant (padaria) baseado no header `Host`:
 
-1. **Subdomínio padrão**: `{slug}.comebolos.com` ou `{slug}.comebolos.local`
+1. **Subdomínio padrão**: `{slug}.peaksy.com` ou `{slug}.peaksy.local`
    - Extrai o slug do subdomínio
    - Busca a padaria no banco de dados
    - Anexa `request.tenant` com informações da padaria
@@ -99,7 +100,7 @@ O sistema resolve automaticamente o tenant (padaria) baseado no header `Host`:
 Sem precisar editar `/etc/hosts`, use o header `X-Tenant-Slug`:
 
 ```bash
-curl -H "X-Tenant-Slug: padariademo" http://localhost:3000/public/products
+curl -H "X-Tenant-Slug: lojademo" http://localhost:3000/public/products
 ```
 
 **Opção 2: Usando /etc/hosts (requer permissões de admin)**
@@ -107,12 +108,12 @@ curl -H "X-Tenant-Slug: padariademo" http://localhost:3000/public/products
 Adicione ao seu `/etc/hosts`:
 
 ```
-127.0.0.1 padariademo.comebolos.local
+127.0.0.1 lojademo.peaksy.local
 ```
 
 Então faça requisições:
 ```bash
-curl -H "Host: padariademo.comebolos.local" http://localhost:3000/public/products
+curl -H "Host: lojademo.peaksy.local" http://localhost:3000/public/products
 ```
 
 ## 👥 Usuários Padrão (Seed)
@@ -120,19 +121,19 @@ curl -H "Host: padariademo.comebolos.local" http://localhost:3000/public/product
 Após executar o seed, os seguintes usuários estarão disponíveis:
 
 ### Super Admin
-- **Email**: `super@comebolos.local`
+- **Email**: `super@peaksy.local`
 - **Password**: `Admin123!`
 - **Acesso**: Endpoints `/super/*` (sem necessidade de tenant)
 
 ### Bakery Admin
-- **Email**: `admin@padariademo.local`
+- **Email**: `admin@lojademo.local`
 - **Password**: `Admin123!`
-- **Bakery**: Padaria Demo (slug: `padariademo`)
-- **Acesso**: Endpoints `/admin/*` (requer tenant `padariademo`)
+- **Loja demo**: Loja Demo (slug: `lojademo`)
+- **Acesso**: Endpoints `/admin/*` (requer tenant `lojademo`)
 
 ## 📦 Produtos Padrão (Seed)
 
-A padaria demo vem com os seguintes produtos pré-configurados:
+A loja demo vem com os seguintes produtos pré-configurados:
 
 - **Bolo Rei**: 750g, 1Kg, 1,5Kg
 - **Pão de Ló**: Pequeno, Médio, Grande

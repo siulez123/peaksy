@@ -14,8 +14,8 @@ async function swaggerPluginImpl(
   await fastify.register(swagger, {
     openapi: {
       info: {
-        title: 'Comebolos API',
-        description: 'Multi-tenant bakery pre-order SaaS API',
+        title: 'Peaksy API',
+        description: 'Peaksy — API multi-tenant de pré-encomendas (white-label)',
         version: '1.0.0',
       },
       servers: [
@@ -55,5 +55,5 @@ async function swaggerPluginImpl(
 
 /** fastify-plugin: mesmo contexto que a app, para `/docs/static/*` coincidir com o HTML gerado. */
 export const swaggerPlugin = fp(swaggerPluginImpl, {
-  name: 'comebolos-swagger',
+  name: 'peaksy-swagger',
 });

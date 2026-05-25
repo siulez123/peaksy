@@ -4,6 +4,7 @@ import { adminApi, formatMoney, productImageUrl } from '../../api';
 import { useAuth } from '../../context/AuthContext';
 import { Button, Card, Input, Label, SheetDialog } from '../../components/ui';
 import { useResolvedTenantSlug } from '../../lib/tenantHost';
+import { useI18n } from '../../i18n/context';
 
 type ProductRow = {
   id: string;
@@ -19,6 +20,7 @@ type FormState = { name: string; variant: string; price: string; active: boolean
 const emptyForm = (): FormState => ({ name: '', variant: '', price: '', active: true });
 
 export function AdminProducts() {
+  const { t } = useI18n();
   const slug = useResolvedTenantSlug();
   const { token } = useAuth();
   const [items, setItems] = useState<ProductRow[]>([]);
@@ -62,7 +64,7 @@ export function AdminProducts() {
     if (!token) return;
     const priceCents = parsePriceCents(newForm.price);
     if (priceCents === null) {
-      setErr('Preço inválido');
+      setErr(t('adminProducts.invalidPrice'));
       return;
     }
     setAddSaving(true);
@@ -107,7 +109,7 @@ export function AdminProducts() {
     if (!token || !editingId) return;
     const priceCents = parsePriceCents(editForm.price);
     if (priceCents === null) {
-      setErr('Preço inválido');
+      setErr(t('adminProducts.invalidPrice'));
       return;
     }
     setEditSaving(true);
@@ -165,7 +167,7 @@ export function AdminProducts() {
   return (
     <div>
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-2xl font-semibold text-stone-900">Produtos</h1>
+        <h1 className="text-2xl font-semibold text-stone-900">{t('adminProducts.title')}</h1>
         <Button
           type="button"
           onClick={() => {
@@ -176,7 +178,7 @@ export function AdminProducts() {
           }}
         >
           <Plus className="h-4 w-4" aria-hidden />
-          Adicionar produto
+          {t('adminProducts.add')}
         </Button>
       </div>
       {err && <p className="mb-4 text-sm text-red-600">{err}</p>}
@@ -220,7 +222,7 @@ export function AdminProducts() {
       <SheetDialog
         open={addOpen}
         onClose={() => !addSaving && setAddOpen(false)}
-        title="Novo produto"
+        title={t('adminProducts.newProduct')}
         titleId="admin-create-product-title"
         maxWidthClassName="max-w-lg"
         closeDisabled={addSaving}
@@ -272,7 +274,7 @@ export function AdminProducts() {
           </div>
           <div className="flex flex-wrap gap-2 sm:col-span-2">
             <Button type="submit" disabled={addSaving}>
-              {addSaving ? 'A guardar…' : 'Adicionar'}
+              {addSaving ? t('common.saving') : t('common.add')}
             </Button>
             <Button type="button" variant="secondary" disabled={addSaving} onClick={() => setAddOpen(false)}>
               Cancelar
@@ -284,7 +286,7 @@ export function AdminProducts() {
       <SheetDialog
         open={editingId !== null}
         onClose={closeEdit}
-        title="Editar produto"
+        title={t('adminProducts.editProduct')}
         titleId="admin-edit-product-title"
         maxWidthClassName="max-w-lg"
         closeDisabled={editSaving}
@@ -346,7 +348,7 @@ export function AdminProducts() {
           </div>
           <div className="flex flex-wrap gap-2 sm:col-span-2">
             <Button type="submit" disabled={editSaving}>
-              {editSaving ? 'A guardar…' : 'Guardar alterações'}
+              {editSaving ? t('common.saving') : t('common.saveChanges')}
             </Button>
             <Button type="button" variant="secondary" disabled={editSaving} onClick={closeEdit}>
               Cancelar

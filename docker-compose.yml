@@ -1,17 +1,17 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: comebolos-postgres
+    container_name: peaksy-postgres
     environment:
-      POSTGRES_USER: comebolos
-      POSTGRES_PASSWORD: comebolos_dev
-      POSTGRES_DB: comebolos
+      POSTGRES_USER: peaksy
+      POSTGRES_PASSWORD: peaksy_dev
+      POSTGRES_DB: peaksy
     ports:
       - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U comebolos"]
+      test: ["CMD-SHELL", "pg_isready -U peaksy"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -20,9 +20,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: comebolos-api
+    container_name: peaksy-api
     environment:
-      DATABASE_URL: postgresql://comebolos:comebolos_dev@postgres:5432/comebolos
+      DATABASE_URL: postgresql://peaksy:peaksy_dev@postgres:5432/peaksy
       JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}

@@ -58,6 +58,6 @@ async function authPluginFn(fastify: FastifyInstance, _options: FastifyPluginOpt
 
 /** fastify-plugin: JWT e decorators ficam no mesmo contexto que as rotas (evita fastify.jwt undefined). */
 export const authPlugin = fp(authPluginFn, {
-  name: 'comebolos-auth',
+  name: 'peaksy-auth',
 });
 

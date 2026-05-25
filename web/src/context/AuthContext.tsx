@@ -8,9 +8,9 @@ import {
 } from 'react';
 import type { AuthUser, BakeryRef, LoginResponse } from '../api';
 
-const TOKEN_KEY = 'comebolos_token';
-const USER_KEY = 'comebolos_user';
-const BAKERY_KEY = 'comebolos_bakery';
+const TOKEN_KEY = 'peaksy_token';
+const USER_KEY = 'peaksy_user';
+const BAKERY_KEY = 'peaksy_bakery';
 
 function loadStored(): { token: string | null; user: AuthUser | null; bakery: BakeryRef | null } {
   try {

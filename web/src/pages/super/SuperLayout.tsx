@@ -2,14 +2,15 @@ import { NavLink, Outlet, Navigate } from 'react-router-dom';
 import { BarChart3, Building2, Users, LogOut, Menu } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-
-const superNavLinks = [
-  { to: '/super', end: true, label: 'Métricas', icon: BarChart3 },
-  { to: '/super/padarias', label: 'Padarias', icon: Building2 },
-  { to: '/super/utilizadores', label: 'Utilizadores', icon: Users },
-];
+import { useI18n } from '../../i18n/context';
 
 export function SuperLayout() {
+  const { t } = useI18n();
+  const superNavLinks = [
+    { to: '/super', end: true, label: t('superNav.metrics'), icon: BarChart3 },
+    { to: '/super/padarias', label: t('superNav.bakeries'), icon: Building2 },
+    { to: '/super/utilizadores', label: t('superNav.users'), icon: Users },
+  ];
   const { token, user, logout } = useAuth();
   const [open, setOpen] = useState(false);
 
@@ -42,7 +43,7 @@ export function SuperLayout() {
     <div className="min-h-dvh bg-stone-50">
       <header className="sticky top-0 z-10 border-b border-stone-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
-          <p className="font-semibold text-violet-900">Comebolos · Super</p>
+          <p className="font-semibold text-violet-900">Peaksy · Super</p>
           <button type="button" className="rounded-lg p-2 sm:hidden" onClick={() => setOpen((o) => !o)}>
             <Menu className="h-5 w-5" />
           </button>
@@ -57,7 +58,7 @@ export function SuperLayout() {
               className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-sm text-stone-600 hover:bg-stone-100"
             >
               <LogOut className="h-4 w-4" />
-              Sair
+              {t('common.logout')}
             </button>
           </div>
         </div>
@@ -73,7 +74,7 @@ export function SuperLayout() {
               className="mt-2 flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-stone-600"
             >
               <LogOut className="h-4 w-4" />
-              Sair
+              {t('common.logout')}
             </button>
           </div>
         )}

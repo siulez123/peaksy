@@ -183,7 +183,7 @@ async function authRoutesImpl(fastify: FastifyInstance) {
 }
 
 export const authRoutes = fp(authRoutesImpl, {
-  name: 'comebolos-auth-routes',
-  dependencies: ['prisma-plugin', 'comebolos-auth'],
+  name: 'peaksy-auth-routes',
+  dependencies: ['prisma-plugin', 'peaksy-auth'],
 });
 

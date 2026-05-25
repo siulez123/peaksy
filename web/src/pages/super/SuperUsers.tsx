@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 import { superApi, type SuperBakery, type SuperUser, type UserRole } from '../../api';
 import { useAuth } from '../../context/AuthContext';
 import { Button, Card, Input, Label, SheetDialog } from '../../components/ui';
+import { useI18n } from '../../i18n/context';
 
 type EditForm = {
   email: string;
@@ -21,6 +22,7 @@ function userToForm(u: SuperUser): EditForm {
 }
 
 export function SuperUsers() {
+  const { t } = useI18n();
   const { token } = useAuth();
   const [items, setItems] = useState<SuperUser[]>([]);
   const [bakeries, setBakeries] = useState<Array<{ id: string; name: string; slug: string }>>([]);
@@ -92,7 +94,7 @@ export function SuperUsers() {
       }
       if (editForm.role === 'BAKERY_ADMIN') {
         if (!editForm.bakeryId) {
-          setErr('Seleciona uma padaria para admin de padaria.');
+          setErr(t('superUsers.selectBakery'));
           setSaving(false);
           return;
         }
@@ -221,7 +223,7 @@ export function SuperUsers() {
               value={form.role}
               onChange={(e) => setForm((f) => ({ ...f, role: e.target.value as UserRole }))}
             >
-              <option value="BAKERY_ADMIN">Admin padaria</option>
+              <option value="BAKERY_ADMIN">{t('superUsers.roleBakery')}</option>
               <option value="SUPER_ADMIN">Super admin</option>
             </select>
           </div>
@@ -305,10 +307,10 @@ export function SuperUsers() {
                   type="password"
                   value={editForm.password}
                   onChange={(e) => setEditForm((f) => (f ? { ...f, password: e.target.value } : f))}
-                  placeholder="Deixar em branco para não alterar"
+                  placeholder={t('superUsers.passwordBlank')}
                   autoComplete="new-password"
                 />
-                <p className="mt-1 text-xs text-stone-500">Mínimo 8 caracteres se preencheres.</p>
+                <p className="mt-1 text-xs text-stone-500">{t('superUsers.passwordMin')}</p>
               </div>
               <div>
                 <Label>Função</Label>
@@ -317,7 +319,7 @@ export function SuperUsers() {
                   value={editForm.role}
                   onChange={(e) => setEditForm((f) => (f ? { ...f, role: e.target.value as UserRole } : f))}
                 >
-                  <option value="BAKERY_ADMIN">Admin padaria</option>
+                  <option value="BAKERY_ADMIN">{t('superUsers.roleBakery')}</option>
                   <option value="SUPER_ADMIN">Super admin</option>
                 </select>
               </div>
@@ -342,7 +344,7 @@ export function SuperUsers() {
 
               <div className="flex flex-wrap gap-2 border-t border-stone-100 pt-4">
                 <Button type="submit" disabled={saving}>
-                  {saving ? 'A guardar…' : 'Guardar alterações'}
+                  {saving ? t('common.saving') : t('common.saveChanges')}
                 </Button>
                 <Button type="button" variant="secondary" disabled={saving} onClick={() => setEditing(null)}>
                   Cancelar

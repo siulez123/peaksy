@@ -3,6 +3,7 @@ import { adminApi } from '../../api';
 import { useAuth } from '../../context/AuthContext';
 import { Button, Card, Input, Label } from '../../components/ui';
 import { useResolvedTenantSlug } from '../../lib/tenantHost';
+import { useI18n } from '../../i18n/context';
 
 const PICKUP_HOURS = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`);
 
@@ -33,9 +34,10 @@ function BarChartByProduct({
 }: {
   items: Array<{ label: string; quantity: number }>;
 }) {
+  const { t } = useI18n();
   const max = Math.max(1, ...items.map((x) => x.quantity));
   if (items.length === 0) {
-    return <p className="text-sm text-stone-500">Sem dados para o gráfico.</p>;
+    return <p className="text-sm text-stone-500">{t('adminProduction.noChartData')}</p>;
   }
   return (
     <div className="space-y-3">
@@ -60,6 +62,7 @@ function BarChartByProduct({
 }
 
 export function AdminProduction() {
+  const { t, localeTag } = useI18n();
   const slug = useResolvedTenantSlug();
   const { token } = useAuth();
 
@@ -80,7 +83,7 @@ export function AdminProduction() {
       catalog
         .filter((p) => p.active)
         .slice()
-        .sort((a, b) => `${a.name} ${a.variant}`.localeCompare(`${b.name} ${b.variant}`, 'pt')),
+        .sort((a, b) => `${a.name} ${a.variant}`.localeCompare(`${b.name} ${b.variant}`, localeTag)),
     [catalog]
   );
 
@@ -165,7 +168,7 @@ export function AdminProduction() {
 
   return (
     <div>
-      <h1 className="mb-2 text-2xl font-semibold text-stone-900">Produção</h1>
+      <h1 className="mb-2 text-2xl font-semibold text-stone-900">{t('adminProduction.title')}</h1>
       <p className="mb-6 text-sm text-stone-600">
         Totais por produto e por dia/hora (apenas encomendas <strong>pagas</strong>), para planear a produção.
       </p>
@@ -193,9 +196,9 @@ export function AdminProduction() {
               value={dateTo}
               min={dateFrom}
               onChange={(e) => setDateTo(e.target.value)}
-              placeholder="Igual à inicial"
+              placeholder={t('adminProduction.sameAsStart')}
             />
-            <p className="mt-1 text-xs text-stone-500">Vazio = só o dia inicial. Máx. 31 dias de intervalo.</p>
+            <p className="mt-1 text-xs text-stone-500">{t('adminProduction.rangeHint')}</p>
           </div>
           <div>
             <Label>Hora de levantamento</Label>
@@ -244,7 +247,7 @@ export function AdminProduction() {
           {catalogLoading ? (
             <p className="text-sm text-stone-500">A carregar produtos…</p>
           ) : selectableProducts.length === 0 ? (
-            <p className="text-sm text-amber-800">Não há produtos ativos no catálogo.</p>
+            <p className="text-sm text-amber-800">{t('adminProduction.noActiveProducts')}</p>
           ) : (
             <div
               className="max-h-[min(50vh,320px)] overflow-y-auto rounded-xl border border-stone-200 bg-white/80 p-3 sm:p-4"
@@ -311,13 +314,13 @@ export function AdminProduction() {
               <p className="mb-4 text-xs text-stone-500">Soma de todas as horas e dias do filtro.</p>
               <BarChartByProduct items={chartItems} />
               {data.productTotals.length === 0 && (
-                <p className="text-sm text-stone-500">Sem linhas de produto neste período/filtro.</p>
+                <p className="text-sm text-stone-500">{t('adminProduction.noLines')}</p>
               )}
             </Card>
 
             <Card>
-              <h2 className="mb-1 text-lg font-semibold text-stone-900">Tabela rápida (totais)</h2>
-              <p className="mb-4 text-xs text-stone-500">Mesmos totais do gráfico, em números.</p>
+              <h2 className="mb-1 text-lg font-semibold text-stone-900">{t('adminProduction.quickTable')}</h2>
+              <p className="mb-4 text-xs text-stone-500">{t('adminProduction.quickTableDesc')}</p>
               <ul className="max-h-[min(60vh,420px)] space-y-2 overflow-y-auto text-sm">
                 {data.productTotals.map((t, i) => (
                   <li key={i} className="flex justify-between gap-2 border-b border-stone-100 py-2 last:border-0">

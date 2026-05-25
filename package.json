@@ -1,7 +1,7 @@
 {
-    "name": "comebolos-api",
+    "name": "peaksy-api",
     "version": "1.0.0",
-    "description": "Multi-tenant bakery pre-order SaaS backend",
+    "description": "Peaksy — backend multi-tenant para pré-encomendas (white-label)",
     "main": "dist/server.js",
     "scripts": {
         "dev": "tsx watch src/server.ts",

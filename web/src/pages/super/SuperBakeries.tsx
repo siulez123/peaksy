@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 import { superApi, type SuperBakery } from '../../api';
 import { useAuth } from '../../context/AuthContext';
 import { Button, Card, Input, Label, SheetDialog } from '../../components/ui';
+import { useI18n } from '../../i18n/context';
 
 type EditForm = {
   name: string;
@@ -33,6 +34,7 @@ function bakeryToForm(b: SuperBakery): EditForm {
 }
 
 export function SuperBakeries() {
+  const { t } = useI18n();
   const { token } = useAuth();
   const [items, setItems] = useState<SuperBakery[]>([]);
   const [form, setForm] = useState({
@@ -159,7 +161,7 @@ export function SuperBakeries() {
   };
 
   const remove = async (id: string) => {
-    if (!token || !confirm('Apagar padaria?')) return;
+    if (!token || !confirm(t('superBakeries.confirmDelete'))) return;
     try {
       await superApi.bakeries.remove(token, id);
       await load();
@@ -187,7 +189,7 @@ export function SuperBakeries() {
             setCreateOpen(true);
           }}
         >
-          Adicionar padaria
+          {t('superBakeries.add')}
         </Button>
       </div>
       {err && <p className="mb-4 text-sm text-red-600">{err}</p>}
@@ -222,7 +224,7 @@ export function SuperBakeries() {
       <SheetDialog
         open={createOpen}
         onClose={() => !creating && setCreateOpen(false)}
-        title="Nova padaria"
+        title={t('superBakeries.newBakery')}
         titleId="super-create-bakery-title"
         maxWidthClassName="max-w-lg"
         closeDisabled={creating}
@@ -310,7 +312,7 @@ export function SuperBakeries() {
           >
             <div className="sticky top-0 flex items-center justify-between border-b border-stone-100 bg-white px-4 py-3 sm:px-6">
               <h2 id="super-edit-bakery-title" className="text-lg font-semibold text-stone-900">
-                Editar padaria
+                {t('superBakeries.editBakery')}
               </h2>
               <button
                 type="button"
@@ -438,7 +440,7 @@ export function SuperBakeries() {
 
               <div className="flex flex-wrap gap-2 border-t border-stone-100 pt-4">
                 <Button type="submit" disabled={saving}>
-                  {saving ? 'A guardar…' : 'Guardar alterações'}
+                  {saving ? t('common.saving') : t('common.saveChanges')}
                 </Button>
                 <Button type="button" variant="secondary" disabled={saving} onClick={() => setEditing(null)}>
                   Cancelar

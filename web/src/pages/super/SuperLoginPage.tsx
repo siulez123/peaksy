@@ -3,8 +3,10 @@ import { Link, useNavigate } from 'react-router-dom';
 import { auth } from '../../api';
 import { useAuth } from '../../context/AuthContext';
 import { Button, Card, Input, Label, PageHeader } from '../../components/ui';
+import { useI18n } from '../../i18n/context';
 
 export function SuperLoginPage() {
+  const { t } = useI18n();
   const { setSession } = useAuth();
   const nav = useNavigate();
   const [email, setEmail] = useState('');
@@ -19,13 +21,13 @@ export function SuperLoginPage() {
     try {
       const data = await auth.login(email, password);
       if (data.user.role !== 'SUPER_ADMIN') {
-        setErr('Apenas super administradores.');
+        setErr(t('superLogin.superAdminOnly'));
         return;
       }
       setSession(data);
       nav('/super');
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Falha no login');
+      setErr(e instanceof Error ? e.message : t('common.loginFailed'));
     } finally {
       setLoading(false);
     }
@@ -33,15 +35,15 @@ export function SuperLoginPage() {
 
   return (
     <div className="mx-auto max-w-md px-4 py-12">
-      <PageHeader title="Super admin" subtitle="Acesso à plataforma Comebolos" />
+      <PageHeader title={t('superLogin.title')} subtitle={t('superLogin.subtitle')} />
       <Card>
         <form onSubmit={submit} className="space-y-4">
           <div>
-            <Label>Email</Label>
+            <Label>{t('common.email')}</Label>
             <Input type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
           </div>
           <div>
-            <Label>Palavra-passe</Label>
+            <Label>{t('common.password')}</Label>
             <Input
               type="password"
               autoComplete="current-password"
@@ -52,13 +54,13 @@ export function SuperLoginPage() {
           </div>
           {err && <p className="text-sm text-red-600">{err}</p>}
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? 'A entrar…' : 'Entrar'}
+            {loading ? t('superLogin.signingIn') : t('superLogin.signIn')}
           </Button>
         </form>
       </Card>
       <p className="mt-4 text-center text-sm text-stone-500">
         <Link to="/" className="text-orange-600 hover:underline">
-          Início
+          {t('superLogin.home')}
         </Link>
       </p>
     </div>

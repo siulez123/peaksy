@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { superApi, formatMoney } from '../../api';
 import { useAuth } from '../../context/AuthContext';
 import { Card } from '../../components/ui';
+import { useI18n } from '../../i18n/context';
 
 type Metrics = {
   bakeries: { total: number; active: number };
@@ -11,6 +12,7 @@ type Metrics = {
 };
 
 export function SuperDashboard() {
+  const { t } = useI18n();
   const { token } = useAuth();
   const [m, setM] = useState<Metrics | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -33,7 +35,7 @@ export function SuperDashboard() {
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-semibold text-stone-900">Métricas globais</h1>
+      <h1 className="mb-6 text-2xl font-semibold text-stone-900">{t('superDashboard.title')}</h1>
       {err && <p className="text-sm text-red-600">{err}</p>}
       {m && (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

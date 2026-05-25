@@ -11,23 +11,26 @@ import {
 import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useAdminPathBase, useHostTenantSlug, useResolvedTenantSlug } from '../../lib/tenantHost';
+import { useI18n } from '../../i18n/context';
 
-function adminNavLinks(base: string) {
+function adminNavLinks(base: string, t: (key: string) => string) {
   return [
-    { to: base, end: true as boolean | undefined, label: 'Resumo', icon: LayoutDashboard },
-    { to: `${base}/produtos`, label: 'Produtos', icon: Package },
-    { to: `${base}/dias`, label: 'Dias', icon: CalendarDays },
-    { to: `${base}/pedidos`, label: 'Pedidos', icon: ClipboardList },
-    { to: `${base}/producao`, label: 'Produção', icon: Factory },
+    { to: base, end: true as boolean | undefined, label: t('adminNav.summary'), icon: LayoutDashboard },
+    { to: `${base}/produtos`, label: t('adminNav.products'), icon: Package },
+    { to: `${base}/dias`, label: t('adminNav.days'), icon: CalendarDays },
+    { to: `${base}/pedidos`, label: t('adminNav.orders'), icon: ClipboardList },
+    { to: `${base}/producao`, label: t('adminNav.production'), icon: Factory },
   ];
 }
 
 export function AdminLayout() {
+  const { t } = useI18n();
   const slug = useResolvedTenantSlug();
   const base = useAdminPathBase();
   const hostTenant = useHostTenantSlug();
   const { token, user, bakery, logout } = useAuth();
   const [open, setOpen] = useState(false);
+  const links = adminNavLinks(base, t);
 
   if (!slug) {
     return <Navigate to="/" replace />;
@@ -42,7 +45,7 @@ export function AdminLayout() {
 
   const nav = (
     <nav className="flex flex-col gap-1 sm:gap-0">
-      {adminNavLinks(base).map(({ to, end, label, icon: Icon }) => (
+      {links.map(({ to, end, label, icon: Icon }) => (
         <NavLink
           key={to}
           to={to}
@@ -66,20 +69,20 @@ export function AdminLayout() {
       <header className="sticky top-0 z-10 border-b border-stone-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-stone-900">Comebolos</p>
+            <p className="truncate text-sm font-semibold text-stone-900">Peaksy</p>
             <p className="truncate text-xs text-stone-500">{bakery?.name ?? slug}</p>
             <a
               href={hostTenant ? '/' : `/loja/${slug}`}
               className="mt-0.5 block truncate text-xs text-orange-600 hover:underline"
             >
-              Ver loja (como cliente)
+              {t('adminNav.viewShop')}
             </a>
           </div>
           <button
             type="button"
             className="rounded-lg p-2 sm:hidden"
             onClick={() => setOpen((o) => !o)}
-            aria-label="Menu"
+            aria-label={t('common.menu')}
           >
             <Menu className="h-5 w-5" />
           </button>
@@ -94,7 +97,7 @@ export function AdminLayout() {
               className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-sm text-stone-600 hover:bg-stone-100"
             >
               <LogOut className="h-4 w-4" />
-              Sair
+              {t('common.logout')}
             </button>
           </div>
         </div>
@@ -110,7 +113,7 @@ export function AdminLayout() {
               className="mt-2 flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-stone-600"
             >
               <LogOut className="h-4 w-4" />
-              Sair
+              {t('common.logout')}
             </button>
           </div>
         )}

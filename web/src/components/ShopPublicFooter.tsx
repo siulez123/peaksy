@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { googleMapsSearchUrl, telHref } from '../lib/bakeryContact';
 import { useAdminPathBase, useResolvedTenantSlug } from '../lib/tenantHost';
 import { Button, Input, Label } from './ui';
+import { useI18n } from '../i18n/context';
 
 type Props = {
   bakeryName: string;
@@ -15,6 +16,7 @@ type Props = {
 };
 
 export function ShopPublicFooter({ bakeryName, subtitle, bakery }: Props) {
+  const { t } = useI18n();
   const { token, user, bakery: sessionBakery, logout, setSession } = useAuth();
   const slug = useResolvedTenantSlug();
   const adminBase = useAdminPathBase();
@@ -57,14 +59,14 @@ export function ShopPublicFooter({ bakeryName, subtitle, bakery }: Props) {
     e.preventDefault();
     setLoginErr(null);
     if (!slug) {
-      setLoginErr('Não foi possível identificar a padaria.');
+      setLoginErr(t('footer.noTenant'));
       return;
     }
     setLoginLoading(true);
     try {
       const data = await auth.login(email, password, slug);
       if (data.user.role !== 'BAKERY_ADMIN') {
-        setLoginErr('Esta área é só para administradores de padaria.');
+        setLoginErr(t('footer.bakeryAdminOnly'));
         return;
       }
       setSession(data);
@@ -72,7 +74,7 @@ export function ShopPublicFooter({ bakeryName, subtitle, bakery }: Props) {
       setPassword('');
       setLoginOpen(false);
     } catch (err) {
-      setLoginErr(err instanceof Error ? err.message : 'Falha no login');
+      setLoginErr(err instanceof Error ? err.message : t('common.loginFailed'));
     } finally {
       setLoginLoading(false);
     }
@@ -83,18 +85,18 @@ export function ShopPublicFooter({ bakeryName, subtitle, bakery }: Props) {
       <footer className="mt-12 border-t border-stone-200/90 pt-8">
         <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-12 lg:gap-10">
           <div className="lg:col-span-4">
-            <h2 className="text-xs font-semibold uppercase tracking-wide text-stone-500">Padaria</h2>
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-stone-500">{t('footer.bakery')}</h2>
             <p className="mt-2 text-lg font-semibold text-stone-900">{bakeryName}</p>
             {subtitle && <p className="mt-1 text-sm text-stone-600">{subtitle}</p>}
             {slug && (
               <p className="mt-3 font-mono text-xs text-stone-400">
-                <span className="text-stone-500">Loja ·</span> {slug}
+                <span className="text-stone-500">{t('footer.store')} ·</span> {slug}
               </p>
             )}
 
             {hasContact && bakery && (
               <div className="mt-3 border-t border-stone-100 pt-2">
-                <h3 className="text-xs font-semibold uppercase tracking-wide text-stone-500">Contacto</h3>
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-stone-500">{t('footer.contact')}</h3>
                 <address className="mt-2 space-y-2 not-italic text-sm leading-relaxed text-stone-600">
                   {(bakery.addressLine.trim() || bakery.postalCode.trim() || bakery.locality.trim()) && (
                     <div>
@@ -114,7 +116,7 @@ export function ShopPublicFooter({ bakeryName, subtitle, bakery }: Props) {
                             </span>
                           )}
                           <span className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-orange-600">
-                            Ver no Google Maps
+                            {t('footer.maps')}
                             <ExternalLink className="h-3.5 w-3.5 shrink-0" aria-hidden />
                           </span>
                         </a>
@@ -134,7 +136,7 @@ export function ShopPublicFooter({ bakeryName, subtitle, bakery }: Props) {
                   )}
                   {bakery.phone.trim() && (
                     <p>
-                      <span className="text-stone-500">Telefone · </span>
+                      <span className="text-stone-500">{t('footer.phoneLabel')}</span>
                       <a
                         href={telHref(bakery.phone)}
                         className="font-medium text-orange-700 underline decoration-orange-300 underline-offset-2 hover:text-orange-800"
@@ -149,10 +151,8 @@ export function ShopPublicFooter({ bakeryName, subtitle, bakery }: Props) {
           </div>
 
           <div className="lg:col-span-5">
-            <h2 className="text-xs font-semibold uppercase tracking-wide text-stone-500">Administradores</h2>
-            <p className="mt-2 text-sm text-stone-600">
-              Acesso reservado aos administradores desta padaria (produtos, dias e encomendas).
-            </p>
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-stone-500">{t('footer.administrators')}</h2>
+            <p className="mt-2 text-sm text-stone-600">{t('footer.adminAccessDesc')}</p>
             <div className="mt-4">
               {isBakeryAdminHere ? (
                 <div className="flex flex-wrap items-center gap-2">
@@ -161,7 +161,7 @@ export function ShopPublicFooter({ bakeryName, subtitle, bakery }: Props) {
                     className="inline-flex items-center justify-center gap-2 rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm font-medium text-stone-800 shadow-sm transition hover:bg-stone-50"
                   >
                     <LayoutDashboard className="h-4 w-4" />
-                    Gerir padaria
+                    {t('footer.manageShop')}
                   </Link>
                   <button
                     type="button"
@@ -171,7 +171,7 @@ export function ShopPublicFooter({ bakeryName, subtitle, bakery }: Props) {
                       window.location.reload();
                     }}
                   >
-                    Sair
+                    {t('common.logout')}
                   </button>
                 </div>
               ) : (
@@ -185,7 +185,7 @@ export function ShopPublicFooter({ bakeryName, subtitle, bakery }: Props) {
                   }}
                 >
                   <LogIn className="h-4 w-4 shrink-0" />
-                  Login de administrador
+                  {t('footer.signInAdmin')}
                 </button>
               )}
             </div>
@@ -203,7 +203,7 @@ export function ShopPublicFooter({ bakeryName, subtitle, bakery }: Props) {
                 Slices of Bravery Lda
               </a>
             </p>
-            <p className="mt-2 text-xs text-stone-400">© 2026 · Todos os direitos reservados.</p>
+            <p className="mt-2 text-xs text-stone-400">{t('footer.rights')}</p>
           </div>
         </div>
       </footer>
@@ -221,7 +221,7 @@ export function ShopPublicFooter({ bakeryName, subtitle, bakery }: Props) {
             onClick={() => {
               if (!loginLoading) setLoginOpen(false);
             }}
-            aria-label="Fechar"
+            aria-label={t('common.close')}
           />
           <div
             className="relative max-h-[min(92dvh,720px)] w-full max-w-md overflow-y-auto overscroll-contain rounded-t-2xl border border-stone-200 bg-white shadow-2xl sm:rounded-2xl"
@@ -229,14 +229,14 @@ export function ShopPublicFooter({ bakeryName, subtitle, bakery }: Props) {
           >
             <div className="sticky top-0 flex items-center justify-between border-b border-stone-100 bg-white px-4 py-3 sm:px-6">
               <h2 id="admin-login-modal-title" className="text-lg font-semibold text-stone-900">
-                Iniciar sessão
+                {t('footer.signInTitle')}
               </h2>
               <button
                 type="button"
                 className="rounded-xl p-2 text-stone-500 hover:bg-stone-100"
                 onClick={() => !loginLoading && setLoginOpen(false)}
                 disabled={loginLoading}
-                aria-label="Fechar"
+                aria-label={t('common.close')}
               >
                 <X className="h-5 w-5" />
               </button>
@@ -251,9 +251,7 @@ export function ShopPublicFooter({ bakeryName, subtitle, bakery }: Props) {
                   </>
                 ) : null}
               </p>
-              <p className="text-xs leading-relaxed text-stone-500">
-                Introduz as credenciais de administrador desta padaria. A sessão mantém-se neste dispositivo.
-              </p>
+              <p className="text-xs leading-relaxed text-stone-500">{t('footer.signInDesc')}</p>
 
               {loginErr && (
                 <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700" role="alert">
@@ -263,7 +261,7 @@ export function ShopPublicFooter({ bakeryName, subtitle, bakery }: Props) {
 
               <form onSubmit={submitLogin} className="space-y-4">
                 <div>
-                  <Label>Email</Label>
+                  <Label>{t('common.email')}</Label>
                   <Input
                     type="email"
                     autoComplete="email"
@@ -273,7 +271,7 @@ export function ShopPublicFooter({ bakeryName, subtitle, bakery }: Props) {
                   />
                 </div>
                 <div>
-                  <Label>Palavra-passe</Label>
+                  <Label>{t('common.password')}</Label>
                   <Input
                     type="password"
                     autoComplete="current-password"
@@ -283,7 +281,7 @@ export function ShopPublicFooter({ bakeryName, subtitle, bakery }: Props) {
                   />
                 </div>
                 <Button type="submit" className="w-full" disabled={loginLoading} variant="primary">
-                  {loginLoading ? 'A entrar…' : 'Entrar'}
+                  {loginLoading ? t('footer.signingIn') : t('footer.signIn')}
                 </Button>
               </form>
             </div>

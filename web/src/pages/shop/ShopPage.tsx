@@ -2,11 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { ChevronUp, ImageIcon, Minus, Plus, ShoppingBag, Trash2, X } from 'lucide-react';
 import { publicApi, formatMoney, productImageUrl, type BakeryPublic } from '../../api';
-import { isValidInternationalPhone, phoneFieldHint } from '../../lib/phone';
-import {
-  formatPickupHourLabelPt,
-  pickupHalfHourSlotsBetween,
-} from '../../lib/timeOfDay';
+import { isValidInternationalPhone } from '../../lib/phone';
+import { formatPickupHourLabel, pickupHalfHourSlotsBetween } from '../../lib/timeOfDay';
+import { useI18n } from '../../i18n/context';
 import { ShopPublicFooter } from '../../components/ShopPublicFooter';
 import { ShopPublicHeader } from '../../components/ShopPublicHeader';
 import { BakeryNotFoundPage } from '../BakeryNotFoundPage';
@@ -48,6 +46,7 @@ function CartPanel({
   onCloseSheet,
   onSetLineQty,
 }: CartPanelProps) {
+  const { t } = useI18n();
   const isSheet = variant === 'sheet';
 
   return (
@@ -57,10 +56,10 @@ function CartPanel({
       >
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <ShoppingBag className="h-5 w-5 shrink-0 text-orange-600" />
-          <span>Carrinho</span>
+          <span>{t('shop.cart')}</span>
           {lines.length > 0 && (
             <span className="shrink-0 rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-900">
-              {itemCount} {itemCount === 1 ? 'artigo' : 'artigos'}
+              {itemCount === 1 ? t('shop.oneItem', { count: itemCount }) : t('shop.nItems', { count: itemCount })}
             </span>
           )}
         </div>
@@ -69,7 +68,7 @@ function CartPanel({
             type="button"
             className="shrink-0 rounded-xl p-2 text-stone-500 hover:bg-stone-100 hover:text-stone-800"
             onClick={onCloseSheet}
-            aria-label="Fechar carrinho"
+            aria-label={t('shop.closeCart')}
           >
             <X className="h-5 w-5" />
           </button>
@@ -77,7 +76,7 @@ function CartPanel({
       </div>
 
       {lines.length === 0 ? (
-        <p className="text-sm text-stone-500">O carrinho está vazio.</p>
+        <p className="text-sm text-stone-500">{t('shop.emptyCart')}</p>
       ) : (
         <ul className="mb-3 space-y-3 text-sm">
           {lines.map((l) => (
@@ -89,7 +88,7 @@ function CartPanel({
                 <p className="break-words font-medium leading-snug text-stone-900">{l.name}</p>
                 <p className="mt-1 break-words text-xs leading-snug text-stone-600">{l.variant}</p>
                 <p className="mt-1 text-xs tabular-nums text-stone-500">
-                  {formatMoney(l.priceCents)} <span className="text-stone-400">/ un.</span>
+                  {formatMoney(l.priceCents)} <span className="text-stone-400">{t('common.perUnit')}</span>
                 </p>
               </div>
               <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-stone-100/80 pt-3">
@@ -122,7 +121,7 @@ function CartPanel({
                     type="button"
                     className="rounded-lg p-1.5 text-stone-400 transition hover:bg-red-50 hover:text-red-700"
                     onClick={() => onSetLineQty(l.productId, 0)}
-                    aria-label={`Remover linha ${l.name} ${l.variant}`}
+                    aria-label={t('shop.removeLine', { name: l.name, variant: l.variant })}
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -131,7 +130,7 @@ function CartPanel({
             </li>
           ))}
           <li className="flex justify-between border-t border-stone-100 pt-2 font-semibold">
-            <span>Total</span>
+            <span>{t('common.total')}</span>
             <span>{formatMoney(totalCents)}</span>
           </li>
         </ul>
@@ -144,7 +143,7 @@ function CartPanel({
           disabled={!canEncomendar}
           onClick={onEncomendar}
         >
-          Encomendar
+          {t('shop.orderBtn')}
         </Button>
       </div>
     </>
@@ -208,7 +207,10 @@ function CheckoutModal({
   onClearCheckoutErr,
   onPay,
 }: CheckoutModalProps) {
+  const { t, localeTag, formatDateTime } = useI18n();
   if (!open) return null;
+
+  const fmtHour = (slot: string) => formatPickupHourLabel(slot, localeTag);
 
   return (
     <div className="fixed inset-0 z-[70] flex items-end justify-center sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="checkout-modal-title">
@@ -218,19 +220,19 @@ function CheckoutModal({
         onClick={() => {
           if (!paying) onClose();
         }}
-        aria-label="Fechar"
+        aria-label={t('common.close')}
       />
       <div className="relative max-h-[min(92dvh,720px)] w-full max-w-md overflow-y-auto overscroll-contain rounded-t-2xl border border-stone-200 bg-white shadow-2xl sm:rounded-2xl" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
         <div className="sticky top-0 flex items-center justify-between border-b border-stone-100 bg-white px-4 py-3 sm:px-6">
           <h2 id="checkout-modal-title" className="text-lg font-semibold text-stone-900">
-            Dados da encomenda
+            {t('shop.checkoutTitle')}
           </h2>
           <button
             type="button"
             className="rounded-xl p-2 text-stone-500 hover:bg-stone-100"
             onClick={() => !paying && onClose()}
             disabled={paying}
-            aria-label="Fechar"
+            aria-label={t('common.close')}
           >
             <X className="h-5 w-5" />
           </button>
@@ -239,12 +241,10 @@ function CheckoutModal({
           <p className="text-sm text-stone-600">
             <span className="font-medium text-stone-800">{bakeryLabel}</span>
             {' · '}
-            Total <span className="font-semibold text-orange-700">{formatMoney(totalCents)}</span>
+            {t('shop.checkoutTotal')}{' '}
+            <span className="font-semibold text-orange-700">{formatMoney(totalCents)}</span>
           </p>
-          <p className="text-xs leading-relaxed text-stone-500">
-            Serás redirecionado para o pagamento seguro do Stripe (cartão, MB WAY, etc., conforme o que estiver
-            disponível).
-          </p>
+          <p className="text-xs leading-relaxed text-stone-500">{t('shop.stripeHint')}</p>
 
           {checkoutErr && (
             <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700" role="alert">
@@ -253,9 +253,9 @@ function CheckoutModal({
           )}
 
           <div className="rounded-xl border border-stone-100 bg-stone-50/80 p-3">
-            <h3 className="mb-2 text-sm font-semibold text-stone-900">Dia e hora de levantamento</h3>
+            <h3 className="mb-2 text-sm font-semibold text-stone-900">{t('shop.pickupDayTime')}</h3>
             {days.length === 0 ? (
-              <p className="text-sm text-amber-800">Sem dias disponíveis para encomenda.</p>
+              <p className="text-sm text-amber-800">{t('shop.noPickupDays')}</p>
             ) : (
               <>
                 <div className="flex flex-wrap gap-2">
@@ -284,21 +284,22 @@ function CheckoutModal({
                 {selectedDay && (
                   <>
                     <div className="mt-3">
-                      <Label>Hora de levantamento</Label>
+                      <Label>{t('shop.pickupTime')}</Label>
                       {selectedDay.ordersOpenAt && new Date(selectedDay.ordersOpenAt) > new Date() && (
                         <p className="mb-2 text-xs text-amber-800">
-                          Encomendas para este dia abrem a{' '}
-                          {new Date(selectedDay.ordersOpenAt).toLocaleString('pt-PT')}.
+                          {t('shop.ordersOpenAt', {
+                            date: formatDateTime(selectedDay.ordersOpenAt),
+                          })}
                         </p>
                       )}
                       {pickupHourSlots.length === 0 ? (
                         <p className="mt-1 text-sm text-amber-800" role="alert">
-                          Não há horas disponíveis para este período. Contacta a padaria.
+                          {t('shop.noPickupHours')}
                         </p>
                       ) : (
                         <select
                           id="shop-pickup-time"
-                          aria-label="Hora de levantamento"
+                          aria-label={t('shop.pickupTime')}
                           value={pickupTime}
                           onChange={(e) => setPickupTime(e.target.value)}
                           disabled={paying}
@@ -307,20 +308,24 @@ function CheckoutModal({
                         >
                           {pickupHourSlots.map((slot) => (
                             <option key={slot} value={slot}>
-                              {formatPickupHourLabelPt(slot)}
+                              {fmtHour(slot)}
                             </option>
                           ))}
                         </select>
                       )}
                       {pickupHourSlots.length > 0 && (
                         <p className="mt-1 text-xs text-stone-500">
-                          Entre {formatPickupHourLabelPt(selectedDay.pickupTimeMin)} e{' '}
-                          {formatPickupHourLabelPt(selectedDay.pickupTimeMax)} (definido pela padaria).
+                          {t('shop.pickupBetween', {
+                            min: fmtHour(selectedDay.pickupTimeMin),
+                            max: fmtHour(selectedDay.pickupTimeMax),
+                          })}
                         </p>
                       )}
                     </div>
                     <p className="mt-2 text-xs text-stone-500">
-                      Limite de encomenda: {new Date(selectedDay.orderDeadline).toLocaleString('pt-PT')}
+                      {t('shop.orderDeadline', {
+                        date: formatDateTime(selectedDay.orderDeadline),
+                      })}
                     </p>
                   </>
                 )}
@@ -329,11 +334,11 @@ function CheckoutModal({
           </div>
 
           <div>
-            <Label>Nome</Label>
+            <Label>{t('common.name')}</Label>
             <Input value={customerName} onChange={(e) => setCustomerName(e.target.value)} required />
           </div>
           <div>
-            <Label>Telefone</Label>
+            <Label>{t('common.phone')}</Label>
             <Input
               type="tel"
               inputMode="tel"
@@ -347,11 +352,11 @@ function CheckoutModal({
               aria-invalid={phoneError ? true : undefined}
               required
             />
-            <p className="mt-1 text-xs text-stone-500">{phoneFieldHint}</p>
+            <p className="mt-1 text-xs text-stone-500">{t('shop.phoneHint')}</p>
             {phoneError && <p className="mt-1 text-xs text-red-600">{phoneError}</p>}
           </div>
           <div>
-            <Label>Email (opcional)</Label>
+            <Label>{t('shop.emailOptional')}</Label>
             <Input
               type="email"
               value={customerEmail}
@@ -359,14 +364,14 @@ function CheckoutModal({
             />
           </div>
           <div>
-            <Label>Notas (opcional)</Label>
+            <Label>{t('shop.notesOptional')}</Label>
             <Input
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               maxLength={NOTES_MAX_LENGTH}
             />
             <p className="mt-1 text-xs text-stone-500">
-              Máx. {NOTES_MAX_LENGTH} caracteres ({notes.length}/{NOTES_MAX_LENGTH})
+              {t('common.maxChars', { max: NOTES_MAX_LENGTH, current: notes.length })}
             </p>
           </div>
 
@@ -376,7 +381,7 @@ function CheckoutModal({
             disabled={paying || !customerName.trim() || !phoneOk || !pickupDate || !pickupTimeOk}
             onClick={() => void onPay()}
           >
-            {paying ? 'A redirecionar…' : 'Continuar para pagamento'}
+            {paying ? t('shop.payRedirect') : t('shop.payContinue')}
           </Button>
         </div>
       </div>
@@ -385,9 +390,11 @@ function CheckoutModal({
 }
 
 export function ShopPage() {
+  const { t, localeTag } = useI18n();
   const { slug: slugParam } = useParams();
   const hostSlug = useHostTenantSlug();
   const slug = slugParam ?? hostSlug ?? '';
+  const fmtHour = (slot: string) => formatPickupHourLabel(slot, localeTag);
   const [days, setDays] = useState<ShopDayRow[]>([]);
   const [pickupDate, setPickupDate] = useState<string>('');
   const [pickupTime, setPickupTime] = useState('');
@@ -425,9 +432,13 @@ export function ShopPage() {
   }, [slug]);
 
   const shopTitle =
-    bakeryHead === 'loading' ? 'A carregar…' : bakeryHead === 'fail' ? 'Encomendar' : bakeryHead.name;
+    bakeryHead === 'loading'
+      ? t('shop.loadingTitle')
+      : bakeryHead === 'fail'
+        ? t('shop.order')
+        : bakeryHead.name;
   const shopSubtitle =
-    bakeryHead !== 'loading' && bakeryHead !== 'fail' ? 'Pré-encomendas' : undefined;
+    bakeryHead !== 'loading' && bakeryHead !== 'fail' ? t('shop.preOrders') : undefined;
 
   useEffect(() => {
     let cancelled = false;
@@ -458,7 +469,7 @@ export function ShopPage() {
           setPickupTime('');
         }
       } catch (e) {
-        setLoadErr(e instanceof Error ? e.message : 'Erro ao carregar');
+        setLoadErr(e instanceof Error ? e.message : t('common.loadError'));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -595,9 +606,7 @@ export function ShopPage() {
   const phoneTrimmed = customerPhone.trim();
   const phoneOk = phoneTrimmed.length > 0 && isValidInternationalPhone(customerPhone);
   const phoneError =
-    phoneTrimmed.length > 0 && !isValidInternationalPhone(customerPhone)
-      ? 'Número inválido. Usa 8 a 15 dígitos; podes incluir + e o código do país.'
-      : null;
+    phoneTrimmed.length > 0 && !isValidInternationalPhone(customerPhone) ? t('shop.phoneInvalid') : null;
 
   const selectedDay = days.find((d) => d.pickupDate === pickupDate);
   const pickupHourSlots = useMemo(
@@ -623,13 +632,16 @@ export function ShopPage() {
     if (!pickupTime || !pickupHourSlots.includes(pickupTime)) {
       setCheckoutErr(
         pickupHourSlots.length === 0
-          ? 'Não há horas de levantamento disponíveis para este dia.'
-          : `Escolhe uma hora entre ${formatPickupHourLabelPt(selectedDay.pickupTimeMin)} e ${formatPickupHourLabelPt(selectedDay.pickupTimeMax)}.`
+          ? t('shop.noPickupHoursDay')
+          : t('shop.choosePickupTime', {
+              min: fmtHour(selectedDay.pickupTimeMin),
+              max: fmtHour(selectedDay.pickupTimeMax),
+            })
       );
       return;
     }
     if (!isValidInternationalPhone(customerPhone)) {
-      setCheckoutErr('Verifica o número de telefone antes de continuar.');
+      setCheckoutErr(t('shop.verifyPhone'));
       return;
     }
     setPaying(true);
@@ -648,7 +660,7 @@ export function ShopPage() {
       });
       window.location.href = checkoutUrl;
     } catch (e) {
-      setCheckoutErr(e instanceof Error ? e.message : 'Pagamento falhou');
+      setCheckoutErr(e instanceof Error ? e.message : t('common.paymentFailed'));
     } finally {
       setPaying(false);
     }
@@ -668,7 +680,7 @@ export function ShopPage() {
   };
 
   const bakeryLabel =
-    bakeryHead === 'loading' ? '…' : bakeryHead === 'fail' ? 'Padaria' : bakeryHead.name;
+    bakeryHead === 'loading' ? '…' : bakeryHead === 'fail' ? t('shop.bakery') : bakeryHead.name;
 
   const hasOpenPickupDays = days.some((d) => d.canOrder);
 
@@ -676,11 +688,11 @@ export function ShopPage() {
     return (
       <div className="mx-auto max-w-lg px-4 py-16 text-center">
         <p className="text-stone-600">
-          Não foi possível identificar a padaria. Usa o subdomínio (ex.: padariademo.localhost) ou{' '}
+          {t('shop.noTenantPrefix')}
           <a href="/loja" className="text-orange-600 hover:underline">
-            escolhe a padaria por slug
+            {t('shop.pickBySlug')}
           </a>
-          .
+          {t('shop.noTenantSuffix')}
         </p>
       </div>
     );
@@ -698,14 +710,14 @@ export function ShopPage() {
     >
       <ShopPublicHeader bakeryLabel={shopTitle} subtitle={shopSubtitle} />
 
-      {loading && <p className="text-stone-500">A carregar…</p>}
+      {loading && <p className="text-stone-500">{t('common.loading')}</p>}
       {loadErr && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{loadErr}</p>}
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           {!loading && hasOpenPickupDays && (
             <Card>
-              <h2 className="mb-3 font-semibold text-stone-900">Produtos</h2>
+              <h2 className="mb-3 font-semibold text-stone-900">{t('shop.products')}</h2>
               <ul className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                 {products.map((p) => {
                   const img = productImageUrl(p.imageUrl);
@@ -725,7 +737,7 @@ export function ShopPage() {
                         ) : (
                           <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-stone-400">
                             <ImageIcon className="h-14 w-14 opacity-60" strokeWidth={1.25} />
-                            <span className="text-xs">Sem imagem</span>
+                            <span className="text-xs">{t('shop.noImage')}</span>
                           </div>
                         )}
                       </div>
@@ -746,7 +758,7 @@ export function ShopPage() {
                                 type="button"
                                 className="rounded-lg border border-stone-200 p-2 hover:bg-stone-50"
                                 onClick={() => setQty(p.id, (cart[p.id]?.qty || 0) - 1)}
-                                aria-label="Menos um"
+                                aria-label={t('shop.minusOne')}
                               >
                                 <Minus className="h-4 w-4" />
                               </button>
@@ -757,7 +769,7 @@ export function ShopPage() {
                                 type="button"
                                 className="rounded-lg border border-stone-200 p-2 hover:bg-stone-50"
                                 onClick={() => add(p)}
-                                aria-label="Mais um"
+                                aria-label={t('shop.plusOne')}
                               >
                                 <Plus className="h-4 w-4" />
                               </button>
@@ -769,7 +781,7 @@ export function ShopPage() {
                               className="w-full !py-2.5 text-sm font-medium"
                               onClick={() => add(p)}
                             >
-                              Adicionar
+                              {t('shop.addToCart')}
                             </Button>
                           )}
                         </div>
@@ -809,7 +821,7 @@ export function ShopPage() {
               <span className="flex min-w-0 items-center gap-2">
                 <ShoppingBag className="h-5 w-5 shrink-0 text-orange-600" aria-hidden />
                 <span className="truncate text-sm font-semibold text-stone-900">
-                  {itemCount} {itemCount === 1 ? 'artigo' : 'artigos'}
+                  {itemCount === 1 ? t('shop.oneItem', { count: itemCount }) : t('shop.nItems', { count: itemCount })}
                 </span>
               </span>
               <span className="shrink-0 text-base font-bold tabular-nums text-stone-900">
@@ -821,7 +833,7 @@ export function ShopPage() {
               className="inline-flex shrink-0 items-center gap-1 rounded-xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-orange-600"
               onClick={() => setMobileCartOpen(true)}
             >
-              Carrinho
+              {t('shop.cart')}
               <ChevronUp className="h-4 w-4 opacity-90" aria-hidden />
             </button>
           </div>
@@ -834,12 +846,12 @@ export function ShopPage() {
             type="button"
             className="absolute inset-0 bg-black/45"
             onClick={() => setMobileCartOpen(false)}
-            aria-label="Fechar resumo"
+            aria-label={t('shop.closeCartSummary')}
           />
           <div className="absolute inset-x-0 bottom-0 flex max-h-[min(92dvh,920px)] flex-col rounded-t-2xl border border-stone-200 bg-white shadow-2xl">
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 sm:px-6 sm:pt-6">
               <h2 id="cart-sheet-title" className="sr-only">
-                Carrinho
+                {t('shop.cart')}
               </h2>
               <CartPanel
                 {...cartPanelProps}

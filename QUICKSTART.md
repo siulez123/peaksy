@@ -1,11 +1,11 @@
-# 🚀 Guia Rápido - Como Arrancar o Projeto
+# 🚀 Guia Rápido — Peaksy
 
 ## Passo 1: Criar arquivo .env
 
 Crie um arquivo `.env` na raiz do projeto com:
 
 ```env
-DATABASE_URL="postgresql://comebolos:comebolos_dev@localhost:5433/comebolos"
+DATABASE_URL="postgresql://peaksy:peaksy_dev@localhost:5433/peaksy"
 JWT_SECRET="your-super-secret-jwt-key-change-in-production-min-32-chars"
 STRIPE_SECRET_KEY="sk_test_..."
 STRIPE_WEBHOOK_SECRET="whsec_..."
@@ -70,7 +70,7 @@ O CLI mostra um **webhook signing secret** (`whsec_...`). Coloca-o no `.env` com
 cd web && npm install && npm run dev
 ```
 
-Abre `http://localhost:5173/loja/padariademo` (ou o slug da padaria após seed).
+Abre `http://localhost:5173/loja/lojademo` (ou o slug da loja demo após seed).
 
 ### 4. Confirma `FRONTEND_URL`
 
@@ -86,12 +86,12 @@ No `.env` da **raiz** (API), deve existir `FRONTEND_URL=http://localhost:5173` p
    - **Validade:** qualquer data futura (ex.: 12/34)
    - **CVC:** 3 dígitos (ex.: 123)
    - **Nome** e código postal se pedidos: valores fictícios servem.
-5. Completa o pagamento → deves ser enviado para **Pagamento recebido** (`/loja/padariademo/sucesso?session_id=...`).
+5. Completa o pagamento → deves ser enviado para **Pagamento recebido** (`/loja/lojademo/sucesso?session_id=...`).
 
 ### 6. Verificar
 
 - **Loja:** mensagem de sucesso com o `session_id` na página.
-- **Admin:** `http://localhost:5173/admin/padariademo/pedidos` (login `admin@padariademo.local` / `Admin123!`) — a encomenda deve aparecer como paga se o webhook correu.
+- **Admin:** `http://localhost:5173/admin/lojademo/pedidos` (login `admin@lojademo.local` / `Admin123!`) — a encomenda deve aparecer como paga se o webhook correu.
 
 **MB WAY / outros métodos:** em teste, o Stripe mostra o que tiveres ativo na conta; o fluxo mais simples para simular é sempre o **cartão** `4242...`.
 
@@ -100,16 +100,16 @@ No `.env` da **raiz** (API), deve existir `FRONTEND_URL=http://localhost:5173` p
 Como você não tem permissões para editar `/etc/hosts`, use o header `X-Tenant-Slug`:
 
 ```bash
-# Listar produtos da padaria demo
-curl -H "X-Tenant-Slug: padariademo" http://localhost:3000/public/products
+# Listar produtos da loja demo
+curl -H "X-Tenant-Slug: lojademo" http://localhost:3000/public/products
 
 # Fazer login como admin da padaria (tenantSlug = slug da padaria da conta)
 curl -X POST http://localhost:3000/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"admin@padariademo.local","password":"Admin123!","tenantSlug":"padariademo"}'
+  -d '{"email":"admin@lojademo.local","password":"Admin123!","tenantSlug":"lojademo"}'
 
 # Usar o token retornado para acessar endpoints admin
-curl -H "X-Tenant-Slug: padariademo" \
+curl -H "X-Tenant-Slug: lojademo" \
      -H "Authorization: Bearer SEU_TOKEN_AQUI" \
      http://localhost:3000/admin/products
 ```
@@ -120,8 +120,8 @@ Acesse: http://localhost:3000/docs
 
 ## 👤 Usuários Padrão (após seed)
 
-- **Super Admin**: `super@comebolos.local` / `Admin123!`
-- **Bakery Admin**: `admin@padariademo.local` / `Admin123!`
+- **Super Admin**: `super@peaksy.local` / `Admin123!`
+- **Bakery Admin**: `admin@lojademo.local` / `Admin123!`
 
 ## 🛑 Parar os serviços
 

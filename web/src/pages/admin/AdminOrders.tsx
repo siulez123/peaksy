@@ -3,6 +3,7 @@ import { adminApi, formatMoney } from '../../api';
 import { useAuth } from '../../context/AuthContext';
 import { Button, Card, Input, Label } from '../../components/ui';
 import { useResolvedTenantSlug } from '../../lib/tenantHost';
+import { useI18n } from '../../i18n/context';
 
 type OrderRow = {
   id: string;
@@ -24,14 +25,14 @@ type OrderRow = {
 
 const PICKUP_HOURS = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`);
 
-function statusLabel(status: string): string {
+function statusLabel(status: string, t: (key: string) => string): string {
   switch (status) {
     case 'RECEIVED':
-      return 'Recebido';
+      return t('adminOrders.statusReceived');
     case 'READY':
-      return 'Pronto';
+      return t('adminOrders.statusReady');
     case 'PICKED_UP':
-      return 'Levantado';
+      return t('adminOrders.statusPickedUp');
     default:
       return status;
   }
@@ -51,6 +52,7 @@ function statusBadgeClass(status: string): string {
 }
 
 export function AdminOrders() {
+  const { t } = useI18n();
   const slug = useResolvedTenantSlug();
   const { token } = useAuth();
   const [orders, setOrders] = useState<OrderRow[]>([]);
@@ -167,7 +169,7 @@ export function AdminOrders() {
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-semibold text-stone-900">Pedidos</h1>
+      <h1 className="mb-6 text-2xl font-semibold text-stone-900">{t('adminOrders.title')}</h1>
 
       <Card
         className={`mb-6 transition-colors ${
@@ -238,7 +240,7 @@ export function AdminOrders() {
             <Input
               value={productInput}
               onChange={(e) => setProductInput(e.target.value)}
-              placeholder="Ex.: croissant, pão…"
+              placeholder={t('adminOrders.searchPlaceholder')}
               autoComplete="off"
             />
           </div>
@@ -288,14 +290,14 @@ export function AdminOrders() {
                       <span
                         className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${statusBadgeClass(o.status)}`}
                       >
-                        {statusLabel(o.status)}
+                        {statusLabel(o.status, t)}
                       </span>
                     </td>
                     <td className="whitespace-nowrap px-4 py-3">
                       {o.paid ? (
-                        <span className="text-green-700">Pago</span>
+                        <span className="text-green-700">{t('adminOrders.paid')}</span>
                       ) : (
-                        <span className="text-amber-700">Não pago</span>
+                        <span className="text-amber-700">{t('adminOrders.unpaid')}</span>
                       )}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-right font-medium tabular-nums text-stone-900">
@@ -359,7 +361,7 @@ export function AdminOrders() {
                   <span
                     className={`inline-flex shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${statusBadgeClass(o.status)}`}
                   >
-                    {statusLabel(o.status)}
+                    {statusLabel(o.status, t)}
                   </span>
                 </div>
                 <p className="mt-2 text-sm text-stone-700">
@@ -369,7 +371,11 @@ export function AdminOrders() {
                   {' · '}
                   <span className="font-medium text-orange-800">{formatMoney(o.totalCents)}</span>
                   {' · '}
-                  {o.paid ? <span className="text-green-700">Pago</span> : <span className="text-amber-700">Não pago</span>}
+                  {o.paid ? (
+                    <span className="text-green-700">{t('adminOrders.paid')}</span>
+                  ) : (
+                    <span className="text-amber-700">{t('adminOrders.unpaid')}</span>
+                  )}
                 </p>
                 <p className="mt-1 text-xs text-stone-400">#{o.id.slice(0, 8)}…</p>
                 <ul className="mt-3 space-y-2 border-t border-stone-100 pt-3 text-sm text-stone-600">

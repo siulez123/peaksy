@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { Button, Card, Input, Label, SheetDialog } from '../../components/ui';
 import { useResolvedTenantSlug } from '../../lib/tenantHost';
 import { isValidHhHalfHour, normalizeTimeToHalfHourSlot, parseTimeToMinutes } from '../../lib/timeOfDay';
+import { useI18n } from '../../i18n/context';
 
 /** Amanhã (data local do browser) em YYYY-MM-DD — alinhado com validação no servidor. */
 function tomorrowLocalYmd(): string {
@@ -50,6 +51,7 @@ const emptyForm = () => ({
 });
 
 export function AdminDays() {
+  const { t } = useI18n();
   const slug = useResolvedTenantSlug();
   const { token } = useAuth();
   const [days, setDays] = useState<DayRow[]>([]);
@@ -115,11 +117,11 @@ export function AdminDays() {
       const capN = parseInt(r.cap, 10);
       const hasCap = r.cap.trim() !== '' && Number.isFinite(capN) && capN > 0;
       if (pid && !hasCap) {
-        setErr('Indica a quantidade máxima para cada produto escolhido.');
+        setErr(t('adminDays.maxQtyRequired'));
         return null;
       }
       if (!pid && r.cap.trim()) {
-        setErr('Escolhe o produto em cada linha onde indicaste quantidade.');
+        setErr(t('adminDays.chooseProduct'));
         return null;
       }
     }
@@ -131,7 +133,7 @@ export function AdminDays() {
       .filter((r) => r.productId && Number.isFinite(r.cap) && r.cap > 0);
     const ids = new Set(caps.map((c) => c.productId));
     if (ids.size !== caps.length) {
-      setErr('Cada produto só pode ter uma linha de limite.');
+      setErr(t('adminDays.duplicateProduct'));
       return null;
     }
     return caps;
@@ -141,43 +143,43 @@ export function AdminDays() {
     const tMin = parseTimeToMinutes(form.pickupTimeMin);
     const tMax = parseTimeToMinutes(form.pickupTimeMax);
     if (tMin === null || tMax === null) {
-      setErr('Indica horas de levantamento válidas.');
+      setErr(t('adminDays.invalidPickupHours'));
       return false;
     }
     if (!isValidHhHalfHour(form.pickupTimeMin) || !isValidHhHalfHour(form.pickupTimeMax)) {
-      setErr('As horas têm de ser em horas cheias ou meias (ex.: 08:00, 08:30).');
+      setErr(t('adminDays.halfHourOnly'));
       return false;
     }
     if (tMin > tMax) {
-      setErr('A primeira hora de levantamento tem de ser anterior ou igual à última.');
+      setErr(t('adminDays.minBeforeMax'));
       return false;
     }
 
     const rules = form.dateRules.filter((r) => r.pickupDate.trim() || r.orderDeadline.trim());
     if (rules.length === 0) {
-      setErr('Indica pelo menos uma data de levantamento com limite de encomenda.');
+      setErr(t('adminDays.minPickupDate'));
       return false;
     }
     for (const r of rules) {
       if (!r.pickupDate.trim() || !r.orderDeadline.trim()) {
-        setErr('Preenche a data e o limite de encomenda em cada linha.');
+        setErr(t('adminDays.fillDeadline'));
         return false;
       }
       const dl = new Date(r.orderDeadline);
       if (Number.isNaN(dl.getTime())) {
-        setErr('Data/hora de limite inválida.');
+        setErr(t('adminDays.invalidDeadline'));
         return false;
       }
     }
     const dates = rules.map((r) => r.pickupDate.trim());
     if (new Set(dates).size !== dates.length) {
-      setErr('Não repitas a mesma data de levantamento.');
+      setErr(t('adminDays.duplicatePickupDate'));
       return false;
     }
 
     const minPickup = [...dates].sort()[0];
     if (isCreate && minPickup < tomorrowLocalYmd()) {
-      setErr('A data de levantamento mais cedo tem de ser no futuro (mínimo: amanhã).');
+      setErr(t('adminDays.pickupFuture'));
       return false;
     }
 
@@ -215,7 +217,7 @@ export function AdminDays() {
         await adminApi.days.patch(token, slug, editingId, body);
         setDayModalOpen(false);
         resetFormFields();
-        setSuccessMsg('Alterações guardadas com sucesso.');
+        setSuccessMsg(t('adminDays.saved'));
       } else {
         const body: Record<string, unknown> = {
           pickupDates,
@@ -229,11 +231,11 @@ export function AdminDays() {
         await adminApi.days.create(token, slug, body);
         setDayModalOpen(false);
         resetFormFields();
-        setSuccessMsg('Período criado com sucesso.');
+        setSuccessMsg(t('adminDays.created'));
       }
       await load();
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Erro ao guardar. Tenta novamente.');
+      setErr(e instanceof Error ? e.message : t('adminDays.saveError'));
       setSuccessMsg(null);
     } finally {
       setSaving(false);
@@ -262,16 +264,16 @@ export function AdminDays() {
   };
 
   const delDay = async (id: string) => {
-    if (!token || !confirm('Apagar este período de levantamento?')) return;
+    if (!token || !confirm(t('adminDays.confirmDelete'))) return;
     setErr(null);
     setSuccessMsg(null);
     try {
       await adminApi.days.remove(token, slug, id);
       if (editingId === id) closeDayModal();
-      setSuccessMsg('Período apagado.');
+      setSuccessMsg(t('adminDays.deleted'));
       await load();
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Erro ao apagar.');
+      setErr(e instanceof Error ? e.message : t('adminDays.deleteError'));
       setSuccessMsg(null);
     }
   };
@@ -290,10 +292,10 @@ export function AdminDays() {
   return (
     <div>
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-2xl font-semibold text-stone-900">Dias de levantamento</h1>
+        <h1 className="text-2xl font-semibold text-stone-900">{t('adminDays.title')}</h1>
         <Button type="button" onClick={openCreateModal}>
           <Plus className="h-4 w-4" aria-hidden />
-          Adicionar período
+          {t('adminDays.add')}
         </Button>
       </div>
       {successMsg && (
@@ -341,7 +343,9 @@ export function AdminDays() {
                     </p>
                   )}
                   {d._count.orders > 0 && (
-                    <p className="text-xs text-amber-800">{d._count.orders} pedido(s) — não pode apagar</p>
+                    <p className="text-xs text-amber-800">
+                      {t('adminDays.ordersBlockDelete', { count: d._count.orders })}
+                    </p>
                   )}
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -372,7 +376,7 @@ export function AdminDays() {
       <SheetDialog
         open={dayModalOpen}
         onClose={() => !saving && closeDayModal()}
-        title={editingId ? 'Editar período de levantamento' : 'Novo período de levantamento'}
+        title={editingId ? t('adminDays.editPeriod') : t('adminDays.newPeriod')}
         titleId="admin-day-modal-title"
         maxWidthClassName="max-w-2xl"
         closeDisabled={saving}
@@ -559,7 +563,7 @@ export function AdminDays() {
 
           <div className="flex flex-wrap gap-2">
             <Button type="submit" disabled={saving}>
-              {saving ? 'A guardar…' : editingId ? 'Guardar alterações' : 'Criar período'}
+              {saving ? t('common.saving') : editingId ? t('common.saveChanges') : t('common.create')}
             </Button>
             <Button type="button" variant="secondary" disabled={saving} onClick={() => closeDayModal()}>
               Cancelar

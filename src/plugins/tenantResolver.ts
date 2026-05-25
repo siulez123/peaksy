@@ -152,12 +152,13 @@ async function tenantResolverPluginFn(
     });
 
     if (!loja) {
-      request.log.warn({ slug }, 'Loja not found in database');
-      throw new NotFoundError('Loja not found');
+      request.log.warn({ slug, hostWithoutPort }, 'Loja not found — SPA trata subdomínio desconhecido');
+      return;
     }
 
     if (!loja.active) {
-      throw new ForbiddenError('Loja is not active');
+      request.log.warn({ slug }, 'Loja is not active — SPA trata loja inativa');
+      return;
     }
 
     request.tenant = {

@@ -77,7 +77,7 @@ export function AdminDays() {
       setProducts(p.map((x) => ({ id: x.id, name: x.name, variant: x.variant })));
       setErr(null);
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Erro');
+      setErr(e instanceof Error ? e.message : t('common.genericError'));
     } finally {
       setLoading(false);
     }
@@ -307,7 +307,7 @@ export function AdminDays() {
         <p className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{err}</p>
       )}
       {loading ? (
-        <p className="text-muted">A carregar…</p>
+        <p className="text-muted">{t('adminDays.loadingList')}</p>
       ) : (
         <div className="space-y-6">
           {days.map((d) => (
@@ -350,11 +350,11 @@ export function AdminDays() {
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <Button type="button" variant="secondary" className="text-sm" onClick={() => startEdit(d)}>
-                    Editar
+                    {t('common.edit')}
                   </Button>
                   {d._count.orders === 0 ? (
                     <Button type="button" variant="danger" className="text-sm" onClick={() => void delDay(d.id)}>
-                      Apagar
+                      {t('adminDays.deletePeriod')}
                     </Button>
                   ) : null}
                 </div>
@@ -388,7 +388,7 @@ export function AdminDays() {
         )}
         <form onSubmit={submit} className="space-y-6">
           <div>
-            <Label>Encomendas abertas a partir de (opcional)</Label>
+            <Label>{t('adminDays.ordersOpenFrom')}</Label>
             <Input
               type="datetime-local"
               value={form.ordersOpenAt}
@@ -402,9 +402,9 @@ export function AdminDays() {
 
           <div>
             <div className="mb-2 flex items-center justify-between gap-2">
-              <Label>Datas de levantamento e limite de encomenda por dia</Label>
+              <Label>{t('adminDays.pickupDatesBlock')}</Label>
               <Button type="button" variant="secondary" className="!py-1 text-xs" onClick={addDateRule}>
-                + Dia
+                + {t('adminCommon.day')}
               </Button>
             </div>
             <p className="mb-3 text-xs text-muted">
@@ -418,7 +418,7 @@ export function AdminDays() {
                   className="flex flex-col gap-2 rounded-xl border border-border bg-slate-50/50 p-3 sm:flex-row sm:items-end"
                 >
                   <div className="min-w-0 flex-1">
-                    <Label>Data de levantamento</Label>
+                    <Label>{t('adminDays.pickupDate')}</Label>
                     <Input
                       type="date"
                       min={editingId ? undefined : tomorrowLocalYmd()}
@@ -435,7 +435,7 @@ export function AdminDays() {
                     />
                   </div>
                   <div className="min-w-0 flex-[1.2]">
-                    <Label>Limite de encomenda (data e hora local)</Label>
+                    <Label>{t('adminDays.orderDeadline')}</Label>
                     <Input
                       type="datetime-local"
                       value={row.orderDeadline}
@@ -456,7 +456,7 @@ export function AdminDays() {
                     className="shrink-0"
                     disabled={form.dateRules.length <= 1}
                     onClick={() => removeDateRule(i)}
-                    aria-label="Remover dia"
+                    aria-label={t('adminDays.removeDay')}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -467,7 +467,7 @@ export function AdminDays() {
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
-              <Label>Primeira hora de levantamento</Label>
+              <Label>{t('adminDays.firstPickupHour')}</Label>
               <Input
                 type="time"
                 step={1800}
@@ -480,10 +480,10 @@ export function AdminDays() {
                 }
                 required
               />
-              <p className="mt-1 text-xs text-muted">Horas cheias ou meias (ex.: 07:30, 08:00).</p>
+              <p className="mt-1 text-xs text-muted">{t('adminDays.halfHourHint')}</p>
             </div>
             <div>
-              <Label>Última hora de levantamento (máx.)</Label>
+              <Label>{t('adminDays.lastPickupHour')}</Label>
               <Input
                 type="time"
                 step={1800}
@@ -498,7 +498,7 @@ export function AdminDays() {
               />
             </div>
             <div className="sm:col-span-2">
-              <Label>Máx. encomendas pagas no período (opcional)</Label>
+              <Label>{t('adminDays.maxPaidOrders')}</Label>
               <Input
                 placeholder="ex. 200"
                 value={form.dayCapTotal}
@@ -512,13 +512,13 @@ export function AdminDays() {
 
           <div>
             <div className="mb-2 flex items-center justify-between gap-2">
-              <Label>Limite por produto por dia de levantamento (opcional)</Label>
+              <Label>{t('adminDays.capsPerProduct')}</Label>
               <Button type="button" variant="secondary" className="!py-1 text-xs" onClick={addCapRow}>
-                + Linha
+                + {t('adminDays.addCapRow')}
               </Button>
             </div>
             {products.length === 0 && (
-              <p className="mb-2 text-sm text-warning">Cria produtos primeiro para definir limites.</p>
+              <p className="mb-2 text-sm text-warning">{t('adminDays.createProductsFirst')}</p>
             )}
             <div className="space-y-2">
               {capRows.map((row, i) => (
@@ -544,7 +544,7 @@ export function AdminDays() {
                   <div className="w-full sm:w-28">
                     <Input
                       inputMode="numeric"
-                      placeholder="Máx."
+                      placeholder={t('adminDays.maxPlaceholder')}
                       value={row.cap}
                       onChange={(e) =>
                         setCapRows((rows) =>
@@ -566,7 +566,7 @@ export function AdminDays() {
               {saving ? t('common.saving') : editingId ? t('common.saveChanges') : t('common.create')}
             </Button>
             <Button type="button" variant="secondary" disabled={saving} onClick={() => closeDayModal()}>
-              Cancelar
+              {t('common.cancel')}
             </Button>
           </div>
         </form>

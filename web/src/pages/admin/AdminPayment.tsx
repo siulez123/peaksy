@@ -26,7 +26,7 @@ export function AdminPayment() {
       setSettings(data);
       setErr(null);
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Erro');
+      setErr(e instanceof Error ? e.message : t('common.genericError'));
       setSettings(null);
     }
   }, [token, slug]);
@@ -50,7 +50,7 @@ export function AdminPayment() {
       setSettings(data);
       setSaved(true);
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Erro');
+      setErr(e instanceof Error ? e.message : t('common.genericError'));
     } finally {
       setSaving(false);
     }

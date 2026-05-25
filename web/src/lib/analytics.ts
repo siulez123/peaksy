@@ -1,4 +1,5 @@
 import { apiFetch } from '../api';
+import { hasAnalyticsConsent } from './cookieConsent';
 
 const SESSION_KEY = 'peaksy_sid';
 const REF_KEY = 'peaksy_pk_ref';
@@ -26,6 +27,7 @@ export type AnalyticsEventPayload = {
 };
 
 function getSessionId(): string {
+  if (!hasAnalyticsConsent()) return 'anon';
   try {
     let sid = sessionStorage.getItem(SESSION_KEY);
     if (!sid) {
@@ -40,7 +42,7 @@ function getSessionId(): string {
 
 /** Lê pk_ref / pk_embed da URL e guarda na sessão. */
 export function captureEmbedRefFromUrl(): string | null {
-  if (typeof window === 'undefined') return null;
+  if (typeof window === 'undefined' || !hasAnalyticsConsent()) return null;
   try {
     const params = new URLSearchParams(window.location.search);
     const ref = params.get('pk_ref') || params.get('pk_embed');
@@ -120,6 +122,7 @@ function scheduleFlush(): void {
 }
 
 export function trackAnalyticsEvent(event: AnalyticsEventPayload): void {
+  if (!hasAnalyticsConsent()) return;
   queue.push(event);
   scheduleFlush();
 }

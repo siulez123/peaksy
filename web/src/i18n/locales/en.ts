@@ -35,6 +35,12 @@ export const en = {
     perUnit: '/ unit',
     maxChars: 'Max. {{max}} characters ({{current}}/{{max}})',
   },
+  cookies: {
+    title: 'Cookies',
+    message: 'We use essential and analytics cookies. You can accept or decline analytics.',
+    accept: 'Accept',
+    reject: 'Decline',
+  },
   apex: {
     navFeatures: 'Features',
     navHowItWorks: 'How it works',

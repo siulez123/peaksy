@@ -43,7 +43,7 @@ export function AdminProducts() {
       setItems(list);
       setErr(null);
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Erro');
+      setErr(e instanceof Error ? e.message : t('common.genericError'));
     } finally {
       setLoading(false);
     }
@@ -91,7 +91,7 @@ export function AdminProducts() {
       setAddOpen(false);
       await load();
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Erro');
+      setErr(e instanceof Error ? e.message : t('common.genericError'));
     } finally {
       setAddSaving(false);
     }
@@ -134,7 +134,7 @@ export function AdminProducts() {
       closeEdit();
       await load();
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Erro');
+      setErr(e instanceof Error ? e.message : t('common.genericError'));
     } finally {
       setEditSaving(false);
     }
@@ -146,7 +146,7 @@ export function AdminProducts() {
       await adminApi.products.remove(token, slug, id);
       await load();
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Erro');
+      setErr(e instanceof Error ? e.message : t('common.genericError'));
     }
   };
 
@@ -183,7 +183,7 @@ export function AdminProducts() {
       </div>
       {err && <p className="mb-4 text-sm text-red-600">{err}</p>}
       {loading ? (
-        <p className="text-muted">A carregar…</p>
+        <p className="text-muted">{t('common.loading')}</p>
       ) : (
         <div className="space-y-4">
           {items.map((p) => (
@@ -202,7 +202,7 @@ export function AdminProducts() {
                       {p.name} <span className="text-muted">{p.variant}</span>
                     </p>
                     <p className="text-sm text-primary-hover">{formatMoney(p.priceCents)}</p>
-                    {!p.active && <span className="text-xs text-warning">Inativo</span>}
+                    {!p.active && <span className="text-xs text-warning">{t('adminCommon.inactive')}</span>}
                   </div>
                 </div>
                 <div className="flex gap-2">
@@ -229,7 +229,7 @@ export function AdminProducts() {
       >
         <form onSubmit={create} className="grid gap-3 sm:grid-cols-2">
           <div>
-            <Label>Nome</Label>
+            <Label>{t('common.name')}</Label>
             <Input
               value={newForm.name}
               onChange={(e) => setNewForm((f) => ({ ...f, name: e.target.value }))}
@@ -237,7 +237,7 @@ export function AdminProducts() {
             />
           </div>
           <div>
-            <Label>Variante</Label>
+            <Label>{t('adminProducts.variant')}</Label>
             <Input
               value={newForm.variant}
               onChange={(e) => setNewForm((f) => ({ ...f, variant: e.target.value }))}
@@ -245,9 +245,9 @@ export function AdminProducts() {
             />
           </div>
           <div>
-            <Label>Preço (€)</Label>
+            <Label>{t('adminProducts.priceEur')}</Label>
             <Input
-              placeholder="1.50"
+              placeholder={t('adminProducts.pricePlaceholder')}
               value={newForm.price}
               onChange={(e) => setNewForm((f) => ({ ...f, price: e.target.value }))}
               required
@@ -264,7 +264,7 @@ export function AdminProducts() {
             </label>
           </div>
           <div className="sm:col-span-2">
-            <Label>Imagem (opcional)</Label>
+            <Label>{t('adminProducts.imageOptional')}</Label>
             <input
               type="file"
               accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml"
@@ -277,7 +277,7 @@ export function AdminProducts() {
               {addSaving ? t('common.saving') : t('common.add')}
             </Button>
             <Button type="button" variant="secondary" disabled={addSaving} onClick={() => setAddOpen(false)}>
-              Cancelar
+              {t('common.cancel')}
             </Button>
           </div>
         </form>
@@ -299,11 +299,11 @@ export function AdminProducts() {
                 alt=""
                 className="h-14 w-14 shrink-0 rounded-lg border border-border object-cover"
               />
-              <p className="text-sm text-muted">Imagem actual. Escolhe um ficheiro abaixo para substituir.</p>
+              <p className="text-sm text-muted">{t('adminProducts.currentImage')}</p>
             </div>
           )}
           <div>
-            <Label>Nome</Label>
+            <Label>{t('common.name')}</Label>
             <Input
               value={editForm.name}
               onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
@@ -311,7 +311,7 @@ export function AdminProducts() {
             />
           </div>
           <div>
-            <Label>Variante</Label>
+            <Label>{t('adminProducts.variant')}</Label>
             <Input
               value={editForm.variant}
               onChange={(e) => setEditForm((f) => ({ ...f, variant: e.target.value }))}
@@ -319,9 +319,9 @@ export function AdminProducts() {
             />
           </div>
           <div>
-            <Label>Preço (€)</Label>
+            <Label>{t('adminProducts.priceEur')}</Label>
             <Input
-              placeholder="1.50"
+              placeholder={t('adminProducts.pricePlaceholder')}
               value={editForm.price}
               onChange={(e) => setEditForm((f) => ({ ...f, price: e.target.value }))}
               required
@@ -338,7 +338,7 @@ export function AdminProducts() {
             </label>
           </div>
           <div className="sm:col-span-2">
-            <Label>Nova imagem (opcional)</Label>
+            <Label>{t('adminProducts.newImageOptional')}</Label>
             <input
               type="file"
               accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml"
@@ -351,7 +351,7 @@ export function AdminProducts() {
               {editSaving ? t('common.saving') : t('common.saveChanges')}
             </Button>
             <Button type="button" variant="secondary" disabled={editSaving} onClick={closeEdit}>
-              Cancelar
+              {t('common.cancel')}
             </Button>
           </div>
         </form>

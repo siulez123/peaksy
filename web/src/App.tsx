@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { CookieConsentProvider } from './context/CookieConsentContext';
 import { useHostTenantSlug } from './lib/tenantHost';
 import { ApexHomePage } from './pages/ApexHomePage';
 import { ShopPage } from './pages/shop/ShopPage';
@@ -18,6 +19,7 @@ import { SuperLojas } from './pages/super/SuperLojas';
 import { SuperUsers } from './pages/super/SuperUsers';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { AnalyticsTracker } from './components/AnalyticsTracker';
+import { CookieBanner } from './components/CookieBanner';
 import { AdminIntegracao } from './pages/admin/AdminIntegracao';
 import { AdminPayment } from './pages/admin/AdminPayment';
 
@@ -31,9 +33,11 @@ function TenantOrApexHome() {
 export default function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <AnalyticsTracker />
-        <Routes>
+      <CookieConsentProvider>
+        <BrowserRouter>
+          <AnalyticsTracker />
+          <CookieBanner />
+          <Routes>
           <Route path="/super/entrar" element={<SuperLoginPage />} />
           <Route path="/super" element={<SuperLayout />}>
             <Route index element={<SuperDashboard />} />
@@ -75,7 +79,8 @@ export default function App() {
           <Route path="/" element={<TenantOrApexHome />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
-      </BrowserRouter>
+        </BrowserRouter>
+      </CookieConsentProvider>
     </AuthProvider>
   );
 }

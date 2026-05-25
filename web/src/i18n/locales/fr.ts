@@ -35,6 +35,13 @@ export const fr = {
     perUnit: '/ unité',
     maxChars: 'Max. {{max}} caractères ({{current}}/{{max}})',
   },
+  cookies: {
+    title: 'Cookies',
+    message:
+      'Nous utilisons des cookies essentiels et analytiques. Vous pouvez accepter ou refuser les analytiques.',
+    accept: 'Accepter',
+    reject: 'Refuser',
+  },
   apex: {
     navFeatures: 'Fonctionnalités',
     navHowItWorks: 'Comment ça marche',

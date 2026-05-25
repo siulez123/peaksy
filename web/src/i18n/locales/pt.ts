@@ -35,6 +35,13 @@ export const pt = {
     perUnit: '/ un.',
     maxChars: 'Máx. {{max}} caracteres ({{current}}/{{max}})',
   },
+  cookies: {
+    title: 'Cookies',
+    message:
+      'Utilizamos cookies essenciais e analíticos. Podes aceitar ou recusar os analíticos.',
+    accept: 'Aceitar',
+    reject: 'Recusar',
+  },
   apex: {
     navFeatures: 'Funcionalidades',
     navHowItWorks: 'Como funciona',

@@ -129,7 +129,7 @@ export function AdminProduction() {
       });
       setData(r);
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Erro');
+      setErr(e instanceof Error ? e.message : t('common.genericError'));
       setData(null);
     } finally {
       setLoading(false);
@@ -169,9 +169,7 @@ export function AdminProduction() {
   return (
     <div>
       <h1 className="mb-2 text-2xl font-semibold text-ink">{t('adminProduction.title')}</h1>
-      <p className="mb-6 text-sm text-muted">
-        Totais por produto e por dia/hora (apenas encomendas <strong>pagas</strong>), para planear a produção.
-      </p>
+      <p className="mb-6 text-sm text-muted">{t('adminProduction.subtitle')}</p>
 
       <Card
         className={`mb-6 transition-colors ${
@@ -179,18 +177,18 @@ export function AdminProduction() {
         }`}
       >
         <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-          <p className="text-sm font-medium text-ink">Filtros</p>
+          <p className="text-sm font-medium text-ink">{t('adminCommon.filters')}</p>
           <Button type="button" variant="secondary" className="text-sm" onClick={clearFilters}>
-            Limpar filtros
+            {t('adminCommon.clearFilters')}
           </Button>
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <div>
-            <Label>Data inicial (levantamento)</Label>
+            <Label>{t('adminProduction.dateFrom')}</Label>
             <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
           </div>
           <div>
-            <Label>Data final (opcional)</Label>
+            <Label>{t('adminProduction.dateToOptional')}</Label>
             <Input
               type="date"
               value={dateTo}
@@ -201,13 +199,13 @@ export function AdminProduction() {
             <p className="mt-1 text-xs text-muted">{t('adminProduction.rangeHint')}</p>
           </div>
           <div>
-            <Label>Hora de levantamento</Label>
+            <Label>{t('adminProduction.pickupTime')}</Label>
             <select
               className="mt-1 w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-sm text-ink focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary-200"
               value={filterTime}
               onChange={(e) => setFilterTime(e.target.value)}
             >
-              <option value="">Todas as horas</option>
+              <option value="">{t('adminCommon.allHours')}</option>
               {PICKUP_HOURS.map((h) => (
                 <option key={h} value={h}>
                   {h.replace(':00', 'h')}
@@ -219,7 +217,7 @@ export function AdminProduction() {
 
         <div className="mt-6 border-t border-border/80 pt-6">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <p className="text-sm font-medium text-ink">Produtos</p>
+            <p className="text-sm font-medium text-ink">{t('adminCommon.products')}</p>
             <div className="flex flex-wrap gap-2">
               <Button
                 type="button"
@@ -228,7 +226,7 @@ export function AdminProduction() {
                 disabled={selectableProducts.length === 0}
                 onClick={selectAllProducts}
               >
-                Marcar todos
+                {t('adminProduction.selectAllProducts')}
               </Button>
               <Button
                 type="button"
@@ -237,22 +235,20 @@ export function AdminProduction() {
                 disabled={selectedProductIds.length === 0}
                 onClick={clearProductSelection}
               >
-                Desmarcar todos
+                {t('adminProduction.deselectAllProducts')}
               </Button>
             </div>
           </div>
-          <p className="mb-3 text-xs text-muted">
-            Escolhe um ou mais tipos de produto para ver só essas quantidades. Sem seleção, inclui todos os produtos.
-          </p>
+          <p className="mb-3 text-xs text-muted">{t('adminProduction.productsFilterHint')}</p>
           {catalogLoading ? (
-            <p className="text-sm text-muted">A carregar produtos…</p>
+            <p className="text-sm text-muted">{t('adminProduction.loadingProducts')}</p>
           ) : selectableProducts.length === 0 ? (
             <p className="text-sm text-warning">{t('adminProduction.noActiveProducts')}</p>
           ) : (
             <div
               className="max-h-[min(50vh,320px)] overflow-y-auto rounded-xl border border-border bg-surface/80 p-3 sm:p-4"
               role="group"
-              aria-label="Tipos de produto"
+              aria-label={t('adminProduction.productTypesAria')}
             >
               <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                 {selectableProducts.map((p) => {
@@ -281,20 +277,20 @@ export function AdminProduction() {
 
         <div className="mt-4">
           <Button type="button" onClick={() => void load()} disabled={loading}>
-            {loading ? 'A carregar…' : 'Atualizar'}
+            {loading ? t('common.loading') : t('common.refresh')}
           </Button>
         </div>
       </Card>
 
       {err && <p className="mb-4 text-sm text-red-600">{err}</p>}
 
-      {loading && !data && <p className="text-muted">A carregar…</p>}
+      {loading && !data && <p className="text-muted">{t('common.loading')}</p>}
 
       {data && !loading && (
         <div className="space-y-6">
           <Card>
             <p className="text-sm text-muted">
-              <strong>{data.totalOrders}</strong> encomendas pagas no período
+              {t('adminProduction.paidOrdersInPeriod', { count: data.totalOrders })}
               {data.pickupDateTo ? (
                 <>
                   {' '}
@@ -303,15 +299,18 @@ export function AdminProduction() {
               ) : null}
             </p>
             <p className="mt-2 text-sm text-muted">
-              Estados: Recebido {data.statusCounts.RECEIVED ?? 0} · Pronto {data.statusCounts.READY ?? 0} · Levantado{' '}
-              {data.statusCounts.PICKED_UP ?? 0}
+              {t('adminProduction.statusBreakdown', {
+                received: data.statusCounts.RECEIVED ?? 0,
+                ready: data.statusCounts.READY ?? 0,
+                pickedUp: data.statusCounts.PICKED_UP ?? 0,
+              })}
             </p>
           </Card>
 
           <div className="grid gap-6 lg:grid-cols-2">
             <Card>
-              <h2 className="mb-1 text-lg font-semibold text-ink">Quantidades por produto</h2>
-              <p className="mb-4 text-xs text-muted">Soma de todas as horas e dias do filtro.</p>
+              <h2 className="mb-1 text-lg font-semibold text-ink">{t('adminProduction.chartTitle')}</h2>
+              <p className="mb-4 text-xs text-muted">{t('adminProduction.chartDesc')}</p>
               <BarChartByProduct items={chartItems} />
               {data.productTotals.length === 0 && (
                 <p className="text-sm text-muted">{t('adminProduction.noLines')}</p>
@@ -335,19 +334,17 @@ export function AdminProduction() {
           </div>
 
           <Card>
-            <h2 className="mb-1 text-lg font-semibold text-ink">Detalhe por dia, hora e produto</h2>
-            <p className="mb-4 text-xs text-muted">
-              Cada linha é a quantidade a produzir para aquela combinação de dia, hora e referência.
-            </p>
+            <h2 className="mb-1 text-lg font-semibold text-ink">{t('adminProduction.detailTitle')}</h2>
+            <p className="mb-4 text-xs text-muted">{t('adminProduction.detailDesc')}</p>
             <div className="overflow-x-auto rounded-xl border border-border">
               <table className="w-full min-w-[720px] text-left text-sm">
                 <thead className="border-b border-border bg-slate-50 text-xs font-semibold uppercase tracking-wide text-muted">
                   <tr>
-                    <th className="px-4 py-3">Dia</th>
-                    <th className="px-4 py-3">Hora</th>
-                    <th className="px-4 py-3">Produto</th>
-                    <th className="px-4 py-3">Variante</th>
-                    <th className="px-4 py-3 text-right">Qtd</th>
+                    <th className="px-4 py-3">{t('adminCommon.day')}</th>
+                    <th className="px-4 py-3">{t('adminCommon.time')}</th>
+                    <th className="px-4 py-3">{t('adminCommon.product')}</th>
+                    <th className="px-4 py-3">{t('adminCommon.variant')}</th>
+                    <th className="px-4 py-3 text-right">{t('adminCommon.quantity')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -365,7 +362,9 @@ export function AdminProduction() {
                 </tbody>
               </table>
             </div>
-            {data.rows.length === 0 && <p className="mt-3 text-sm text-muted">Sem linhas para mostrar.</p>}
+            {data.rows.length === 0 && (
+              <p className="mt-3 text-sm text-muted">{t('adminProduction.noDetailRows')}</p>
+            )}
           </Card>
         </div>
       )}

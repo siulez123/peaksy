@@ -94,7 +94,8 @@ async function build() {
       !request.url.startsWith('/auth/') &&
       !request.url.startsWith('/health') &&
       !request.url.startsWith('/docs') &&
-      !pathOnly.startsWith('/uploads/')
+      !pathOnly.startsWith('/uploads/') &&
+      !pathOnly.startsWith('/public/analytics/')
     ) {
       try {
         // Access Prisma from server

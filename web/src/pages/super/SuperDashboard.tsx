@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { superApi, formatMoney, type SuperMetrics } from '../../api';
+import { superApi, formatMoney, type SuperAnalytics, type SuperMetrics } from '../../api';
 import { useAuth } from '../../context/AuthContext';
 import { Button, Card, Input, Label, SectionTitle } from '../../components/ui';
 import { useI18n } from '../../i18n/context';
@@ -132,6 +132,7 @@ export function SuperDashboard() {
   const { t } = useI18n();
   const { token } = useAuth();
   const [m, setM] = useState<SuperMetrics | null>(null);
+  const [analytics, setAnalytics] = useState<SuperAnalytics | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [dateFrom, setDateFrom] = useState('');
@@ -142,11 +143,16 @@ export function SuperDashboard() {
     setLoading(true);
     setErr(null);
     try {
-      const data = await superApi.metrics(token, dateFrom || undefined, dateTo || undefined);
+      const [data, a] = await Promise.all([
+        superApi.metrics(token, dateFrom || undefined, dateTo || undefined),
+        superApi.analytics(token, dateFrom || undefined, dateTo || undefined),
+      ]);
       setM(data as SuperMetrics);
+      setAnalytics(a);
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Erro');
       setM(null);
+      setAnalytics(null);
     } finally {
       setLoading(false);
     }
@@ -174,6 +180,38 @@ export function SuperDashboard() {
         display: formatMoney(l.revenueCents),
       }));
   }, [m]);
+
+  const pageLabel = (page: string) => {
+    const key = `superDashboard.page.${page}`;
+    const label = t(key);
+    return label !== key ? label : page;
+  };
+
+  const embedLabel = (key: string) => {
+    const k = `superDashboard.embed.${key}`;
+    const label = t(k);
+    return label !== k ? label : key;
+  };
+
+  const topPages = useMemo(() => {
+    if (!analytics) return [];
+    return analytics.byPage.slice(0, 8).map((row) => ({
+      label: pageLabel(row.page),
+      value: row.views,
+      display: String(row.views),
+    }));
+  }, [analytics, t]);
+
+  const topEmbeds = useMemo(() => {
+    if (!analytics) return [];
+    return analytics.embedBreakdown.slice(0, 8).map((row) => ({
+      label: row.lojaName
+        ? `${row.lojaName} · ${embedLabel(row.embedKey)}`
+        : embedLabel(row.embedKey),
+      value: row.events,
+      display: String(row.events),
+    }));
+  }, [analytics, t]);
 
   const applyPreset = (days: number | null) => {
     if (days === null) {
@@ -421,6 +459,89 @@ export function SuperDashboard() {
               ))}
             </div>
           </section>
+
+          {analytics && (
+            <section className="border-t border-border pt-8">
+              <h2 className="text-sm font-semibold text-ink">{t('superDashboard.analyticsTitle')}</h2>
+              <p className="mt-1 text-xs text-muted">{t('superDashboard.analyticsDesc')}</p>
+
+              <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                {[
+                  { label: t('superDashboard.analyticsPageViews'), value: analytics.totals.pageViews },
+                  { label: t('superDashboard.analyticsEmbedLands'), value: analytics.totals.embedLands },
+                  { label: t('superDashboard.analyticsSessions'), value: analytics.totals.sessions },
+                  { label: t('superDashboard.analyticsEvents'), value: analytics.totals.events },
+                ].map((stat) => (
+                  <Card key={stat.label} hover>
+                    <p className="text-sm font-medium text-muted">{stat.label}</p>
+                    <p className="mt-2 text-2xl font-semibold tabular-nums text-ink">{stat.value}</p>
+                  </Card>
+                ))}
+              </div>
+
+              <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                <Card>
+                  <h3 className="text-sm font-semibold text-ink">{t('superDashboard.analyticsByPage')}</h3>
+                  <p className="mt-1 text-xs text-muted">{t('superDashboard.analyticsByPageDesc')}</p>
+                  <div className="mt-4">
+                    <BarChart items={topPages} emptyLabel={t('superDashboard.noData')} />
+                  </div>
+                </Card>
+                <Card>
+                  <h3 className="text-sm font-semibold text-ink">{t('superDashboard.analyticsByEmbed')}</h3>
+                  <p className="mt-1 text-xs text-muted">{t('superDashboard.analyticsByEmbedDesc')}</p>
+                  <div className="mt-4">
+                    <BarChart items={topEmbeds} emptyLabel={t('superDashboard.noData')} />
+                  </div>
+                </Card>
+              </div>
+
+              {analytics.lojaRanking.length > 0 && (
+                <Card className="mt-4 overflow-hidden">
+                  <h3 className="text-sm font-semibold text-ink">{t('superDashboard.analyticsByLoja')}</h3>
+                  <p className="mt-1 text-xs text-muted">{t('superDashboard.analyticsByLojaDesc')}</p>
+                  <div className="mt-4 overflow-x-auto">
+                    <table className="w-full min-w-[560px] text-left text-sm">
+                      <thead>
+                        <tr className="border-b border-border text-xs uppercase tracking-wide text-muted">
+                          <th className="pb-2 pr-3 font-medium">{t('superDashboard.colLoja')}</th>
+                          <th className="pb-2 pr-3 text-right font-medium">
+                            {t('superDashboard.analyticsPageViews')}
+                          </th>
+                          <th className="pb-2 pr-3 text-right font-medium">
+                            {t('superDashboard.analyticsEmbedLands')}
+                          </th>
+                          <th className="pb-2 font-medium">{t('superDashboard.analyticsTopPages')}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {analytics.lojaRanking.map((row) => {
+                          const topPage = Object.entries(row.byPage).sort((a, b) => b[1] - a[1])[0];
+                          const embeds = Object.entries(row.byEmbed)
+                            .map(([k, n]) => `${embedLabel(k)}: ${n}`)
+                            .join(' · ');
+                          return (
+                            <tr key={row.lojaId} className="border-b border-border/60 last:border-0">
+                              <td className="py-2.5 pr-3">
+                                <p className="font-medium text-ink">{row.name}</p>
+                                <p className="text-xs text-muted">{row.slug}</p>
+                              </td>
+                              <td className="py-2.5 pr-3 text-right tabular-nums">{row.pageViews}</td>
+                              <td className="py-2.5 pr-3 text-right tabular-nums">{row.embedLands}</td>
+                              <td className="py-2.5 text-xs text-muted">
+                                {topPage ? `${pageLabel(topPage[0])} (${topPage[1]})` : '—'}
+                                {embeds && <span className="mt-1 block">{embeds}</span>}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </Card>
+              )}
+            </section>
+          )}
         </div>
       )}
     </div>

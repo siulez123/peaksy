@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { PrismaClient, OrderStatus, Plan } from '@prisma/client';
+import { PrismaClient, OrderStatus, Plan, AnalyticsEventKind, AnalyticsPage } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
@@ -504,6 +504,75 @@ async function provisionLoja(
   return { loja, productCount: productRows.length, orderCount: totalOrders };
 }
 
+async function seedAnalyticsEvents(lojaIds: Array<{ id: string; slug: string }>) {
+  await prisma.analyticsEvent.deleteMany({});
+  const embedKeys = ['link', 'button', 'iframe'] as const;
+  const shopPages: AnalyticsPage[] = ['SHOP', 'SHOP_SUCCESS', 'SHOP_CANCEL'];
+  const rows: Array<{
+    kind: AnalyticsEventKind;
+    page: AnalyticsPage;
+    path: string;
+    lojaId: string | null;
+    embedKey: string | null;
+    sessionId: string;
+    createdAt: Date;
+  }> = [];
+
+  for (let day = 0; day < 45; day++) {
+    const createdAt = new Date();
+    createdAt.setDate(createdAt.getDate() - day);
+    createdAt.setHours(randomInt(8, 20), randomInt(0, 59), 0, 0);
+
+    for (const loja of lojaIds) {
+      const views = randomInt(3, 14);
+      for (let i = 0; i < views; i++) {
+        const page = shopPages[randomInt(0, shopPages.length - 1)]!;
+        rows.push({
+          kind: 'PAGE_VIEW',
+          page,
+          path: `/loja/${loja.slug}`,
+          lojaId: loja.id,
+          embedKey: Math.random() < 0.35 ? embedKeys[randomInt(0, 2)]! : null,
+          sessionId: `seed-${loja.slug}-${day}-${i}`,
+          createdAt,
+        });
+      }
+      if (Math.random() < 0.4) {
+        const embedKey = embedKeys[randomInt(0, 2)]!;
+        rows.push({
+          kind: 'EMBED_LAND',
+          page: 'SHOP',
+          path: `/loja/${loja.slug}?pk_ref=${embedKey}`,
+          lojaId: loja.id,
+          embedKey,
+          sessionId: `seed-embed-${loja.slug}-${day}`,
+          createdAt,
+        });
+      }
+    }
+
+    if (day % 5 === 0) {
+      for (let i = 0; i < randomInt(2, 6); i++) {
+        rows.push({
+          kind: 'PAGE_VIEW',
+          page: 'APEX_HOME',
+          path: '/',
+          lojaId: null,
+          embedKey: null,
+          sessionId: `seed-apex-${day}-${i}`,
+          createdAt,
+        });
+      }
+    }
+  }
+
+  const chunk = 500;
+  for (let i = 0; i < rows.length; i += chunk) {
+    await prisma.analyticsEvent.createMany({ data: rows.slice(i, i + chunk) });
+  }
+  console.log(`✅ Analytics: ${rows.length} eventos dummy`);
+}
+
 async function main() {
   console.log('🌱 Starting seed...');
 
@@ -544,6 +613,9 @@ async function main() {
     totalProducts += result.productCount;
     totalOrders += result.orderCount;
   }
+
+  const allLojas = await prisma.loja.findMany({ select: { id: true, slug: true } });
+  await seedAnalyticsEvents(allLojas);
 
   console.log('');
   console.log(`📊 Resumo: ${LOJAS.length} lojas, ${totalProducts} produtos, ${totalOrders} encomendas`);

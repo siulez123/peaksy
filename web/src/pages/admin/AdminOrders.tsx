@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { RefreshCw } from 'lucide-react';
 import { adminApi, formatMoney } from '../../api';
 import { useAuth } from '../../context/AuthContext';
 import { Button, Card, Input, Label } from '../../components/ui';
@@ -53,6 +54,33 @@ function orderPaymentLabel(
   };
 }
 
+type ApiOrder = OrderRow;
+
+function mapOrder(o: ApiOrder): OrderRow {
+  return {
+    id: o.id,
+    pickupDate: o.pickupDate,
+    pickupTime: o.pickupTime,
+    customerName: o.customerName,
+    customerPhone: o.customerPhone,
+    status: o.status,
+    totalCents: o.totalCents,
+    paid: o.paid,
+    paymentMethod: o.paymentMethod,
+    items: o.items.map((it) => ({
+      id: it.id,
+      quantity: it.quantity,
+      productNameSnapshot: it.productNameSnapshot,
+      variantSnapshot: it.variantSnapshot,
+      ready: it.ready,
+    })),
+  };
+}
+
+function patchOrderInList(orders: OrderRow[], updated: ApiOrder): OrderRow[] {
+  return orders.map((o) => (o.id === updated.id ? mapOrder(updated) : o));
+}
+
 function statusBadgeClass(status: string): string {
   switch (status) {
     case 'RECEIVED':
@@ -83,8 +111,10 @@ export function AdminOrders() {
   const [debouncedProduct, setDebouncedProduct] = useState('');
 
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [pendingItemId, setPendingItemId] = useState<string | null>(null);
+  const hasLoadedOnce = useRef(false);
 
   useEffect(() => {
     const t = window.setTimeout(() => setDebouncedName(nameInput.trim()), 400);
@@ -101,12 +131,17 @@ export function AdminOrders() {
     return () => window.clearTimeout(t);
   }, [productInput]);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (opts?: { background?: boolean }) => {
     if (!token) {
       setLoading(false);
       return;
     }
-    setLoading(true);
+    const background = opts?.background ?? hasLoadedOnce.current;
+    if (background) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
     try {
       const list = await adminApi.orders.list(token, slug, {
         pickupDate: filterDate || undefined,
@@ -118,10 +153,12 @@ export function AdminOrders() {
       });
       setOrders(list);
       setErr(null);
+      hasLoadedOnce.current = true;
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Erro');
+      setErr(e instanceof Error ? e.message : t('common.genericError'));
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, [
     token,
@@ -161,10 +198,10 @@ export function AdminOrders() {
   const setPickedUp = async (orderId: string) => {
     if (!token) return;
     try {
-      await adminApi.orders.setStatus(token, slug, orderId, 'PICKED_UP');
-      await load();
+      const updated = (await adminApi.orders.setStatus(token, slug, orderId, 'PICKED_UP')) as ApiOrder;
+      setOrders((prev) => patchOrderInList(prev, updated));
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Erro');
+      setErr(e instanceof Error ? e.message : t('common.genericError'));
     }
   };
 
@@ -173,10 +210,10 @@ export function AdminOrders() {
     setPendingItemId(itemId);
     setErr(null);
     try {
-      await adminApi.orders.setItemReady(token, slug, orderId, itemId, ready);
-      await load();
+      const updated = (await adminApi.orders.setItemReady(token, slug, orderId, itemId, ready)) as ApiOrder;
+      setOrders((prev) => patchOrderInList(prev, updated));
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Erro');
+      setErr(e instanceof Error ? e.message : t('common.genericError'));
     } finally {
       setPendingItemId(null);
     }
@@ -192,24 +229,24 @@ export function AdminOrders() {
         }`}
       >
         <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-          <p className="text-sm font-medium text-ink">Filtros</p>
+          <p className="text-sm font-medium text-ink">{t('adminCommon.filters')}</p>
           <Button type="button" variant="secondary" className="text-sm" onClick={clearFilters}>
-            Limpar filtros
+            {t('adminCommon.clearFilters')}
           </Button>
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <div>
-            <Label>Dia de levantamento</Label>
+            <Label>{t('adminOrders.filterPickupDay')}</Label>
             <Input type="date" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} />
           </div>
           <div>
-            <Label>Hora de levantamento</Label>
+            <Label>{t('adminOrders.filterPickupTime')}</Label>
             <select
               className="mt-1 w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-sm text-ink focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary-200"
               value={filterTime}
               onChange={(e) => setFilterTime(e.target.value)}
             >
-              <option value="">Qualquer hora</option>
+              <option value="">{t('adminCommon.anyHour')}</option>
               {PICKUP_HOURS.map((h) => (
                 <option key={h} value={h}>
                   {h.replace(':00', 'h')}
@@ -218,40 +255,40 @@ export function AdminOrders() {
             </select>
           </div>
           <div>
-            <Label>Estado</Label>
+            <Label>{t('adminOrders.filterStatus')}</Label>
             <select
               className="mt-1 w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-sm text-ink focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary-200"
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
             >
-              <option value="">Todos</option>
-              <option value="RECEIVED">Recebido</option>
-              <option value="READY">Pronto</option>
-              <option value="PICKED_UP">Levantado</option>
+              <option value="">{t('adminCommon.allStatuses')}</option>
+              <option value="RECEIVED">{t('adminOrders.statusReceived')}</option>
+              <option value="READY">{t('adminOrders.statusReady')}</option>
+              <option value="PICKED_UP">{t('adminOrders.statusPickedUp')}</option>
             </select>
           </div>
           <div>
-            <Label>Nome do cliente</Label>
+            <Label>{t('adminOrders.filterCustomerName')}</Label>
             <Input
               value={nameInput}
               onChange={(e) => setNameInput(e.target.value)}
-              placeholder="Pesquisar…"
+              placeholder={t('adminCommon.search')}
               autoComplete="off"
             />
           </div>
           <div>
-            <Label>Telefone</Label>
+            <Label>{t('adminCommon.phone')}</Label>
             <Input
               type="tel"
               inputMode="tel"
               value={phoneInput}
               onChange={(e) => setPhoneInput(e.target.value)}
-              placeholder="Pesquisar…"
+              placeholder={t('adminCommon.search')}
               autoComplete="off"
             />
           </div>
           <div className="sm:col-span-2 lg:col-span-3">
-            <Label>Produto (nos artigos da encomenda)</Label>
+            <Label>{t('adminOrders.filterProductInOrder')}</Label>
             <Input
               value={productInput}
               onChange={(e) => setProductInput(e.target.value)}
@@ -265,30 +302,56 @@ export function AdminOrders() {
       {err && <p className="mb-4 text-sm text-red-600">{err}</p>}
 
       {loading ? (
-        <p className="text-muted">A carregar…</p>
+        <p className="text-muted">{t('common.loading')}</p>
       ) : orders.length === 0 ? (
-        <p className="text-muted">Sem pedidos com estes filtros.</p>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-muted">{t('adminOrders.noOrdersFiltered')}</p>
+          <Button
+            type="button"
+            variant="secondary"
+            className="text-sm"
+            disabled={refreshing}
+            onClick={() => void load({ background: true })}
+          >
+            <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} aria-hidden />
+            {t('common.refresh')}
+          </Button>
+        </div>
       ) : (
         <>
-          <p className="mb-3 text-sm text-muted">
-            {orders.length} {orders.length === 1 ? 'pedido' : 'pedidos'}
-          </p>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-muted">
+              {orders.length === 1
+                ? t('adminOrders.orderCountOne', { count: orders.length })
+                : t('adminOrders.orderCountMany', { count: orders.length })}
+            </p>
+            <Button
+              type="button"
+              variant="secondary"
+              className="text-sm"
+              disabled={refreshing}
+              onClick={() => void load({ background: true })}
+            >
+              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} aria-hidden />
+              {t('common.refresh')}
+            </Button>
+          </div>
 
           {/* Desktop: tabela */}
           <div className="hidden overflow-x-auto rounded-2xl border border-border bg-surface shadow-sm md:block">
             <table className="w-full min-w-[1100px] text-left text-sm">
               <thead className="border-b border-border bg-slate-50 text-xs font-semibold uppercase tracking-wide text-muted">
                 <tr>
-                  <th className="px-4 py-3">Data</th>
-                  <th className="px-4 py-3">Hora</th>
-                  <th className="px-4 py-3">Cliente</th>
-                  <th className="px-4 py-3">Telefone</th>
-                  <th className="px-4 py-3">Estado</th>
-                  <th className="px-4 py-3">Pagamento</th>
-                  <th className="px-4 py-3 text-right">Total</th>
-                  <th className="px-4 py-3">Artigos</th>
+                  <th className="px-4 py-3">{t('adminCommon.date')}</th>
+                  <th className="px-4 py-3">{t('adminCommon.time')}</th>
+                  <th className="px-4 py-3">{t('adminCommon.customer')}</th>
+                  <th className="px-4 py-3">{t('adminCommon.phone')}</th>
+                  <th className="px-4 py-3">{t('adminCommon.status')}</th>
+                  <th className="px-4 py-3">{t('adminCommon.payment')}</th>
+                  <th className="px-4 py-3 text-right">{t('adminCommon.total')}</th>
+                  <th className="px-4 py-3">{t('adminCommon.items')}</th>
                   <th className="sticky right-0 z-20 min-w-[8.5rem] bg-slate-50 px-4 py-3 text-right shadow-[-10px_0_14px_-6px_rgba(0,0,0,0.12)]">
-                    Ações
+                    {t('adminCommon.actions')}
                   </th>
                 </tr>
               </thead>
@@ -361,7 +424,7 @@ export function AdminOrders() {
                             className="!px-3 !py-1.5 text-xs whitespace-nowrap"
                             onClick={() => void setPickedUp(o.id)}
                           >
-                            Levantado
+                            {t('adminOrders.markPickedUp')}
                           </Button>
                         )}
                       </div>
@@ -428,7 +491,7 @@ export function AdminOrders() {
                 <div className="mt-3 flex flex-wrap gap-2">
                   {o.status === 'READY' && (
                     <Button type="button" variant="secondary" className="text-sm" onClick={() => void setPickedUp(o.id)}>
-                      Levantado
+                      {t('adminOrders.markPickedUp')}
                     </Button>
                   )}
                 </div>

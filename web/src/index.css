@@ -63,24 +63,3 @@ body {
   background-color: var(--color-primary-soft);
   color: var(--color-primary-soft-text);
 }
-
-/* Resumo de encomenda — impressão a partir do modal de sucesso */
-@media print {
-  body * {
-    visibility: hidden;
-  }
-  #order-confirmation-print,
-  #order-confirmation-print * {
-    visibility: visible;
-  }
-  #order-confirmation-print {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-    max-width: none;
-    border: none !important;
-    background: white !important;
-    padding: 0 !important;
-  }
-}

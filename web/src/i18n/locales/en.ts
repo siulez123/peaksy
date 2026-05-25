@@ -121,8 +121,6 @@ export const en = {
     store: 'Store',
     contact: 'Contact',
     maps: 'View on Google Maps',
-    adminAccess: 'Admin access',
-    adminAccessDesc: 'For shop administrators only (products, days and orders).',
     manageShop: 'Manage shop',
     signInAdmin: 'Sign in as administrator',
     signInTitle: 'Administrator sign-in',

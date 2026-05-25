@@ -52,13 +52,13 @@ function CartPanel({
   return (
     <>
       <div
-        className={`mb-3 flex items-center gap-2 font-semibold text-stone-900 ${isSheet ? 'justify-between' : ''}`}
+        className={`mb-3 flex items-center gap-2 font-semibold text-ink ${isSheet ? 'justify-between' : ''}`}
       >
         <div className="flex min-w-0 flex-1 items-center gap-2">
-          <ShoppingBag className="h-5 w-5 shrink-0 text-orange-600" />
+          <ShoppingBag className="h-5 w-5 shrink-0 text-accent" />
           <span>{t('shop.cart')}</span>
           {lines.length > 0 && (
-            <span className="shrink-0 rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-900">
+            <span className="shrink-0 rounded-full bg-accent-soft px-2 py-0.5 text-xs font-medium text-accent-soft-text">
               {itemCount === 1 ? t('shop.oneItem', { count: itemCount }) : t('shop.nItems', { count: itemCount })}
             </span>
           )}
@@ -66,7 +66,7 @@ function CartPanel({
         {isSheet && onCloseSheet && (
           <button
             type="button"
-            className="shrink-0 rounded-xl p-2 text-stone-500 hover:bg-stone-100 hover:text-stone-800"
+            className="shrink-0 rounded-xl p-2 text-muted hover:bg-canvas hover:text-ink"
             onClick={onCloseSheet}
             aria-label={t('shop.closeCart')}
           >
@@ -76,37 +76,37 @@ function CartPanel({
       </div>
 
       {lines.length === 0 ? (
-        <p className="text-sm text-stone-500">{t('shop.emptyCart')}</p>
+        <p className="text-sm text-muted">{t('shop.emptyCart')}</p>
       ) : (
         <ul className="mb-3 space-y-3 text-sm">
           {lines.map((l) => (
             <li
               key={l.productId}
-              className="rounded-xl border border-stone-100 bg-stone-50/50 p-3"
+              className="rounded-xl border border-ink/5 bg-canvas/50 p-3"
             >
               <div className="min-w-0">
-                <p className="break-words font-medium leading-snug text-stone-900">{l.name}</p>
-                <p className="mt-1 break-words text-xs leading-snug text-stone-600">{l.variant}</p>
-                <p className="mt-1 text-xs tabular-nums text-stone-500">
-                  {formatMoney(l.priceCents)} <span className="text-stone-400">{t('common.perUnit')}</span>
+                <p className="break-words font-medium leading-snug text-ink">{l.name}</p>
+                <p className="mt-1 break-words text-xs leading-snug text-muted">{l.variant}</p>
+                <p className="mt-1 text-xs tabular-nums text-muted">
+                  {formatMoney(l.priceCents)} <span className="text-zinc-400">{t('common.perUnit')}</span>
                 </p>
               </div>
-              <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-stone-100/80 pt-3">
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-ink/5/80 pt-3">
                 <div className="flex items-center gap-1.5">
                   <button
                     type="button"
-                    className="rounded-lg border border-stone-200 bg-white p-2 hover:bg-stone-100"
+                    className="rounded-lg border border-border bg-white p-2 hover:bg-canvas"
                     onClick={() => onSetLineQty(l.productId, l.qty - 1)}
                     aria-label={`Menos um ${l.name}`}
                   >
                     <Minus className="h-4 w-4" />
                   </button>
-                  <span className="min-w-[2.5rem] text-center text-base font-semibold tabular-nums text-stone-900">
+                  <span className="min-w-[2.5rem] text-center text-base font-semibold tabular-nums text-ink">
                     {l.qty}
                   </span>
                   <button
                     type="button"
-                    className="rounded-lg border border-stone-200 bg-white p-2 hover:bg-stone-100"
+                    className="rounded-lg border border-border bg-white p-2 hover:bg-canvas"
                     onClick={() => onSetLineQty(l.productId, l.qty + 1)}
                     aria-label={`Mais um ${l.name}`}
                   >
@@ -114,12 +114,12 @@ function CartPanel({
                   </button>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-right text-base font-semibold tabular-nums text-stone-900">
+                  <span className="text-right text-base font-semibold tabular-nums text-ink">
                     {formatMoney(l.priceCents * l.qty)}
                   </span>
                   <button
                     type="button"
-                    className="rounded-lg p-1.5 text-stone-400 transition hover:bg-red-50 hover:text-red-700"
+                    className="rounded-lg p-1.5 text-zinc-400 transition hover:bg-red-50 hover:text-red-700"
                     onClick={() => onSetLineQty(l.productId, 0)}
                     aria-label={t('shop.removeLine', { name: l.name, variant: l.variant })}
                   >
@@ -129,14 +129,14 @@ function CartPanel({
               </div>
             </li>
           ))}
-          <li className="flex justify-between border-t border-stone-100 pt-2 font-semibold">
+          <li className="flex justify-between border-t border-ink/5 pt-2 font-semibold">
             <span>{t('common.total')}</span>
             <span>{formatMoney(totalCents)}</span>
           </li>
         </ul>
       )}
 
-      <div className="border-t border-stone-100 pt-4">
+      <div className="border-t border-ink/5 pt-4">
         <Button
           type="button"
           className="w-full"
@@ -222,14 +222,14 @@ function CheckoutModal({
         }}
         aria-label={t('common.close')}
       />
-      <div className="relative max-h-[min(92dvh,720px)] w-full max-w-md overflow-y-auto overscroll-contain rounded-t-2xl border border-stone-200 bg-white shadow-2xl sm:rounded-2xl" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
-        <div className="sticky top-0 flex items-center justify-between border-b border-stone-100 bg-white px-4 py-3 sm:px-6">
-          <h2 id="checkout-modal-title" className="text-lg font-semibold text-stone-900">
+      <div className="relative max-h-[min(92dvh,720px)] w-full max-w-md overflow-y-auto overscroll-contain rounded-t-2xl border border-border bg-white shadow-2xl sm:rounded-2xl" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
+        <div className="sticky top-0 flex items-center justify-between border-b border-ink/5 bg-white px-4 py-3 sm:px-6">
+          <h2 id="checkout-modal-title" className="text-lg font-semibold text-ink">
             {t('shop.checkoutTitle')}
           </h2>
           <button
             type="button"
-            className="rounded-xl p-2 text-stone-500 hover:bg-stone-100"
+            className="rounded-xl p-2 text-muted hover:bg-canvas"
             onClick={() => !paying && onClose()}
             disabled={paying}
             aria-label={t('common.close')}
@@ -238,13 +238,13 @@ function CheckoutModal({
           </button>
         </div>
         <div className="space-y-4 px-4 py-4 sm:px-6">
-          <p className="text-sm text-stone-600">
-            <span className="font-medium text-stone-800">{bakeryLabel}</span>
+          <p className="text-sm text-muted">
+            <span className="font-medium text-ink">{bakeryLabel}</span>
             {' · '}
             {t('shop.checkoutTotal')}{' '}
-            <span className="font-semibold text-orange-700">{formatMoney(totalCents)}</span>
+            <span className="font-semibold text-accent">{formatMoney(totalCents)}</span>
           </p>
-          <p className="text-xs leading-relaxed text-stone-500">{t('shop.stripeHint')}</p>
+          <p className="text-xs leading-relaxed text-muted">{t('shop.stripeHint')}</p>
 
           {checkoutErr && (
             <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700" role="alert">
@@ -252,8 +252,8 @@ function CheckoutModal({
             </p>
           )}
 
-          <div className="rounded-xl border border-stone-100 bg-stone-50/80 p-3">
-            <h3 className="mb-2 text-sm font-semibold text-stone-900">{t('shop.pickupDayTime')}</h3>
+          <div className="rounded-xl border border-ink/5 bg-canvas/80 p-3">
+            <h3 className="mb-2 text-sm font-semibold text-ink">{t('shop.pickupDayTime')}</h3>
             {days.length === 0 ? (
               <p className="text-sm text-amber-800">{t('shop.noPickupDays')}</p>
             ) : (
@@ -271,9 +271,9 @@ function CheckoutModal({
                       }}
                       className={`rounded-xl border px-3 py-2 text-sm ${
                         pickupDate === d.pickupDate
-                          ? 'border-orange-500 bg-orange-50 text-orange-900'
+                          ? 'border-accent bg-accent-soft text-accent-soft-text'
                           : d.canOrder
-                            ? 'border-stone-200 bg-white hover:border-orange-300'
+                            ? 'border-border bg-white hover:border-accent'
                             : 'cursor-not-allowed opacity-40'
                       }`}
                     >
@@ -304,7 +304,7 @@ function CheckoutModal({
                           onChange={(e) => setPickupTime(e.target.value)}
                           disabled={paying}
                           required
-                          className="mt-1 max-w-[12rem] w-full rounded-xl border border-stone-200 bg-white px-3 py-2.5 text-stone-900 focus:border-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-200 disabled:opacity-60"
+                          className="mt-1 max-w-[12rem] w-full rounded-xl border border-border bg-white px-3 py-2.5 text-ink focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent-soft disabled:opacity-60"
                         >
                           {pickupHourSlots.map((slot) => (
                             <option key={slot} value={slot}>
@@ -314,7 +314,7 @@ function CheckoutModal({
                         </select>
                       )}
                       {pickupHourSlots.length > 0 && (
-                        <p className="mt-1 text-xs text-stone-500">
+                        <p className="mt-1 text-xs text-muted">
                           {t('shop.pickupBetween', {
                             min: fmtHour(selectedDay.pickupTimeMin),
                             max: fmtHour(selectedDay.pickupTimeMax),
@@ -322,7 +322,7 @@ function CheckoutModal({
                         </p>
                       )}
                     </div>
-                    <p className="mt-2 text-xs text-stone-500">
+                    <p className="mt-2 text-xs text-muted">
                       {t('shop.orderDeadline', {
                         date: formatDateTime(selectedDay.orderDeadline),
                       })}
@@ -352,7 +352,7 @@ function CheckoutModal({
               aria-invalid={phoneError ? true : undefined}
               required
             />
-            <p className="mt-1 text-xs text-stone-500">{t('shop.phoneHint')}</p>
+            <p className="mt-1 text-xs text-muted">{t('shop.phoneHint')}</p>
             {phoneError && <p className="mt-1 text-xs text-red-600">{phoneError}</p>}
           </div>
           <div>
@@ -370,7 +370,7 @@ function CheckoutModal({
               onChange={(e) => setNotes(e.target.value)}
               maxLength={NOTES_MAX_LENGTH}
             />
-            <p className="mt-1 text-xs text-stone-500">
+            <p className="mt-1 text-xs text-muted">
               {t('common.maxChars', { max: NOTES_MAX_LENGTH, current: notes.length })}
             </p>
           </div>
@@ -687,9 +687,9 @@ export function ShopPage() {
   if (!slug) {
     return (
       <div className="mx-auto max-w-lg px-4 py-16 text-center">
-        <p className="text-stone-600">
+        <p className="text-muted">
           {t('shop.noTenantPrefix')}
-          <a href="/loja" className="text-orange-600 hover:underline">
+          <a href="/loja" className="text-accent hover:underline">
             {t('shop.pickBySlug')}
           </a>
           {t('shop.noTenantSuffix')}
@@ -710,23 +710,23 @@ export function ShopPage() {
     >
       <ShopPublicHeader bakeryLabel={shopTitle} subtitle={shopSubtitle} />
 
-      {loading && <p className="text-stone-500">{t('common.loading')}</p>}
+      {loading && <p className="text-muted">{t('common.loading')}</p>}
       {loadErr && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{loadErr}</p>}
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           {!loading && hasOpenPickupDays && (
             <Card>
-              <h2 className="mb-3 font-semibold text-stone-900">{t('shop.products')}</h2>
+              <h2 className="mb-3 font-semibold text-ink">{t('shop.products')}</h2>
               <ul className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                 {products.map((p) => {
                   const img = productImageUrl(p.imageUrl);
                   return (
                     <li
                       key={p.id}
-                      className="flex flex-col overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm transition-shadow hover:shadow-md"
+                      className="flex flex-col overflow-hidden rounded-2xl border border-border bg-white shadow-sm transition-shadow hover:shadow-md"
                     >
-                      <div className="relative aspect-[5/4] w-full overflow-hidden bg-stone-100">
+                      <div className="relative aspect-[5/4] w-full overflow-hidden bg-canvas">
                         {img ? (
                           <img
                             src={img}
@@ -735,7 +735,7 @@ export function ShopPage() {
                             loading="lazy"
                           />
                         ) : (
-                          <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-stone-400">
+                          <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-zinc-400">
                             <ImageIcon className="h-14 w-14 opacity-60" strokeWidth={1.25} />
                             <span className="text-xs">{t('shop.noImage')}</span>
                           </div>
@@ -743,11 +743,11 @@ export function ShopPage() {
                       </div>
                       <div className="flex flex-1 flex-col gap-3 p-4">
                         <div>
-                          <p className="text-base font-semibold leading-snug text-stone-900">
+                          <p className="text-base font-semibold leading-snug text-ink">
                             {p.name}
                           </p>
-                          <p className="mt-0.5 text-sm text-stone-500">{p.variant}</p>
-                          <p className="mt-2 text-lg font-semibold text-orange-700">
+                          <p className="mt-0.5 text-sm text-muted">{p.variant}</p>
+                          <p className="mt-2 text-lg font-semibold text-accent">
                             {formatMoney(p.priceCents)}
                           </p>
                         </div>
@@ -756,7 +756,7 @@ export function ShopPage() {
                             <>
                               <button
                                 type="button"
-                                className="rounded-lg border border-stone-200 p-2 hover:bg-stone-50"
+                                className="rounded-lg border border-border p-2 hover:bg-canvas"
                                 onClick={() => setQty(p.id, (cart[p.id]?.qty || 0) - 1)}
                                 aria-label={t('shop.minusOne')}
                               >
@@ -767,7 +767,7 @@ export function ShopPage() {
                               </span>
                               <button
                                 type="button"
-                                className="rounded-lg border border-stone-200 p-2 hover:bg-stone-50"
+                                className="rounded-lg border border-border p-2 hover:bg-canvas"
                                 onClick={() => add(p)}
                                 aria-label={t('shop.plusOne')}
                               >
@@ -803,34 +803,33 @@ export function ShopPage() {
 
       <ShopPublicFooter
         bakeryName={shopTitle}
-        subtitle={shopSubtitle}
         bakery={bakeryHead === 'loading' ? null : bakeryHead}
       />
 
       {lines.length > 0 && (
         <div
-          className="fixed bottom-0 left-0 right-0 z-50 border-t border-stone-200/90 bg-white/95 shadow-[0_-8px_32px_rgba(0,0,0,0.1)] backdrop-blur-md lg:hidden"
+          className="fixed bottom-0 left-0 right-0 z-50 border-t border-border/90 bg-white/95 shadow-[0_-8px_32px_rgba(0,0,0,0.1)] backdrop-blur-md lg:hidden"
           style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
         >
           <div className="mx-auto flex max-w-6xl items-stretch gap-2 px-3 pt-3 sm:px-4">
             <button
               type="button"
-              className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-xl border border-stone-200 bg-stone-50/90 px-3 py-3 text-left transition hover:bg-stone-100"
+              className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-xl border border-border bg-canvas/90 px-3 py-3 text-left transition hover:bg-canvas"
               onClick={() => setMobileCartOpen(true)}
             >
               <span className="flex min-w-0 items-center gap-2">
-                <ShoppingBag className="h-5 w-5 shrink-0 text-orange-600" aria-hidden />
-                <span className="truncate text-sm font-semibold text-stone-900">
+                <ShoppingBag className="h-5 w-5 shrink-0 text-accent" aria-hidden />
+                <span className="truncate text-sm font-semibold text-ink">
                   {itemCount === 1 ? t('shop.oneItem', { count: itemCount }) : t('shop.nItems', { count: itemCount })}
                 </span>
               </span>
-              <span className="shrink-0 text-base font-bold tabular-nums text-stone-900">
+              <span className="shrink-0 text-base font-bold tabular-nums text-ink">
                 {formatMoney(totalCents)}
               </span>
             </button>
             <button
               type="button"
-              className="inline-flex shrink-0 items-center gap-1 rounded-xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-orange-600"
+              className="inline-flex shrink-0 items-center gap-1 rounded-xl bg-accent px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-accent-hover"
               onClick={() => setMobileCartOpen(true)}
             >
               {t('shop.cart')}
@@ -848,7 +847,7 @@ export function ShopPage() {
             onClick={() => setMobileCartOpen(false)}
             aria-label={t('shop.closeCartSummary')}
           />
-          <div className="absolute inset-x-0 bottom-0 flex max-h-[min(92dvh,920px)] flex-col rounded-t-2xl border border-stone-200 bg-white shadow-2xl">
+          <div className="absolute inset-x-0 bottom-0 flex max-h-[min(92dvh,920px)] flex-col rounded-t-2xl border border-border bg-white shadow-2xl">
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 sm:px-6 sm:pt-6">
               <h2 id="cart-sheet-title" className="sr-only">
                 {t('shop.cart')}

@@ -1,5 +1,4 @@
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
-import { LanguageBar } from './components/LanguageBar';
 import { AuthProvider } from './context/AuthContext';
 import { useHostTenantSlug } from './lib/tenantHost';
 import { ApexHomePage } from './pages/ApexHomePage';
@@ -30,7 +29,6 @@ function TenantOrApexHome() {
 export default function App() {
   return (
     <AuthProvider>
-      <LanguageBar />
       <BrowserRouter>
         <Routes>
           <Route path="/super/entrar" element={<SuperLoginPage />} />

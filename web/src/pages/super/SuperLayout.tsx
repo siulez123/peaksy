@@ -3,6 +3,7 @@ import { BarChart3, Building2, Users, LogOut, Menu } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useI18n } from '../../i18n/context';
+import { LanguageSwitcher } from '../../components/LanguageSwitcher';
 
 export function SuperLayout() {
   const { t } = useI18n();
@@ -27,8 +28,10 @@ export function SuperLayout() {
           end={end}
           onClick={() => setOpen(false)}
           className={({ isActive }) =>
-            `flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium ${
-              isActive ? 'bg-violet-100 text-violet-900' : 'text-stone-600 hover:bg-stone-100'
+            `flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold ${
+              isActive
+                ? 'bg-platform-soft text-platform-soft-text'
+                : 'text-muted hover:bg-canvas hover:text-ink'
             }`
           }
         >
@@ -40,22 +43,23 @@ export function SuperLayout() {
   );
 
   return (
-    <div className="min-h-dvh bg-stone-50">
-      <header className="sticky top-0 z-10 border-b border-stone-200 bg-white/95 backdrop-blur">
+    <div className="min-h-dvh bg-canvas">
+      <header className="sticky top-0 z-10 border-b-2 border-ink/10 bg-surface/95 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
-          <p className="font-semibold text-violet-900">Peaksy · Super</p>
-          <button type="button" className="rounded-lg p-2 sm:hidden" onClick={() => setOpen((o) => !o)}>
+          <p className="font-extrabold text-platform">Peaksy · Super</p>
+          <button type="button" className="rounded-lg p-2 text-ink sm:hidden" onClick={() => setOpen((o) => !o)}>
             <Menu className="h-5 w-5" />
           </button>
-          <div className="hidden items-center gap-2 sm:flex">
-            <span className="max-w-[160px] truncate text-xs text-stone-500">{user.email}</span>
+          <div className="hidden items-center gap-3 sm:flex">
+            <LanguageSwitcher variant="footer" />
+            <span className="max-w-[160px] truncate text-xs font-medium text-muted">{user.email}</span>
             <button
               type="button"
               onClick={() => {
                 logout();
                 window.location.href = '/super/entrar';
               }}
-              className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-sm text-stone-600 hover:bg-stone-100"
+              className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-sm font-semibold text-ink hover:bg-canvas"
             >
               <LogOut className="h-4 w-4" />
               {t('common.logout')}
@@ -63,7 +67,7 @@ export function SuperLayout() {
           </div>
         </div>
         {open && (
-          <div className="border-t border-stone-100 bg-white px-4 py-3 sm:hidden">
+          <div className="border-t-2 border-ink/5 bg-surface px-4 py-3 sm:hidden">
             {nav}
             <button
               type="button"
@@ -71,7 +75,7 @@ export function SuperLayout() {
                 logout();
                 window.location.href = '/super/entrar';
               }}
-              className="mt-2 flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-stone-600"
+              className="mt-2 flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-ink"
             >
               <LogOut className="h-4 w-4" />
               {t('common.logout')}

@@ -99,7 +99,7 @@ export function AdminLoginPage() {
         </form>
       </Card>
       <p className="mt-4 text-center text-sm text-stone-500">
-        <Link to={shopHomeHref} className="text-orange-600 hover:underline">
+        <Link to={shopHomeHref} className="font-bold text-accent hover:underline">
           {t('adminLogin.home')}
         </Link>
       </p>

@@ -123,9 +123,6 @@ export const fr = {
     store: 'Boutique',
     contact: 'Contact',
     maps: 'Voir sur Google Maps',
-    adminAccess: 'Accès administrateur',
-    adminAccessDesc:
-      'Réservé aux administrateurs de la boutique (produits, jours et commandes).',
     manageShop: 'Gérer la boutique',
     signInAdmin: 'Connexion administrateur',
     signInTitle: 'Connexion administrateur',

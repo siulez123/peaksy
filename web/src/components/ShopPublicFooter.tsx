@@ -82,22 +82,16 @@ export function ShopPublicFooter({ bakeryName, subtitle, bakery }: Props) {
 
   return (
     <>
-      <footer className="mt-12 border-t border-stone-200/90 pt-8">
+      <footer className="mt-12 border-t-2 border-ink/10 pt-8">
         <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-12 lg:gap-10">
           <div className="lg:col-span-4">
-            <h2 className="text-xs font-semibold uppercase tracking-wide text-stone-500">{t('footer.bakery')}</h2>
-            <p className="mt-2 text-lg font-semibold text-stone-900">{bakeryName}</p>
-            {subtitle && <p className="mt-1 text-sm text-stone-600">{subtitle}</p>}
-            {slug && (
-              <p className="mt-3 font-mono text-xs text-stone-400">
-                <span className="text-stone-500">{t('footer.store')} ·</span> {slug}
-              </p>
-            )}
+            <h2 className="text-xs font-bold uppercase tracking-wider text-muted">{t('footer.bakery')}</h2>
+            <p className="mt-2 text-lg font-extrabold text-ink">{bakeryName}</p>
 
             {hasContact && bakery && (
-              <div className="mt-3 border-t border-stone-100 pt-2">
-                <h3 className="text-xs font-semibold uppercase tracking-wide text-stone-500">{t('footer.contact')}</h3>
-                <address className="mt-2 space-y-2 not-italic text-sm leading-relaxed text-stone-600">
+              <div className="mt-3 border-t border-ink/5 pt-2">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-muted">{t('footer.contact')}</h3>
+                <address className="mt-2 space-y-2 not-italic text-sm font-medium leading-relaxed text-ink/80">
                   {(bakery.addressLine.trim() || bakery.postalCode.trim() || bakery.locality.trim()) && (
                     <div>
                       {mapsUrl ? (
@@ -105,17 +99,17 @@ export function ShopPublicFooter({ bakeryName, subtitle, bakery }: Props) {
                           href={mapsUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="group inline-flex max-w-full flex-col gap-0.5 text-orange-700 underline decoration-orange-300 underline-offset-2 transition hover:text-orange-800 hover:decoration-orange-500"
+                          className="group inline-flex max-w-full flex-col gap-0.5 text-accent underline decoration-accent/40 underline-offset-2 transition hover:text-accent-hover hover:decoration-accent"
                         >
                           {bakery.addressLine.trim() ? (
-                            <span className="break-words text-stone-800">{bakery.addressLine}</span>
+                            <span className="break-words text-ink">{bakery.addressLine}</span>
                           ) : null}
                           {(bakery.postalCode.trim() || bakery.locality.trim()) && (
-                            <span className="break-words text-stone-700">
+                            <span className="break-words text-ink">
                               {[bakery.postalCode, bakery.locality].filter((s) => s.trim()).join(' ')}
                             </span>
                           )}
-                          <span className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-orange-600">
+                          <span className="mt-1 inline-flex items-center gap-1 text-xs font-bold text-accent">
                             {t('footer.maps')}
                             <ExternalLink className="h-3.5 w-3.5 shrink-0" aria-hidden />
                           </span>
@@ -123,10 +117,10 @@ export function ShopPublicFooter({ bakeryName, subtitle, bakery }: Props) {
                       ) : (
                         <>
                           {bakery.addressLine.trim() ? (
-                            <p className="text-stone-700">{bakery.addressLine}</p>
+                            <p className="text-ink">{bakery.addressLine}</p>
                           ) : null}
                           {(bakery.postalCode.trim() || bakery.locality.trim()) && (
-                            <p className="text-stone-600">
+                            <p className="text-muted">
                               {[bakery.postalCode, bakery.locality].filter((s) => s.trim()).join(' ')}
                             </p>
                           )}
@@ -136,10 +130,10 @@ export function ShopPublicFooter({ bakeryName, subtitle, bakery }: Props) {
                   )}
                   {bakery.phone.trim() && (
                     <p>
-                      <span className="text-stone-500">{t('footer.phoneLabel')}</span>
+                      <span className="text-muted">{t('footer.phoneLabel')}</span>
                       <a
                         href={telHref(bakery.phone)}
-                        className="font-medium text-orange-700 underline decoration-orange-300 underline-offset-2 hover:text-orange-800"
+                        className="font-bold text-accent underline decoration-accent/40 underline-offset-2 hover:text-accent-hover"
                       >
                         {bakery.phone}
                       </a>
@@ -151,21 +145,20 @@ export function ShopPublicFooter({ bakeryName, subtitle, bakery }: Props) {
           </div>
 
           <div className="lg:col-span-5">
-            <h2 className="text-xs font-semibold uppercase tracking-wide text-stone-500">{t('footer.administrators')}</h2>
-            <p className="mt-2 text-sm text-stone-600">{t('footer.adminAccessDesc')}</p>
+            <h2 className="text-xs font-bold uppercase tracking-wider text-muted">{t('footer.administrators')}</h2>
             <div className="mt-4">
               {isBakeryAdminHere ? (
                 <div className="flex flex-wrap items-center gap-2">
                   <Link
                     to={adminBase}
-                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm font-medium text-stone-800 shadow-sm transition hover:bg-stone-50"
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border-2 border-ink/10 bg-surface px-4 py-2.5 text-sm font-bold text-ink shadow-sm transition hover:bg-canvas"
                   >
                     <LayoutDashboard className="h-4 w-4" />
                     {t('footer.manageShop')}
                   </Link>
                   <button
                     type="button"
-                    className="rounded-xl px-3 py-2.5 text-sm text-stone-600 hover:bg-stone-100"
+                    className="rounded-xl px-3 py-2.5 text-sm font-semibold text-muted hover:bg-canvas hover:text-ink"
                     onClick={() => {
                       logout();
                       window.location.reload();
@@ -178,7 +171,7 @@ export function ShopPublicFooter({ bakeryName, subtitle, bakery }: Props) {
                 <button
                   type="button"
                   aria-haspopup="dialog"
-                  className="inline-flex w-full max-w-xs items-center justify-center gap-2 rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm font-medium text-stone-800 shadow-sm transition hover:bg-stone-50 sm:w-auto"
+                  className="inline-flex w-full max-w-xs items-center justify-center gap-2 rounded-xl border-2 border-ink/10 bg-surface px-4 py-2.5 text-sm font-bold text-ink shadow-sm transition hover:bg-canvas sm:w-auto"
                   onClick={() => {
                     setLoginOpen(true);
                     setLoginErr(null);
@@ -191,19 +184,19 @@ export function ShopPublicFooter({ bakeryName, subtitle, bakery }: Props) {
             </div>
           </div>
 
-          <div className="border-t border-stone-100 pt-6 sm:col-span-2 sm:border-0 sm:pt-0 lg:col-span-3 lg:border-t-0">
-            <p className="text-xs leading-relaxed text-stone-500">
+          <div className="flex flex-col gap-4 border-t-2 border-ink/5 pt-6 sm:col-span-2 sm:border-0 sm:pt-0 lg:col-span-3 lg:border-t-0">
+            <p className="text-xs font-medium leading-relaxed text-muted">
               Powered by{' '}
               <a
                 href="https://slicesofbravery.pt"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="font-medium text-stone-700 underline decoration-stone-300 underline-offset-2 transition hover:text-orange-700 hover:decoration-orange-400"
+                className="font-bold text-ink underline decoration-ink/20 underline-offset-2 transition hover:text-accent"
               >
                 Slices of Bravery Lda
               </a>
             </p>
-            <p className="mt-2 text-xs text-stone-400">{t('footer.rights')}</p>
+            <p className="text-xs font-medium text-zinc-400">{t('footer.rights')}</p>
           </div>
         </div>
       </footer>
@@ -224,16 +217,16 @@ export function ShopPublicFooter({ bakeryName, subtitle, bakery }: Props) {
             aria-label={t('common.close')}
           />
           <div
-            className="relative max-h-[min(92dvh,720px)] w-full max-w-md overflow-y-auto overscroll-contain rounded-t-2xl border border-stone-200 bg-white shadow-2xl sm:rounded-2xl"
+            className="relative max-h-[min(92dvh,720px)] w-full max-w-md overflow-y-auto overscroll-contain rounded-t-2xl border border-border bg-white shadow-2xl sm:rounded-2xl"
             style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
           >
-            <div className="sticky top-0 flex items-center justify-between border-b border-stone-100 bg-white px-4 py-3 sm:px-6">
-              <h2 id="admin-login-modal-title" className="text-lg font-semibold text-stone-900">
+            <div className="sticky top-0 flex items-center justify-between border-b border-ink/5 bg-white px-4 py-3 sm:px-6">
+              <h2 id="admin-login-modal-title" className="text-lg font-semibold text-ink">
                 {t('footer.signInTitle')}
               </h2>
               <button
                 type="button"
-                className="rounded-xl p-2 text-stone-500 hover:bg-stone-100"
+                className="rounded-xl p-2 text-muted hover:bg-canvas"
                 onClick={() => !loginLoading && setLoginOpen(false)}
                 disabled={loginLoading}
                 aria-label={t('common.close')}
@@ -242,16 +235,16 @@ export function ShopPublicFooter({ bakeryName, subtitle, bakery }: Props) {
               </button>
             </div>
             <div className="space-y-4 px-4 py-4 sm:px-6">
-              <p className="text-sm text-stone-600">
-                <span className="font-medium text-stone-800">{bakeryName}</span>
+              <p className="text-sm text-muted">
+                <span className="font-medium text-ink">{bakeryName}</span>
                 {subtitle ? (
                   <>
                     {' · '}
-                    <span className="text-stone-600">{subtitle}</span>
+                    <span className="text-muted">{subtitle}</span>
                   </>
                 ) : null}
               </p>
-              <p className="text-xs leading-relaxed text-stone-500">{t('footer.signInDesc')}</p>
+              <p className="text-xs leading-relaxed text-muted">{t('footer.signInDesc')}</p>
 
               {loginErr && (
                 <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700" role="alert">

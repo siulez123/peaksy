@@ -387,6 +387,13 @@ export const superApi = {
     const s = p.toString();
     return apiFetch(`/super/metrics${s ? `?${s}` : ''}`, { token });
   },
+  analytics: (token: string, from?: string, to?: string) => {
+    const p = new URLSearchParams();
+    if (from) p.set('from', from);
+    if (to) p.set('to', to);
+    const s = p.toString();
+    return apiFetch<SuperAnalytics>(`/super/analytics${s ? `?${s}` : ''}`, { token });
+  },
 };
 
 export function formatMoney(cents: number): string {
@@ -434,6 +441,33 @@ export type SuperMetrics = {
       last7Days: { orders: number; revenueCents: number };
       last30Days: { orders: number; revenueCents: number };
     };
+  }>;
+};
+
+export type SuperAnalytics = {
+  period: { from: string | null; to: string | null };
+  totals: {
+    events: number;
+    pageViews: number;
+    embedLands: number;
+    sessions: number;
+  };
+  byPage: Array<{ page: string; views: number }>;
+  embedBreakdown: Array<{
+    embedKey: string;
+    lojaId: string | null;
+    lojaName: string | null;
+    lojaSlug: string | null;
+    events: number;
+  }>;
+  lojaRanking: Array<{
+    lojaId: string;
+    name: string;
+    slug: string;
+    pageViews: number;
+    embedLands: number;
+    byPage: Record<string, number>;
+    byEmbed: Record<string, number>;
   }>;
 };
 

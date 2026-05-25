@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { ExternalLink, LayoutDashboard, LogIn, X } from 'lucide-react';
 import { auth, type LojaPublic } from '../api';
 import { useAuth } from '../context/AuthContext';
@@ -8,6 +8,7 @@ import { useAdminPathBase, useResolvedTenantSlug } from '../lib/tenantHost';
 import { PoweredByLine } from './PoweredByLine';
 import { Button, Input, Label } from './ui';
 import { useI18n } from '../i18n/context';
+import { loginErrorMessage } from '../lib/loginErrorMessage';
 
 type Props = {
   lojaName: string;
@@ -21,6 +22,7 @@ export function ShopPublicFooter({ lojaName, subtitle, lojaPublic }: Props) {
   const { token, user, loja: sessionLoja, logout, setSession } = useAuth();
   const slug = useResolvedTenantSlug();
   const adminBase = useAdminPathBase();
+  const navigate = useNavigate();
   const [loginOpen, setLoginOpen] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -74,8 +76,9 @@ export function ShopPublicFooter({ lojaName, subtitle, lojaPublic }: Props) {
       setEmail('');
       setPassword('');
       setLoginOpen(false);
+      navigate(adminBase, { replace: true });
     } catch (err) {
-      setLoginErr(err instanceof Error ? err.message : t('common.loginFailed'));
+      setLoginErr(loginErrorMessage(err, t));
     } finally {
       setLoginLoading(false);
     }

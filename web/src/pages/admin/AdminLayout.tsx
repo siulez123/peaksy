@@ -6,6 +6,7 @@ import {
   ClipboardList,
   Factory,
   Code2,
+  CreditCard,
   LogOut,
   Menu,
 } from 'lucide-react';
@@ -22,6 +23,7 @@ function adminNavLinks(base: string, t: (key: string) => string) {
     { to: `${base}/produtos`, label: t('adminNav.products'), icon: Package },
     { to: `${base}/dias`, label: t('adminNav.days'), icon: CalendarDays },
     { to: `${base}/pedidos`, label: t('adminNav.orders'), icon: ClipboardList },
+    { to: `${base}/pagamento`, label: t('adminNav.payment'), icon: CreditCard },
     { to: `${base}/producao`, label: t('adminNav.production'), icon: Factory },
     { to: `${base}/integracao`, label: t('adminNav.integration'), icon: Code2 },
   ];

@@ -20,6 +20,7 @@ import { SuperUsers } from './pages/super/SuperUsers';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { AnalyticsTracker } from './components/AnalyticsTracker';
 import { AdminIntegracao } from './pages/admin/AdminIntegracao';
+import { AdminPayment } from './pages/admin/AdminPayment';
 
 /** Raiz: loja no subdomínio ou página do domínio principal (sem loja no host). */
 function TenantOrApexHome() {
@@ -60,6 +61,7 @@ export default function App() {
             <Route path="pedidos" element={<AdminOrders />} />
             <Route path="producao" element={<AdminProduction />} />
             <Route path="integracao" element={<AdminIntegracao />} />
+            <Route path="pagamento" element={<AdminPayment />} />
           </Route>
           <Route path="/admin/:slug" element={<AdminLayout />}>
             <Route index element={<AdminDashboard />} />
@@ -68,6 +70,7 @@ export default function App() {
             <Route path="pedidos" element={<AdminOrders />} />
             <Route path="producao" element={<AdminProduction />} />
             <Route path="integracao" element={<AdminIntegracao />} />
+            <Route path="pagamento" element={<AdminPayment />} />
           </Route>
 
           <Route path="/" element={<TenantOrApexHome />} />

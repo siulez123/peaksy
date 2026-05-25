@@ -4,6 +4,7 @@ import { auth } from '../../api';
 import { useAuth } from '../../context/AuthContext';
 import { Button, Card, Input, Label, PageHeader } from '../../components/ui';
 import { useI18n } from '../../i18n/context';
+import { loginErrorMessage } from '../../lib/loginErrorMessage';
 
 export function SuperLoginPage() {
   const { t } = useI18n();
@@ -27,7 +28,7 @@ export function SuperLoginPage() {
       setSession(data);
       nav('/super');
     } catch (e) {
-      setErr(e instanceof Error ? e.message : t('common.loginFailed'));
+      setErr(loginErrorMessage(e, t));
     } finally {
       setLoading(false);
     }

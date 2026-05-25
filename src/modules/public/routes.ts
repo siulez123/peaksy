@@ -8,7 +8,7 @@ import {
   isDateTodayOrAfter,
 } from '../../lib/dates';
 import { isValidInternationalPhone } from '../../lib/phone';
-import { notifyOrderPaid } from '../../lib/orderNotifications';
+import { notifyOrderInStore, notifyOrderPaid } from '../../lib/orderNotifications';
 import { isTimeWithinWindow, isValidHhHalfHour } from '../../lib/timeOfDay';
 import { publicAnalyticsRoutes } from './analyticsRoutes';
 
@@ -79,6 +79,7 @@ const checkoutSchema = z.object({
   /** Caminhos relativos no FRONTEND_URL (loja na raiz do subdomínio ou /loja/:slug). */
   successPath: z.string().optional(),
   cancelPath: z.string().optional(),
+  paymentMethod: z.enum(['ONLINE', 'IN_STORE']).default('ONLINE'),
 });
 
 export async function publicRoutes(fastify: FastifyInstance) {
@@ -107,6 +108,8 @@ export async function publicRoutes(fastify: FastifyInstance) {
               postalCode: { type: 'string' },
               locality: { type: 'string' },
               phone: { type: 'string' },
+              allowOnlinePayment: { type: 'boolean' },
+              allowInStorePayment: { type: 'boolean' },
             },
           },
         },
@@ -124,6 +127,8 @@ export async function publicRoutes(fastify: FastifyInstance) {
           postalCode: true,
           locality: true,
           phone: true,
+          allowOnlinePayment: true,
+          allowInStorePayment: true,
         },
       });
       if (!loja) {
@@ -318,13 +323,16 @@ export async function publicRoutes(fastify: FastifyInstance) {
             notes: { type: 'string', maxLength: 40 },
             successPath: { type: 'string', description: 'Caminho relativo pós-pagamento (ex. /sucesso ou /loja/slug/sucesso)' },
             cancelPath: { type: 'string', description: 'Caminho relativo ao cancelar Stripe' },
+            paymentMethod: { type: 'string', enum: ['ONLINE', 'IN_STORE'] },
           },
         },
         response: {
           200: {
             type: 'object',
             properties: {
+              paymentMethod: { type: 'string' },
               checkoutUrl: { type: 'string' },
+              successUrl: { type: 'string' },
             },
           },
         },
@@ -340,6 +348,23 @@ export async function publicRoutes(fastify: FastifyInstance) {
     async (request, reply) => {
       const tenant = request.tenant!;
       const data = checkoutSchema.parse(request.body);
+
+      const lojaPayments = await fastify.prisma.loja.findUnique({
+        where: { id: tenant.lojaId },
+        select: { allowOnlinePayment: true, allowInStorePayment: true },
+      });
+      if (!lojaPayments) {
+        throw new NotFoundError('Loja not found');
+      }
+      if (!lojaPayments.allowOnlinePayment && !lojaPayments.allowInStorePayment) {
+        throw new ValidationError('Esta loja não aceita encomendas neste momento.');
+      }
+      if (data.paymentMethod === 'ONLINE' && !lojaPayments.allowOnlinePayment) {
+        throw new ValidationError('Pagamento online não está disponível nesta loja.');
+      }
+      if (data.paymentMethod === 'IN_STORE' && !lojaPayments.allowInStorePayment) {
+        throw new ValidationError('Pagamento na loja não está disponível nesta loja.');
+      }
 
       // Dia de levantamento: hoje ou futuro (no calendário da loja), não apenas "depois de hoje"
       if (!isDateTodayOrAfter(data.pickupDate, tenant.timezone)) {
@@ -475,26 +500,6 @@ export async function publicRoutes(fastify: FastifyInstance) {
         }
       }
 
-      // Create order (unpaid)
-      const order = await fastify.prisma.order.create({
-        data: {
-          lojaId: tenant.lojaId,
-          availableDayId: availableDay.id,
-          pickupDate: new Date(data.pickupDate),
-          pickupTime: pt,
-          customerName: data.customerName.trim(),
-          customerPhone: data.customerPhone.trim(),
-          customerEmail: data.customerEmail?.trim() || null,
-          notes: data.notes?.trim().substring(0, 40) || null,
-          totalCents,
-          paid: false,
-          status: 'RECEIVED',
-          items: {
-            create: orderItems,
-          },
-        },
-      });
-
       const frontendBase =
         process.env.FRONTEND_URL ||
         (request.headers.origin as string | undefined) ||
@@ -508,10 +513,61 @@ export async function publicRoutes(fastify: FastifyInstance) {
         ? validateStripeReturnPath(data.cancelPath, tenant.slug, 'cancel')
         : `/loja/${tenant.slug}/cancelar`;
 
+      if (data.paymentMethod === 'IN_STORE') {
+        const order = await fastify.prisma.order.create({
+          data: {
+            lojaId: tenant.lojaId,
+            availableDayId: availableDay.id,
+            pickupDate: new Date(data.pickupDate),
+            pickupTime: pt,
+            customerName: data.customerName.trim(),
+            customerPhone: data.customerPhone.trim(),
+            customerEmail: data.customerEmail?.trim() || null,
+            notes: data.notes?.trim().substring(0, 40) || null,
+            totalCents,
+            paid: true,
+            paymentMethod: 'IN_STORE',
+            status: 'RECEIVED',
+            items: {
+              create: orderItems,
+            },
+          },
+        });
+
+        await notifyOrderInStore(order.id, fastify.prisma, request.log).catch((e) => {
+          request.log.error({ err: e }, 'notifyOrderInStore failed');
+        });
+
+        return {
+          paymentMethod: 'IN_STORE',
+          successUrl: `${baseUrl}${successRel}?order_id=${order.id}`,
+        };
+      }
+
+      // Create order (unpaid until Stripe)
+      const order = await fastify.prisma.order.create({
+        data: {
+          lojaId: tenant.lojaId,
+          availableDayId: availableDay.id,
+          pickupDate: new Date(data.pickupDate),
+          pickupTime: pt,
+          customerName: data.customerName.trim(),
+          customerPhone: data.customerPhone.trim(),
+          customerEmail: data.customerEmail?.trim() || null,
+          notes: data.notes?.trim().substring(0, 40) || null,
+          totalCents,
+          paid: false,
+          paymentMethod: 'ONLINE',
+          status: 'RECEIVED',
+          items: {
+            create: orderItems,
+          },
+        },
+      });
+
       let session: Stripe.Checkout.Session;
       try {
         session = await getStripe().checkout.sessions.create({
-          // cartão, MB WAY (Portugal); outros métodos podem ser ativados no Dashboard Stripe
           payment_method_types: ['card', 'mb_way'] as Stripe.Checkout.SessionCreateParams.PaymentMethodType[],
           line_items: orderItems.map((item) => ({
             price_data: {
@@ -536,13 +592,13 @@ export async function publicRoutes(fastify: FastifyInstance) {
         throw new ValidationError('Não foi possível iniciar o pagamento. Tenta novamente.');
       }
 
-      // Update order with session ID
       await fastify.prisma.order.update({
         where: { id: order.id },
         data: { stripeSessionId: session.id },
       });
 
       return {
+        paymentMethod: 'ONLINE',
         checkoutUrl: session.url,
       };
     }

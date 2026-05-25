@@ -60,7 +60,17 @@ export interface LojaPublic {
   postalCode: string;
   locality: string;
   phone: string;
+  allowOnlinePayment: boolean;
+  allowInStorePayment: boolean;
 }
+
+export type CheckoutPaymentMethod = 'ONLINE' | 'IN_STORE';
+
+export type CheckoutResult = {
+  paymentMethod: CheckoutPaymentMethod;
+  checkoutUrl?: string;
+  successUrl?: string;
+};
 
 export interface LoginResponse {
   token: string;
@@ -160,8 +170,14 @@ export const publicApi = {
       /** Subdomínio da loja na raiz: `/sucesso` e `/cancelar`; em /loja/:slug omitir. */
       successPath?: string;
       cancelPath?: string;
+      paymentMethod?: CheckoutPaymentMethod;
     }
-  ) => apiFetch<{ checkoutUrl: string }>('/public/checkout', { method: 'POST', tenantSlug: slug, body: JSON.stringify(body) }),
+  ) =>
+    apiFetch<CheckoutResult>('/public/checkout', {
+      method: 'POST',
+      tenantSlug: slug,
+      body: JSON.stringify(body),
+    }),
 };
 
 export const adminApi = {
@@ -265,6 +281,7 @@ export const adminApi = {
           status: string;
           totalCents: number;
           paid: boolean;
+          paymentMethod: 'ONLINE' | 'IN_STORE';
           items: Array<{
           id: string;
           quantity: number;
@@ -327,6 +344,22 @@ export const adminApi = {
         statusCounts: Record<string, number>;
       }>(`/admin/orders/production-breakdown?${p.toString()}`, { token, tenantSlug: slug });
     },
+  },
+  paymentSettings: {
+    get: (token: string, slug: string) =>
+      apiFetch<{ allowOnlinePayment: boolean; allowInStorePayment: boolean }>(
+        '/admin/payment-settings',
+        { token, tenantSlug: slug }
+      ),
+    update: (
+      token: string,
+      slug: string,
+      body: { allowOnlinePayment: boolean; allowInStorePayment: boolean }
+    ) =>
+      apiFetch<{ allowOnlinePayment: boolean; allowInStorePayment: boolean }>(
+        '/admin/payment-settings',
+        { method: 'PATCH', token, tenantSlug: slug, body: JSON.stringify(body) }
+      ),
   },
 };
 

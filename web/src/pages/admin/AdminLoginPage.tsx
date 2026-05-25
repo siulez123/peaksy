@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { Button, Card, Input, Label, PageHeader } from '../../components/ui';
 import { useAdminPathBase, useResolvedTenantSlug } from '../../lib/tenantHost';
 import { useI18n } from '../../i18n/context';
+import { loginErrorMessage } from '../../lib/loginErrorMessage';
 
 export function AdminLoginPage() {
   const { t } = useI18n();
@@ -61,7 +62,7 @@ export function AdminLoginPage() {
       setSession(data);
       nav(adminBase);
     } catch (e) {
-      setErr(e instanceof Error ? e.message : t('common.loginFailed'));
+      setErr(loginErrorMessage(e, t));
     } finally {
       setLoading(false);
     }

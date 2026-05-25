@@ -14,6 +14,7 @@ type OrderRow = {
   status: string;
   totalCents: number;
   paid: boolean;
+  paymentMethod: 'ONLINE' | 'IN_STORE';
   items: Array<{
     id: string;
     quantity: number;
@@ -36,6 +37,20 @@ function statusLabel(status: string, t: (key: string) => string): string {
     default:
       return status;
   }
+}
+
+function orderPaymentLabel(
+  o: Pick<OrderRow, 'paymentMethod' | 'paid'>,
+  t: (key: string) => string
+): { main: string; sub?: string; subClass?: string } {
+  if (o.paymentMethod === 'IN_STORE') {
+    return { main: t('adminOrders.paymentInStore') };
+  }
+  return {
+    main: t('adminOrders.paymentOnline'),
+    sub: o.paid ? t('adminOrders.paid') : t('adminOrders.unpaid'),
+    subClass: o.paid ? 'text-success' : 'text-warning',
+  };
 }
 
 function statusBadgeClass(status: string): string {
@@ -294,11 +309,19 @@ export function AdminOrders() {
                       </span>
                     </td>
                     <td className="whitespace-nowrap px-4 py-3">
-                      {o.paid ? (
-                        <span className="text-success">{t('adminOrders.paid')}</span>
-                      ) : (
-                        <span className="text-warning">{t('adminOrders.unpaid')}</span>
-                      )}
+                      {(() => {
+                        const p = orderPaymentLabel(o, t);
+                        return (
+                          <span className="block text-sm">
+                            <span className="font-medium text-ink">{p.main}</span>
+                            {p.sub && (
+                              <span className={`mt-0.5 block text-xs ${p.subClass ?? ''}`}>
+                                {p.sub}
+                              </span>
+                            )}
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-right font-medium tabular-nums text-ink">
                       {formatMoney(o.totalCents)}
@@ -371,11 +394,17 @@ export function AdminOrders() {
                   {' · '}
                   <span className="font-medium text-primary-800">{formatMoney(o.totalCents)}</span>
                   {' · '}
-                  {o.paid ? (
-                    <span className="text-success">{t('adminOrders.paid')}</span>
-                  ) : (
-                    <span className="text-warning">{t('adminOrders.unpaid')}</span>
-                  )}
+                  {(() => {
+                    const p = orderPaymentLabel(o, t);
+                    return (
+                      <span>
+                        {p.main}
+                        {p.sub && (
+                          <span className={p.subClass ? ` ${p.subClass}` : ''}> · {p.sub}</span>
+                        )}
+                      </span>
+                    );
+                  })()}
                 </p>
                 <p className="mt-1 text-xs text-muted">#{o.id.slice(0, 8)}…</p>
                 <ul className="mt-3 space-y-2 border-t border-border pt-3 text-sm text-muted">

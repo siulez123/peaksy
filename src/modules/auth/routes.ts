@@ -2,7 +2,7 @@ import fp from 'fastify-plugin';
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import bcrypt from 'bcryptjs';
-import { ForbiddenError, UnauthorizedError, ValidationError } from '../../lib/errors';
+import { UnauthorizedError, ValidationError } from '../../lib/errors';
 
 const loginBodySchema = z.object({
   email: z.string().email(),
@@ -86,15 +86,15 @@ async function authRoutesImpl(fastify: FastifyInstance) {
       }
 
       if (user.role === 'LOJA_ADMIN') {
-        if (!user.loja) {
-          throw new ForbiddenError('Conta de administrador sem loja associada.');
-        }
         const ts = tenantSlug?.trim();
         if (!ts) {
           throw new ValidationError('Indica a loja (tenantSlug) no pedido de login.');
         }
-        if (user.loja.slug.toLowerCase() !== ts.toLowerCase()) {
-          throw new ForbiddenError('Esta conta não pertence a esta loja.');
+        if (
+          !user.loja ||
+          user.loja.slug.toLowerCase() !== ts.toLowerCase()
+        ) {
+          throw new UnauthorizedError('Invalid credentials');
         }
       }
 

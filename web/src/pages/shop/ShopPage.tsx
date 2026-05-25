@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { ChevronUp, ImageIcon, Minus, Plus, ShoppingBag, Trash2, X } from 'lucide-react';
-import { publicApi, formatMoney, productImageUrl, type LojaPublic } from '../../api';
+import {
+  publicApi,
+  formatMoney,
+  productImageUrl,
+  type CheckoutPaymentMethod,
+  type LojaPublic,
+} from '../../api';
 import { isValidInternationalPhone } from '../../lib/phone';
 import { formatPickupHourLabel, pickupHalfHourSlotsBetween } from '../../lib/timeOfDay';
 import { useI18n } from '../../i18n/context';
@@ -178,6 +184,10 @@ type CheckoutModalProps = {
   checkoutErr: string | null;
   onClearCheckoutErr: () => void;
   onPay: () => void;
+  allowOnlinePayment: boolean;
+  allowInStorePayment: boolean;
+  paymentMethod: CheckoutPaymentMethod;
+  setPaymentMethod: (v: CheckoutPaymentMethod) => void;
 };
 
 function CheckoutModal({
@@ -207,6 +217,10 @@ function CheckoutModal({
   checkoutErr,
   onClearCheckoutErr,
   onPay,
+  allowOnlinePayment,
+  allowInStorePayment,
+  paymentMethod,
+  setPaymentMethod,
 }: CheckoutModalProps) {
   const { t, localeTag, formatDateTime } = useI18n();
   if (!open) return null;
@@ -245,7 +259,54 @@ function CheckoutModal({
             {t('shop.checkoutTotal')}{' '}
             <span className="font-semibold text-primary">{formatMoney(totalCents)}</span>
           </p>
-          <p className="text-xs leading-relaxed text-muted">{t('shop.stripeHint')}</p>
+          {(allowOnlinePayment || allowInStorePayment) && (
+            <div className="rounded-xl border border-border bg-canvas/80 p-3">
+              <h3 className="mb-2 text-sm font-semibold text-ink">{t('shop.paymentMethod')}</h3>
+              {allowOnlinePayment && allowInStorePayment ? (
+                <div className="space-y-2">
+                  <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-surface p-3 has-[:checked]:border-primary has-[:checked]:bg-primary-soft/40">
+                    <input
+                      type="radio"
+                      name="checkout-payment"
+                      className="mt-0.5"
+                      checked={paymentMethod === 'ONLINE'}
+                      disabled={paying}
+                      onChange={() => setPaymentMethod('ONLINE')}
+                    />
+                    <span>
+                      <span className="block text-sm font-medium text-ink">{t('shop.payOnline')}</span>
+                      <span className="mt-0.5 block text-xs text-muted">{t('shop.payOnlineDesc')}</span>
+                    </span>
+                  </label>
+                  <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-surface p-3 has-[:checked]:border-primary has-[:checked]:bg-primary-soft/40">
+                    <input
+                      type="radio"
+                      name="checkout-payment"
+                      className="mt-0.5"
+                      checked={paymentMethod === 'IN_STORE'}
+                      disabled={paying}
+                      onChange={() => setPaymentMethod('IN_STORE')}
+                    />
+                    <span>
+                      <span className="block text-sm font-medium text-ink">{t('shop.payInStore')}</span>
+                      <span className="mt-0.5 block text-xs text-muted">{t('shop.payInStoreDesc')}</span>
+                    </span>
+                  </label>
+                </div>
+              ) : allowOnlinePayment ? (
+                <p className="text-sm text-muted">{t('shop.payOnlineDesc')}</p>
+              ) : (
+                <p className="text-sm text-muted">{t('shop.payInStoreDesc')}</p>
+              )}
+            </div>
+          )}
+
+          {paymentMethod === 'ONLINE' && allowOnlinePayment && (
+            <p className="text-xs leading-relaxed text-muted">{t('shop.stripeHint')}</p>
+          )}
+          {paymentMethod === 'IN_STORE' && allowInStorePayment && (
+            <p className="text-xs leading-relaxed text-muted">{t('shop.inStorePayHint')}</p>
+          )}
 
           {checkoutErr && (
             <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700" role="alert">
@@ -382,7 +443,11 @@ function CheckoutModal({
             disabled={paying || !customerName.trim() || !phoneOk || !pickupDate || !pickupTimeOk}
             onClick={() => void onPay()}
           >
-            {paying ? t('shop.payRedirect') : t('shop.payContinue')}
+            {paying
+              ? t('shop.payRedirect')
+              : paymentMethod === 'IN_STORE'
+                ? t('shop.confirmOrder')
+                : t('shop.payContinue')}
           </Button>
         </div>
       </div>
@@ -414,6 +479,7 @@ export function ShopPage() {
   const [mobileCartOpen, setMobileCartOpen] = useState(false);
   const [orderModalOpen, setOrderModalOpen] = useState(false);
   const [checkoutErr, setCheckoutErr] = useState<string | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<CheckoutPaymentMethod>('ONLINE');
   type LojaHead = 'loading' | LojaPublic | 'fail';
   const [lojaHead, setLojaHead] = useState<LojaHead>('loading');
 
@@ -432,6 +498,19 @@ export function ShopPage() {
       cancelled = true;
     };
   }, [slug]);
+
+  const lojaPublic = lojaHead !== 'loading' && lojaHead !== 'fail' ? lojaHead : null;
+  const allowOnlinePayment = lojaPublic?.allowOnlinePayment ?? true;
+  const allowInStorePayment = lojaPublic?.allowInStorePayment ?? false;
+
+  useEffect(() => {
+    if (!lojaPublic) return;
+    if (lojaPublic.allowInStorePayment && !lojaPublic.allowOnlinePayment) {
+      setPaymentMethod('IN_STORE');
+    } else {
+      setPaymentMethod('ONLINE');
+    }
+  }, [lojaPublic?.allowOnlinePayment, lojaPublic?.allowInStorePayment]);
 
   const shopTitle =
     lojaHead === 'loading'
@@ -654,7 +733,7 @@ export function ShopPage() {
     setPaying(true);
     setCheckoutErr(null);
     try {
-      const { checkoutUrl } = await publicApi.checkout(slug, {
+      const res = await publicApi.checkout(slug, {
         pickupDate,
         pickupTime,
         items: lines.map((l) => ({ productId: l.productId, qty: l.qty })),
@@ -664,8 +743,15 @@ export function ShopPage() {
         notes: notes || undefined,
         successPath: hostSlug ? '/sucesso' : `/loja/${slug}/sucesso`,
         cancelPath: hostSlug ? '/cancelar' : `/loja/${slug}/cancelar`,
+        paymentMethod,
       });
-      window.location.href = checkoutUrl;
+      if (res.checkoutUrl) {
+        window.location.href = res.checkoutUrl;
+      } else if (res.successUrl) {
+        window.location.href = res.successUrl;
+      } else {
+        setCheckoutErr(t('common.paymentFailed'));
+      }
     } catch (e) {
       setCheckoutErr(e instanceof Error ? e.message : t('common.paymentFailed'));
     } finally {
@@ -690,7 +776,6 @@ export function ShopPage() {
     lojaHead === 'loading' ? '…' : lojaHead === 'fail' ? t('shop.loja') : lojaHead.name;
 
   const hasOpenPickupDays = days.some((d) => d.canOrder);
-  const lojaPublic = typeof lojaHead === 'object' ? lojaHead : null;
   const showOrderingUI =
     !loading &&
     lojaPublic !== null &&
@@ -913,6 +998,10 @@ export function ShopPage() {
         checkoutErr={checkoutErr}
         onClearCheckoutErr={() => setCheckoutErr(null)}
         onPay={checkout}
+        allowOnlinePayment={allowOnlinePayment}
+        allowInStorePayment={allowInStorePayment}
+        paymentMethod={paymentMethod}
+        setPaymentMethod={setPaymentMethod}
       />
       )}
     </div>

@@ -1551,5 +1551,85 @@ export async function adminRoutes(fastify: FastifyInstance) {
       };
     }
   );
+
+  const paymentSettingsSchema = z
+    .object({
+      allowOnlinePayment: z.boolean(),
+      allowInStorePayment: z.boolean(),
+    })
+    .refine((d) => d.allowOnlinePayment || d.allowInStorePayment, {
+      message: 'Ativa pelo menos uma forma de pagamento.',
+    });
+
+  // GET /admin/payment-settings
+  fastify.get(
+    '/admin/payment-settings',
+    {
+      schema: {
+        description: 'Formas de pagamento da loja',
+        tags: ['admin'],
+        security: [{ bearerAuth: [] }],
+      },
+      onRequest: [requireLojaAdmin, requireTenant],
+    },
+    async (request, reply) => {
+      const tenant = request.tenant!;
+      const user = request.user!;
+      if (user.lojaId !== tenant.lojaId) {
+        throw new ForbiddenError('Access denied');
+      }
+
+      const loja = await fastify.prisma.loja.findUnique({
+        where: { id: tenant.lojaId },
+        select: { allowOnlinePayment: true, allowInStorePayment: true },
+      });
+      if (!loja) {
+        throw new NotFoundError('Loja not found');
+      }
+
+      return loja;
+    }
+  );
+
+  // PATCH /admin/payment-settings
+  fastify.patch(
+    '/admin/payment-settings',
+    {
+      schema: {
+        description: 'Atualizar formas de pagamento da loja',
+        tags: ['admin'],
+        security: [{ bearerAuth: [] }],
+        body: {
+          type: 'object',
+          required: ['allowOnlinePayment', 'allowInStorePayment'],
+          properties: {
+            allowOnlinePayment: { type: 'boolean' },
+            allowInStorePayment: { type: 'boolean' },
+          },
+        },
+      },
+      onRequest: [requireLojaAdmin, requireTenant],
+    },
+    async (request, reply) => {
+      const tenant = request.tenant!;
+      const user = request.user!;
+      if (user.lojaId !== tenant.lojaId) {
+        throw new ForbiddenError('Access denied');
+      }
+
+      const data = paymentSettingsSchema.parse(request.body);
+
+      const loja = await fastify.prisma.loja.update({
+        where: { id: tenant.lojaId },
+        data: {
+          allowOnlinePayment: data.allowOnlinePayment,
+          allowInStorePayment: data.allowInStorePayment,
+        },
+        select: { allowOnlinePayment: true, allowInStorePayment: true },
+      });
+
+      return loja;
+    }
+  );
 }
 

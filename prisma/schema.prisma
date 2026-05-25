@@ -24,6 +24,11 @@ enum OrderStatus {
   PICKED_UP
 }
 
+enum OrderPaymentMethod {
+  ONLINE
+  IN_STORE
+}
+
 enum AnalyticsEventKind {
   PAGE_VIEW
   EMBED_LAND
@@ -57,6 +62,10 @@ model Loja {
   postalCode  String @default("")
   locality    String @default("")
   phone       String @default("")
+  /// Pagamento online (Stripe)
+  allowOnlinePayment  Boolean @default(true)
+  /// Pagamento no levantamento na loja
+  allowInStorePayment Boolean @default(false)
   createdAt DateTime @default(now())
 
   users            User[]
@@ -192,6 +201,7 @@ model Order {
   status          OrderStatus @default(RECEIVED)
   totalCents      Int
   paid            Boolean     @default(false)
+  paymentMethod   OrderPaymentMethod @default(ONLINE)
   stripeSessionId String?
   createdAt       DateTime    @default(now())
 

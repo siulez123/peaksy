@@ -61,11 +61,12 @@ async function sendEmail(to: string, subject: string, html: string, log: Fastify
   await transporter.sendMail({ from, to, subject, html });
 }
 
-/**
- * Chamado após pagamento confirmado (webhook Stripe). SMS sempre que Twilio estiver configurado;
- * email só se o cliente tiver email.
- */
-export async function notifyOrderPaid(orderId: string, prisma: PrismaClient, log: FastifyBaseLogger): Promise<void> {
+async function notifyOrderCore(
+  orderId: string,
+  prisma: PrismaClient,
+  log: FastifyBaseLogger,
+  opts: { paidOnline: boolean }
+): Promise<void> {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     include: {
@@ -80,7 +81,10 @@ export async function notifyOrderPaid(orderId: string, prisma: PrismaClient, log
   const pickupWhen = `${pickup} ${order.pickupTime}`;
   const linesShort = order.items.map((i) => `${i.productNameSnapshot} x${i.quantity}`).join(', ');
   const total = formatMoneyEUR(order.totalCents);
-  const smsBody = `${order.loja.name}: encomenda paga ${total}. Levantamento ${pickupWhen}. ${linesShort}`.slice(
+  const statusLine = opts.paidOnline
+    ? `encomenda paga ${total}`
+    : `encomenda registada ${total} (pagamento na loja)`;
+  const smsBody = `${order.loja.name}: ${statusLine}. Levantamento ${pickupWhen}. ${linesShort}`.slice(
     0,
     1500
   );
@@ -99,7 +103,11 @@ export async function notifyOrderPaid(orderId: string, prisma: PrismaClient, log
 
     const html = `
       <p>Olá ${escapeHtml(order.customerName)},</p>
-      <p>A tua encomenda em <strong>${escapeHtml(order.loja.name)}</strong> foi paga com sucesso.</p>
+      <p>A tua encomenda em <strong>${escapeHtml(order.loja.name)}</strong> foi ${
+        opts.paidOnline
+          ? 'paga com sucesso'
+          : 'registada. O pagamento será feito no levantamento na loja'
+      }.</p>
       <p><strong>Total:</strong> ${total}<br/>
       <strong>Levantamento:</strong> ${pickup} às ${escapeHtml(order.pickupTime)}</p>
       <ul>${itemsHtml}</ul>
@@ -113,4 +121,22 @@ export async function notifyOrderPaid(orderId: string, prisma: PrismaClient, log
       log.error({ err: e }, 'Falha ao enviar email de confirmação');
     }
   }
+}
+
+/** Após pagamento Stripe confirmado. */
+export async function notifyOrderPaid(
+  orderId: string,
+  prisma: PrismaClient,
+  log: FastifyBaseLogger
+): Promise<void> {
+  return notifyOrderCore(orderId, prisma, log, { paidOnline: true });
+}
+
+/** Encomenda com pagamento na loja (sem Stripe). */
+export async function notifyOrderInStore(
+  orderId: string,
+  prisma: PrismaClient,
+  log: FastifyBaseLogger
+): Promise<void> {
+  return notifyOrderCore(orderId, prisma, log, { paidOnline: false });
 }

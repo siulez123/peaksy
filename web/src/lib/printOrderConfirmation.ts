@@ -21,12 +21,11 @@ function escapeHtml(text: string): string {
     .replace(/"/g, '&quot;');
 }
 
-/** Abre janela de impressão com o resumo completo (evita folha em branco do modal). */
-export function printOrderConfirmation(
+function buildPrintHtml(
   order: OrderConfirmation,
   labels: OrderPrintLabels,
   localeTag: string
-): void {
+): string {
   const fmtHour = (slot: string) => formatPickupHourLabel(slot, localeTag);
   const itemRows = order.items
     .map(
@@ -42,7 +41,7 @@ export function printOrderConfirmation(
     ? `<p><span class="label">${escapeHtml(labels.notes)}</span> ${escapeHtml(order.notes)}</p>`
     : '';
 
-  const html = `<!DOCTYPE html>
+  return `<!DOCTYPE html>
 <html lang="${localeTag.slice(0, 2)}">
 <head>
   <meta charset="utf-8" />
@@ -94,20 +93,48 @@ export function printOrderConfirmation(
   <p class="total">${escapeHtml(labels.total)}: ${escapeHtml(formatMoney(order.totalCents))}</p>
 </body>
 </html>`;
+}
 
-  const win = window.open('', '_blank', 'noopener,noreferrer');
-  if (!win) return;
-  win.document.open();
-  win.document.write(html);
-  win.document.close();
-  win.focus();
-  const doPrint = () => {
-    win.print();
-    win.addEventListener('afterprint', () => win.close());
-  };
-  if (win.document.readyState === 'complete') {
-    setTimeout(doPrint, 100);
-  } else {
-    win.onload = () => setTimeout(doPrint, 100);
+/** Imprime o resumo da encomenda (iframe oculto — evita about:blank com noopener). */
+export function printOrderConfirmation(
+  order: OrderConfirmation,
+  labels: OrderPrintLabels,
+  localeTag: string
+): void {
+  const html = buildPrintHtml(order, labels, localeTag);
+
+  const iframe = document.createElement('iframe');
+  iframe.setAttribute('title', labels.title);
+  iframe.setAttribute('aria-hidden', 'true');
+  iframe.style.cssText = 'position:fixed;left:0;top:0;width:0;height:0;border:0;opacity:0;pointer-events:none';
+  document.body.appendChild(iframe);
+
+  const win = iframe.contentWindow;
+  const doc = iframe.contentDocument ?? win?.document;
+  if (!win || !doc) {
+    iframe.remove();
+    return;
   }
+
+  doc.open();
+  doc.write(html);
+  doc.close();
+
+  let done = false;
+  const runPrint = () => {
+    if (done) return;
+    done = true;
+    win.focus();
+    win.print();
+    const remove = () => {
+      if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
+    };
+    win.addEventListener('afterprint', remove, { once: true });
+    setTimeout(remove, 2000);
+  };
+
+  win.onload = () => runPrint();
+  requestAnimationFrame(() => {
+    setTimeout(runPrint, 150);
+  });
 }

@@ -116,6 +116,28 @@ Workflow que corre `npx prisma db seed` com `DATABASE_URL` num secret (podes usa
 
 Depois do seed bem sucedido, `/loja/lojademo` e o login do super admin com as credenciais do README devem funcionar. **Em produção real**, altera passwords e não relies nos dados de demo.
 
+## Migração de IVA falhou / `P1014` no `db execute`
+
+Se `npx prisma migrate deploy` falhou em `20260525210000_vat_and_product_layout` e **não existe** a tabela `vat_rates`:
+
+- **Não uses** `npx prisma db execute --file scripts/repair-vat-migration-partial.sql` — o Prisma devolve `P1014` porque o schema já define `VatRate` mas a BD ainda não tem a tabela.
+- O script `repair-vat-migration-partial.sql` é só para reparação **parcial** (tabela `vat_rates` já criada com colunas erradas), e deve correr com **`psql`**, não com `prisma db execute`.
+
+Com `DATABASE_URL` = `DATABASE_PUBLIC_URL` + `?sslmode=require`:
+
+```bash
+npx prisma migrate resolve --rolled-back 20260525210000_vat_and_product_layout
+npx prisma migrate deploy
+```
+
+Isto volta a aplicar a migração de IVA (agora idempotente) e depois `rename_bakery_to_loja` (`bakeries` → `lojas`, `bakeryId` → `lojaId`).
+
+Se `deploy` disser que a migração já está em falha sem poder repetir, confirma o estado:
+
+```bash
+npx prisma migrate status
+```
+
 ## Variáveis obrigatórias
 
 | Variável | Descrição |

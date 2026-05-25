@@ -1,11 +1,23 @@
--- Legado: repara migração de IVA com snake_case ANTES do rename bakery→loja.
--- Se ainda não corriste a migração 20260525220000, usa este script e depois:
---   npx prisma migrate resolve --applied 20260525210000_vat_and_product_layout
---   npx prisma migrate deploy
+-- Só usar se a migração de IVA ficou A MEIO (tabela vat_rates já existe com colunas erradas).
+-- NÃO uses `npx prisma db execute` — o Prisma exige que vat_rates exista no schema/BD (P1014).
+-- Corre com psql:
+--   psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/repair-vat-migration-partial.sql
 --
--- Se já tens tabela "lojas", este script não é necessário — usa só migrate deploy.
+-- Se vat_rates NÃO existe, ignora este ficheiro e corre:
+--   npx prisma migrate resolve --rolled-back 20260525210000_vat_and_product_layout
+--   npx prisma migrate deploy
 
 BEGIN;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'vat_rates'
+  ) THEN
+    RAISE EXCEPTION 'Tabela vat_rates não existe — usa migrate resolve + migrate deploy em vez deste script.';
+  END IF;
+END $$;
 
 DO $$
 BEGIN
@@ -19,9 +31,6 @@ END $$;
 
 DO $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'vat_rates') THEN
-    RETURN;
-  END IF;
   IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'vat_rates' AND column_name = 'bakery_id') THEN
     ALTER TABLE "vat_rates" RENAME COLUMN "bakery_id" TO "bakeryId";
   END IF;
@@ -51,8 +60,7 @@ SET "vatRateId" = (
   WHERE v."bakeryId" = p."bakeryId" AND v."label" = 'Normal'
   LIMIT 1
 )
-WHERE p."vatRateId" IS NULL
-  AND EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'vat_rates');
+WHERE p."vatRateId" IS NULL;
 
 ALTER TABLE "products" ALTER COLUMN "vatRateId" SET NOT NULL;
 

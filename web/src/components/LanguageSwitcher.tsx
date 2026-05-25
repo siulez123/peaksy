@@ -1,59 +1,109 @@
+import { useEffect, useId, useRef, useState } from 'react';
 import { useI18n, LOCALE_FLAGS, type Locale } from '../i18n/context';
 
 const LOCALES: Locale[] = ['en', 'fr', 'pt'];
 
-const groupClass: Record<'default' | 'dark' | 'footer', string> = {
-  default: 'rounded-lg border border-border bg-surface p-0.5 shadow-sm',
-  dark: 'rounded-lg border border-white/15 bg-white/5 p-0.5 backdrop-blur-md',
-  footer: 'rounded-lg border border-border bg-canvas p-0.5',
+const triggerClass: Record<'default' | 'dark' | 'footer', string> = {
+  default:
+    'border-border bg-surface text-ink shadow-sm hover:border-primary/30 hover:bg-primary-soft/40',
+  dark: 'border-white/20 bg-white/10 text-white backdrop-blur-md hover:bg-white/15',
+  footer: 'border-border bg-canvas text-ink hover:bg-surface',
 };
 
-const btnClass: Record<'default' | 'dark' | 'footer', { base: string; active: string }> = {
+const menuClass: Record<'default' | 'dark' | 'footer', string> = {
+  default: 'border-border bg-surface shadow-lg',
+  dark: 'border-white/15 bg-slate-900/95 shadow-xl backdrop-blur-md',
+  footer: 'border-border bg-surface shadow-lg',
+};
+
+const itemClass: Record<'default' | 'dark' | 'footer', { base: string; active: string }> = {
   default: {
-    base: 'text-base leading-none text-muted transition-colors hover:bg-canvas hover:text-ink',
-    active: 'bg-primary-soft text-ink shadow-sm',
+    base: 'text-ink hover:bg-slate-50',
+    active: 'bg-primary-soft ring-1 ring-primary/15',
   },
   dark: {
-    base: 'text-base leading-none text-white/50 transition-colors hover:bg-white/10 hover:text-white',
-    active: 'bg-white/15 text-white shadow-sm',
+    base: 'text-white hover:bg-white/10',
+    active: 'bg-white/15 ring-1 ring-white/20',
   },
   footer: {
-    base: 'text-sm leading-none text-muted transition-colors hover:bg-surface hover:text-ink',
-    active: 'bg-surface text-ink shadow-sm ring-1 ring-border',
+    base: 'text-ink hover:bg-canvas',
+    active: 'bg-canvas ring-1 ring-border',
   },
 };
 
 type Props = {
-  variant?: keyof typeof groupClass;
+  variant?: keyof typeof triggerClass;
   className?: string;
 };
 
 export function LanguageSwitcher({ variant = 'default', className = '' }: Props) {
   const { locale, setLocale, t } = useI18n();
-  const styles = btnClass[variant];
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const listId = useId();
+  const styles = itemClass[variant];
+
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', onDoc);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDoc);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  const pick = (loc: Locale) => {
+    setLocale(loc);
+    setOpen(false);
+  };
 
   return (
-    <div
-      role="group"
-      aria-label={t('lang.label')}
-      className={`inline-flex shrink-0 items-center gap-0.5 ${groupClass[variant]} ${className}`.trim()}
-    >
-      {LOCALES.map((loc) => {
-        const active = locale === loc;
-        return (
-          <button
-            key={loc}
-            type="button"
-            onClick={() => setLocale(loc)}
-            aria-label={t(`lang.${loc}`)}
-            aria-pressed={active}
-            title={t(`lang.${loc}`)}
-            className={`rounded-md px-2 py-1.5 ${styles.base} ${active ? styles.active : ''}`}
-          >
-            <span aria-hidden="true">{LOCALE_FLAGS[loc]}</span>
-          </button>
-        );
-      })}
+    <div ref={rootRef} className={`relative shrink-0 ${className}`.trim()}>
+      <button
+        type="button"
+        aria-label={t('lang.label')}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-controls={listId}
+        title={t(`lang.${locale}`)}
+        onClick={() => setOpen((o) => !o)}
+        className={`inline-flex h-8 w-8 items-center justify-center rounded-lg border text-base leading-none transition-colors ${triggerClass[variant]}`}
+      >
+        <span aria-hidden="true">{LOCALE_FLAGS[locale]}</span>
+      </button>
+
+      {open && (
+        <ul
+          id={listId}
+          role="listbox"
+          aria-label={t('lang.label')}
+          className={`absolute right-0 z-50 mt-1 flex w-8 flex-col gap-0.5 rounded-lg border p-0.5 ${menuClass[variant]}`}
+        >
+          {LOCALES.map((loc) => {
+            const active = locale === loc;
+            return (
+              <li key={loc} role="option" aria-selected={active}>
+                <button
+                  type="button"
+                  aria-label={t(`lang.${loc}`)}
+                  title={t(`lang.${loc}`)}
+                  onClick={() => pick(loc)}
+                  className={`flex h-7 w-full items-center justify-center rounded-md text-base leading-none transition-colors ${styles.base} ${active ? styles.active : ''}`}
+                >
+                  <span aria-hidden="true">{LOCALE_FLAGS[loc]}</span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }

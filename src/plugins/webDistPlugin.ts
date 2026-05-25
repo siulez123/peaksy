@@ -4,11 +4,15 @@ import { readFile } from 'node:fs/promises';
 import fp from 'fastify-plugin';
 import fastifyStatic from '@fastify/static';
 
-/** Primeiro segmento de caminhos servidos pela API (não devolver index.html do SPA). */
+/**
+ * Caminhos cuja API pode responder 404 em JSON (rotas só-backend).
+ * `/admin/*` e `/super/*` incluem rotas do SPA (ex. `/super/entrar`) — não listar aqui;
+ * pedidos GET não registados nesses prefixos devem receber index.html.
+ */
 function isApiPath(pathOnly: string): boolean {
   const seg = pathOnly.split('/').filter(Boolean)[0];
   if (!seg) return false;
-  return ['auth', 'public', 'admin', 'super', 'uploads', 'docs', 'health'].includes(seg);
+  return ['auth', 'public', 'uploads', 'docs', 'health'].includes(seg);
 }
 
 /**

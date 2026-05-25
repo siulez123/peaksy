@@ -1,5 +1,5 @@
 export const fr = {
-  lang: { en: 'English', fr: 'Français', pt: 'Português' },
+  lang: { label: 'Langue', en: 'English', fr: 'Français', pt: 'Português' },
   common: {
     loading: 'Chargement…',
     save: 'Enregistrer',
@@ -56,7 +56,7 @@ export const fr = {
     desc: 'L’adresse recherchée n’existe pas ou a été déplacée.',
     back: 'Aller à l’accueil',
   },
-  bakeryNotFound: {
+  lojaNotFound: {
     title: 'Boutique introuvable',
     desc: 'Aucune boutique enregistrée avec l’identifiant « {{slug}} ». Vérifiez l’adresse ou le lien reçu.',
     hostHint:
@@ -67,7 +67,7 @@ export const fr = {
   shop: {
     preOrders: 'Précommandes',
     order: 'Commander',
-    bakery: 'Boutique',
+    loja: 'Boutique',
     loadingTitle: 'Chargement…',
     noTenantPrefix:
       'Impossible d’identifier la boutique. Utilisez le sous-domaine (ex. lojademo.localhost) ou ',
@@ -119,7 +119,7 @@ export const fr = {
     backToShop: 'Retour à la boutique',
   },
   footer: {
-    bakery: 'Boutique',
+    loja: 'Boutique',
     store: 'Boutique',
     contact: 'Contact',
     maps: 'Voir sur Google Maps',
@@ -129,7 +129,7 @@ export const fr = {
     signInDesc:
       'Saisissez les identifiants de cette boutique. La session reste sur cet appareil.',
     noTenant: 'Impossible d’identifier la boutique.',
-    bakeryAdminOnly: 'Cet espace est réservé aux administrateurs de la boutique.',
+    lojaAdminOnly: 'Cet espace est réservé aux administrateurs de la boutique.',
     administrators: 'Administrateurs',
     phoneLabel: 'Téléphone · ',
     signIn: 'Connexion',
@@ -141,7 +141,7 @@ export const fr = {
     loading: 'Chargement…',
     notFound: 'Boutique introuvable',
     subtitle: 'Connexion administrateur',
-    bakeryAdminOnly: 'Cet espace est réservé aux administrateurs de la boutique.',
+    lojaAdminOnly: 'Cet espace est réservé aux administrateurs de la boutique.',
     signIn: 'Connexion',
     signingIn: 'Connexion…',
     home: 'Accueil',
@@ -216,7 +216,7 @@ export const fr = {
   },
   superNav: {
     metrics: 'Métriques',
-    bakeries: 'Boutiques',
+    lojas: 'Boutiques',
     users: 'Utilisateurs',
   },
   superLogin: {
@@ -230,20 +230,20 @@ export const fr = {
   superDashboard: {
     title: 'Métriques globales',
   },
-  superBakeries: {
+  superLojas: {
     add: 'Ajouter une boutique',
-    newBakery: 'Nouvelle boutique',
+    newLoja: 'Nouvelle boutique',
     confirmDelete: 'Supprimer la boutique ?',
-    editBakery: 'Modifier la boutique',
+    editLoja: 'Modifier la boutique',
     addressPlaceholder: 'Rue, numéro, étage…',
     domainEmpty: 'Vide supprime le domaine.',
     publicContact: 'Contact public',
   },
   superUsers: {
-    selectBakery: 'Sélectionnez une boutique pour l’admin boutique.',
+    selectLoja: 'Sélectionnez une boutique pour l’admin boutique.',
     passwordBlank: 'Laisser vide pour ne pas modifier',
     passwordMin: 'Minimum 8 caractères si vous le remplissez.',
     roleSuper: 'Super admin',
-    roleBakery: 'Admin boutique',
+    roleLoja: 'Admin boutique',
   },
 };

@@ -7,7 +7,7 @@ import { ForbiddenError, UnauthorizedError, ValidationError } from '../../lib/er
 const loginBodySchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
-  /** Obrigatório para BAKERY_ADMIN: tem de coincidir com a padaria da conta (slug). */
+  /** Obrigatório para LOJA_ADMIN: tem de coincidir com a loja da conta (slug). */
   tenantSlug: z.string().min(1).optional(),
 });
 
@@ -43,10 +43,10 @@ async function authRoutesImpl(fastify: FastifyInstance) {
                   id: { type: 'string' },
                   email: { type: 'string' },
                   role: { type: 'string' },
-                  bakeryId: { type: 'string', nullable: true },
+                  lojaId: { type: 'string', nullable: true },
                 },
               },
-              bakery: {
+              loja: {
                 type: 'object',
                 nullable: true,
                 properties: {
@@ -72,7 +72,7 @@ async function authRoutesImpl(fastify: FastifyInstance) {
       const user = await fastify.prisma.user.findUnique({
         where: { email },
         include: {
-          bakery: true,
+          loja: true,
         },
       });
 
@@ -85,16 +85,16 @@ async function authRoutesImpl(fastify: FastifyInstance) {
         throw new UnauthorizedError('Invalid credentials');
       }
 
-      if (user.role === 'BAKERY_ADMIN') {
-        if (!user.bakery) {
-          throw new ForbiddenError('Conta de administrador sem padaria associada.');
+      if (user.role === 'LOJA_ADMIN') {
+        if (!user.loja) {
+          throw new ForbiddenError('Conta de administrador sem loja associada.');
         }
         const ts = tenantSlug?.trim();
         if (!ts) {
-          throw new ValidationError('Indica a padaria (tenantSlug) no pedido de login.');
+          throw new ValidationError('Indica a loja (tenantSlug) no pedido de login.');
         }
-        if (user.bakery.slug.toLowerCase() !== ts.toLowerCase()) {
-          throw new ForbiddenError('Esta conta não pertence a esta padaria.');
+        if (user.loja.slug.toLowerCase() !== ts.toLowerCase()) {
+          throw new ForbiddenError('Esta conta não pertence a esta loja.');
         }
       }
 
@@ -102,7 +102,7 @@ async function authRoutesImpl(fastify: FastifyInstance) {
         id: user.id,
         email: user.email,
         role: user.role,
-        bakeryId: user.bakeryId,
+        lojaId: user.lojaId,
       });
 
       return {
@@ -111,13 +111,13 @@ async function authRoutesImpl(fastify: FastifyInstance) {
           id: user.id,
           email: user.email,
           role: user.role,
-          bakeryId: user.bakeryId,
+          lojaId: user.lojaId,
         },
-        bakery: user.bakery
+        loja: user.loja
           ? {
-              id: user.bakery.id,
-              name: user.bakery.name,
-              slug: user.bakery.slug,
+              id: user.loja.id,
+              name: user.loja.name,
+              slug: user.loja.slug,
             }
           : null,
       };
@@ -139,7 +139,7 @@ async function authRoutesImpl(fastify: FastifyInstance) {
               id: { type: 'string' },
               email: { type: 'string' },
               role: { type: 'string' },
-              bakery: {
+              loja: {
                 type: 'object',
                 nullable: true,
                 properties: {
@@ -158,7 +158,7 @@ async function authRoutesImpl(fastify: FastifyInstance) {
       const user = await fastify.prisma.user.findUnique({
         where: { id: request.user!.id },
         include: {
-          bakery: true,
+          loja: true,
         },
       });
 
@@ -170,11 +170,11 @@ async function authRoutesImpl(fastify: FastifyInstance) {
         id: user.id,
         email: user.email,
         role: user.role,
-        bakery: user.bakery
+        loja: user.loja
           ? {
-              id: user.bakery.id,
-              name: user.bakery.name,
-              slug: user.bakery.slug,
+              id: user.loja.id,
+              name: user.loja.name,
+              slug: user.loja.slug,
             }
           : null,
       };

@@ -45,9 +45,9 @@ function statusBadgeClass(status: string): string {
     case 'READY':
       return 'bg-emerald-100 text-emerald-900';
     case 'PICKED_UP':
-      return 'bg-stone-200 text-stone-800';
+      return 'bg-slate-100 text-ink';
     default:
-      return 'bg-stone-100 text-stone-700';
+      return 'bg-slate-100 text-ink';
   }
 }
 
@@ -169,15 +169,15 @@ export function AdminOrders() {
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-semibold text-stone-900">{t('adminOrders.title')}</h1>
+      <h1 className="mb-6 text-2xl font-semibold text-ink">{t('adminOrders.title')}</h1>
 
       <Card
         className={`mb-6 transition-colors ${
-          hasActiveFilters ? 'border-orange-300 bg-orange-50/90 shadow-sm shadow-orange-100/40' : ''
+          hasActiveFilters ? 'border-primary-300 bg-primary-50/90 shadow-sm shadow-orange-100/40' : ''
         }`}
       >
         <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-          <p className="text-sm font-medium text-stone-800">Filtros</p>
+          <p className="text-sm font-medium text-ink">Filtros</p>
           <Button type="button" variant="secondary" className="text-sm" onClick={clearFilters}>
             Limpar filtros
           </Button>
@@ -190,7 +190,7 @@ export function AdminOrders() {
           <div>
             <Label>Hora de levantamento</Label>
             <select
-              className="mt-1 w-full rounded-xl border border-stone-200 bg-white px-3 py-2.5 text-sm text-stone-900 focus:border-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-200"
+              className="mt-1 w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-sm text-ink focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary-200"
               value={filterTime}
               onChange={(e) => setFilterTime(e.target.value)}
             >
@@ -205,7 +205,7 @@ export function AdminOrders() {
           <div>
             <Label>Estado</Label>
             <select
-              className="mt-1 w-full rounded-xl border border-stone-200 bg-white px-3 py-2.5 text-sm text-stone-900 focus:border-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-200"
+              className="mt-1 w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-sm text-ink focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary-200"
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
             >
@@ -250,19 +250,19 @@ export function AdminOrders() {
       {err && <p className="mb-4 text-sm text-red-600">{err}</p>}
 
       {loading ? (
-        <p className="text-stone-500">A carregar…</p>
+        <p className="text-muted">A carregar…</p>
       ) : orders.length === 0 ? (
-        <p className="text-stone-500">Sem pedidos com estes filtros.</p>
+        <p className="text-muted">Sem pedidos com estes filtros.</p>
       ) : (
         <>
-          <p className="mb-3 text-sm text-stone-600">
+          <p className="mb-3 text-sm text-muted">
             {orders.length} {orders.length === 1 ? 'pedido' : 'pedidos'}
           </p>
 
           {/* Desktop: tabela */}
-          <div className="hidden overflow-x-auto rounded-2xl border border-stone-200 bg-white shadow-sm md:block">
+          <div className="hidden overflow-x-auto rounded-2xl border border-border bg-surface shadow-sm md:block">
             <table className="w-full min-w-[1100px] text-left text-sm">
-              <thead className="border-b border-stone-200 bg-stone-50 text-xs font-semibold uppercase tracking-wide text-stone-600">
+              <thead className="border-b border-border bg-slate-50 text-xs font-semibold uppercase tracking-wide text-muted">
                 <tr>
                   <th className="px-4 py-3">Data</th>
                   <th className="px-4 py-3">Hora</th>
@@ -272,20 +272,20 @@ export function AdminOrders() {
                   <th className="px-4 py-3">Pagamento</th>
                   <th className="px-4 py-3 text-right">Total</th>
                   <th className="px-4 py-3">Artigos</th>
-                  <th className="sticky right-0 z-20 min-w-[8.5rem] bg-stone-50 px-4 py-3 text-right shadow-[-10px_0_14px_-6px_rgba(0,0,0,0.12)]">
+                  <th className="sticky right-0 z-20 min-w-[8.5rem] bg-slate-50 px-4 py-3 text-right shadow-[-10px_0_14px_-6px_rgba(0,0,0,0.12)]">
                     Ações
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-stone-100">
+              <tbody className="divide-y divide-border">
                 {orders.map((o) => (
-                  <tr key={o.id} className="group align-top hover:bg-stone-50/80">
-                    <td className="whitespace-nowrap px-4 py-3 tabular-nums text-stone-800">{o.pickupDate}</td>
-                    <td className="whitespace-nowrap px-4 py-3 tabular-nums text-stone-700">{o.pickupTime}</td>
-                    <td className="max-w-[140px] px-4 py-3 font-medium text-stone-900">
+                  <tr key={o.id} className="group align-top hover:bg-slate-50/80">
+                    <td className="whitespace-nowrap px-4 py-3 tabular-nums text-ink">{o.pickupDate}</td>
+                    <td className="whitespace-nowrap px-4 py-3 tabular-nums text-ink">{o.pickupTime}</td>
+                    <td className="max-w-[140px] px-4 py-3 font-medium text-ink">
                       <span className="line-clamp-2">{o.customerName}</span>
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-stone-700">{o.customerPhone}</td>
+                    <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-ink">{o.customerPhone}</td>
                     <td className="px-4 py-3">
                       <span
                         className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${statusBadgeClass(o.status)}`}
@@ -295,17 +295,17 @@ export function AdminOrders() {
                     </td>
                     <td className="whitespace-nowrap px-4 py-3">
                       {o.paid ? (
-                        <span className="text-green-700">{t('adminOrders.paid')}</span>
+                        <span className="text-success">{t('adminOrders.paid')}</span>
                       ) : (
-                        <span className="text-amber-700">{t('adminOrders.unpaid')}</span>
+                        <span className="text-warning">{t('adminOrders.unpaid')}</span>
                       )}
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right font-medium tabular-nums text-stone-900">
+                    <td className="whitespace-nowrap px-4 py-3 text-right font-medium tabular-nums text-ink">
                       {formatMoney(o.totalCents)}
                     </td>
-                    <td className="min-w-[280px] max-w-lg px-4 py-3 align-top text-xs text-stone-700">
+                    <td className="min-w-[280px] max-w-lg px-4 py-3 align-top text-xs text-ink">
                       {o.items.length === 0 ? (
-                        <span className="text-stone-400">—</span>
+                        <span className="text-muted">—</span>
                       ) : (
                         <ul className="space-y-2">
                           {o.items.map((it) => (
@@ -313,15 +313,15 @@ export function AdminOrders() {
                               <label className="flex cursor-pointer items-start gap-2">
                                 <input
                                   type="checkbox"
-                                  className="mt-0.5 h-4 w-4 shrink-0 rounded border-stone-300 text-orange-600 focus:ring-orange-500"
+                                  className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 text-primary focus:ring-primary-500"
                                   checked={it.ready}
                                   disabled={o.status === 'PICKED_UP' || pendingItemId === it.id}
                                   onChange={(e) => void setItemReady(o.id, it.id, e.target.checked)}
                                 />
                                 <span>
-                                  <span className="font-medium text-stone-900">{it.productNameSnapshot}</span>{' '}
-                                  <span className="text-stone-500">{it.variantSnapshot}</span>
-                                  <span className="tabular-nums text-stone-700"> × {it.quantity}</span>
+                                  <span className="font-medium text-ink">{it.productNameSnapshot}</span>{' '}
+                                  <span className="text-muted">{it.variantSnapshot}</span>
+                                  <span className="tabular-nums text-ink"> × {it.quantity}</span>
                                 </span>
                               </label>
                             </li>
@@ -329,7 +329,7 @@ export function AdminOrders() {
                         </ul>
                       )}
                     </td>
-                    <td className="sticky right-0 z-10 min-w-[8.5rem] bg-white px-3 py-3 text-right shadow-[-10px_0_14px_-6px_rgba(0,0,0,0.1)] group-hover:bg-stone-50/80">
+                    <td className="sticky right-0 z-10 min-w-[8.5rem] bg-surface px-3 py-3 text-right shadow-[-10px_0_14px_-6px_rgba(0,0,0,0.1)] group-hover:bg-slate-50/80">
                       <div className="flex flex-col items-end justify-center gap-1.5 sm:flex-row sm:flex-wrap sm:justify-end">
                         {o.status === 'READY' && (
                           <Button
@@ -355,8 +355,8 @@ export function AdminOrders() {
               <Card key={o.id} className="!p-4">
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div>
-                    <p className="font-semibold text-stone-900">{o.customerName}</p>
-                    <p className="font-mono text-sm text-stone-600">{o.customerPhone}</p>
+                    <p className="font-semibold text-ink">{o.customerName}</p>
+                    <p className="font-mono text-sm text-muted">{o.customerPhone}</p>
                   </div>
                   <span
                     className={`inline-flex shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${statusBadgeClass(o.status)}`}
@@ -364,27 +364,27 @@ export function AdminOrders() {
                     {statusLabel(o.status, t)}
                   </span>
                 </div>
-                <p className="mt-2 text-sm text-stone-700">
+                <p className="mt-2 text-sm text-ink">
                   <span className="tabular-nums">{o.pickupDate}</span>
                   {' · '}
                   <span className="tabular-nums">{o.pickupTime}</span>
                   {' · '}
-                  <span className="font-medium text-orange-800">{formatMoney(o.totalCents)}</span>
+                  <span className="font-medium text-primary-800">{formatMoney(o.totalCents)}</span>
                   {' · '}
                   {o.paid ? (
-                    <span className="text-green-700">{t('adminOrders.paid')}</span>
+                    <span className="text-success">{t('adminOrders.paid')}</span>
                   ) : (
-                    <span className="text-amber-700">{t('adminOrders.unpaid')}</span>
+                    <span className="text-warning">{t('adminOrders.unpaid')}</span>
                   )}
                 </p>
-                <p className="mt-1 text-xs text-stone-400">#{o.id.slice(0, 8)}…</p>
-                <ul className="mt-3 space-y-2 border-t border-stone-100 pt-3 text-sm text-stone-600">
+                <p className="mt-1 text-xs text-muted">#{o.id.slice(0, 8)}…</p>
+                <ul className="mt-3 space-y-2 border-t border-border pt-3 text-sm text-muted">
                   {o.items.map((it) => (
                     <li key={it.id}>
                       <label className="flex cursor-pointer items-start gap-2">
                         <input
                           type="checkbox"
-                          className="mt-1 h-4 w-4 shrink-0 rounded border-stone-300 text-orange-600 focus:ring-orange-500"
+                          className="mt-1 h-4 w-4 shrink-0 rounded border-slate-300 text-primary focus:ring-primary-500"
                           checked={it.ready}
                           disabled={o.status === 'PICKED_UP' || pendingItemId === it.id}
                           onChange={(e) => void setItemReady(o.id, it.id, e.target.checked)}

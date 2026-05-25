@@ -22,28 +22,28 @@ async function authPluginFn(fastify: FastifyInstance, _options: FastifyPluginOpt
       const payload = request.user as unknown as {
         id: string;
         email: string;
-        role: 'SUPER_ADMIN' | 'BAKERY_ADMIN';
-        bakeryId: string | null;
+        role: 'SUPER_ADMIN' | 'LOJA_ADMIN';
+        lojaId: string | null;
       };
       request.user = {
         id: payload.id,
         email: payload.email,
         role: payload.role,
-        bakeryId: payload.bakeryId,
+        lojaId: payload.lojaId,
       };
     } catch (err) {
       throw new UnauthorizedError('Invalid or expired token');
     }
   });
 
-  // Decorate request with requireBakeryAdmin method
-  fastify.decorate('requireBakeryAdmin', async function (request: FastifyRequest) {
+  // Decorate request with requireLojaAdmin method
+  fastify.decorate('requireLojaAdmin', async function (request: FastifyRequest) {
     await fastify.authenticate(request);
-    if (request.user?.role !== 'BAKERY_ADMIN') {
-      throw new ForbiddenError('Bakery admin access required');
+    if (request.user?.role !== 'LOJA_ADMIN') {
+      throw new ForbiddenError('Loja admin access required');
     }
-    if (!request.user.bakeryId) {
-      throw new ForbiddenError('Bakery admin must be associated with a bakery');
+    if (!request.user.lojaId) {
+      throw new ForbiddenError('Loja admin must be associated with a loja');
     }
   });
 

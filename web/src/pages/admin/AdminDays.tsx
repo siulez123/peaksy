@@ -292,7 +292,7 @@ export function AdminDays() {
   return (
     <div>
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-2xl font-semibold text-stone-900">{t('adminDays.title')}</h1>
+        <h1 className="text-2xl font-semibold text-ink">{t('adminDays.title')}</h1>
         <Button type="button" onClick={openCreateModal}>
           <Plus className="h-4 w-4" aria-hidden />
           {t('adminDays.add')}
@@ -307,43 +307,43 @@ export function AdminDays() {
         <p className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{err}</p>
       )}
       {loading ? (
-        <p className="text-stone-500">A carregar…</p>
+        <p className="text-muted">A carregar…</p>
       ) : (
         <div className="space-y-6">
           {days.map((d) => (
             <Card key={d.id}>
               <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <p className="font-semibold text-stone-900">
+                  <p className="font-semibold text-ink">
                     {d.pickupEndDate !== d.pickupDate
                       ? `${d.pickupDate} → ${d.pickupEndDate}`
                       : d.pickupDate}
                   </p>
                   {d.ordersOpenAt && (
-                    <p className="text-sm text-stone-600">
+                    <p className="text-sm text-muted">
                       Encomendas abertas a partir de:{' '}
                       {new Date(d.ordersOpenAt).toLocaleString('pt-PT')}
                     </p>
                   )}
-                  <ul className="mt-2 space-y-1 text-sm text-stone-600">
+                  <ul className="mt-2 space-y-1 text-sm text-muted">
                     {d.pickupDateRules.map((r) => (
                       <li key={r.id}>
-                        <span className="font-medium text-stone-800">{r.pickupDate}</span>
+                        <span className="font-medium text-ink">{r.pickupDate}</span>
                         {' · limite '}
                         {new Date(r.orderDeadline).toLocaleString('pt-PT')}
                       </li>
                     ))}
                   </ul>
-                  <p className="mt-2 text-sm text-stone-500">
+                  <p className="mt-2 text-sm text-muted">
                     Levantamento: {d.pickupTimeMin} – {d.pickupTimeMax}
                   </p>
                   {d.dayCapTotal != null && (
-                    <p className="text-xs text-stone-500">
+                    <p className="text-xs text-muted">
                       Máx. encomendas pagas no período: {d.dayCapTotal}
                     </p>
                   )}
                   {d._count.orders > 0 && (
-                    <p className="text-xs text-amber-800">
+                    <p className="text-xs text-warning">
                       {t('adminDays.ordersBlockDelete', { count: d._count.orders })}
                     </p>
                   )}
@@ -360,7 +360,7 @@ export function AdminDays() {
                 </div>
               </div>
               {d.productCaps.length > 0 && (
-                <ul className="mt-3 text-sm text-stone-600">
+                <ul className="mt-3 text-sm text-muted">
                   {d.productCaps.map((c) => (
                     <li key={c.id}>
                       {c.product.name} {c.product.variant}: máx. {c.cap} (por dia de levantamento)
@@ -382,7 +382,7 @@ export function AdminDays() {
         closeDisabled={saving}
       >
         {editingId && (
-          <p className="mb-4 text-sm text-stone-600">
+          <p className="mb-4 text-sm text-muted">
             Ajusta datas, limites por dia, horários e limites por produto. Guarda para aplicar.
           </p>
         )}
@@ -394,7 +394,7 @@ export function AdminDays() {
               value={form.ordersOpenAt}
               onChange={(e) => setForm((f) => ({ ...f, ordersOpenAt: e.target.value }))}
             />
-            <p className="mt-1 text-xs text-stone-500">
+            <p className="mt-1 text-xs text-muted">
               Se definires, os clientes só podem encomendar a partir desta data/hora. O limite por dia de
               levantamento aplica-se na mesma.
             </p>
@@ -407,7 +407,7 @@ export function AdminDays() {
                 + Dia
               </Button>
             </div>
-            <p className="mb-3 text-xs text-stone-500">
+            <p className="mb-3 text-xs text-muted">
               Para cada dia em que se levantam encomendas, define até quando podem ser feitas (normalmente o dia
               anterior, ex. levantamento 24/12 → limite 23/12 às 17h).
             </p>
@@ -415,7 +415,7 @@ export function AdminDays() {
               {form.dateRules.map((row, i) => (
                 <div
                   key={i}
-                  className="flex flex-col gap-2 rounded-xl border border-stone-100 bg-stone-50/50 p-3 sm:flex-row sm:items-end"
+                  className="flex flex-col gap-2 rounded-xl border border-border bg-slate-50/50 p-3 sm:flex-row sm:items-end"
                 >
                   <div className="min-w-0 flex-1">
                     <Label>Data de levantamento</Label>
@@ -480,7 +480,7 @@ export function AdminDays() {
                 }
                 required
               />
-              <p className="mt-1 text-xs text-stone-500">Horas cheias ou meias (ex.: 07:30, 08:00).</p>
+              <p className="mt-1 text-xs text-muted">Horas cheias ou meias (ex.: 07:30, 08:00).</p>
             </div>
             <div>
               <Label>Última hora de levantamento (máx.)</Label>
@@ -504,7 +504,7 @@ export function AdminDays() {
                 value={form.dayCapTotal}
                 onChange={(e) => setForm((f) => ({ ...f, dayCapTotal: e.target.value }))}
               />
-              <p className="mt-1 text-xs text-stone-500">
+              <p className="mt-1 text-xs text-muted">
                 Limite global de encomendas pagas para este período (todas as datas de levantamento).
               </p>
             </div>
@@ -518,14 +518,14 @@ export function AdminDays() {
               </Button>
             </div>
             {products.length === 0 && (
-              <p className="mb-2 text-sm text-amber-800">Cria produtos primeiro para definir limites.</p>
+              <p className="mb-2 text-sm text-warning">Cria produtos primeiro para definir limites.</p>
             )}
             <div className="space-y-2">
               {capRows.map((row, i) => (
                 <div key={i} className="flex flex-col gap-2 sm:flex-row sm:items-end">
                   <div className="min-w-0 flex-1">
                     <select
-                      className="w-full rounded-xl border border-stone-200 px-3 py-2.5 text-sm"
+                      className="w-full rounded-xl border border-border px-3 py-2.5 text-sm"
                       value={row.productId}
                       onChange={(e) =>
                         setCapRows((rows) =>

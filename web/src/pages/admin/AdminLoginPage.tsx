@@ -29,7 +29,7 @@ export function AdminLoginPage() {
     }
     setHead({ status: 'loading' });
     void publicApi
-      .bakery(slug)
+      .loja(slug)
       .then((b) => {
         if (!cancelled) setHead({ status: 'ok', name: b.name });
       })
@@ -54,8 +54,8 @@ export function AdminLoginPage() {
     setLoading(true);
     try {
       const data = await auth.login(email, password, slug);
-      if (data.user.role !== 'BAKERY_ADMIN') {
-        setErr(t('adminLogin.bakeryAdminOnly'));
+      if (data.user.role !== 'LOJA_ADMIN') {
+        setErr(t('adminLogin.lojaAdminOnly'));
         return;
       }
       setSession(data);
@@ -98,8 +98,8 @@ export function AdminLoginPage() {
           </Button>
         </form>
       </Card>
-      <p className="mt-4 text-center text-sm text-stone-500">
-        <Link to={shopHomeHref} className="font-bold text-accent hover:underline">
+      <p className="mt-4 text-center text-sm text-muted">
+        <Link to={shopHomeHref} className="font-bold text-primary hover:text-primary-hover hover:underline">
           {t('adminLogin.home')}
         </Link>
       </p>

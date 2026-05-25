@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
-import { superApi, type SuperBakery } from '../../api';
+import { superApi, type SuperLoja } from '../../api';
 import { useAuth } from '../../context/AuthContext';
 import { Button, Card, Input, Label, SheetDialog } from '../../components/ui';
 import { useI18n } from '../../i18n/context';
@@ -18,7 +18,7 @@ type EditForm = {
   phone: string;
 };
 
-function bakeryToForm(b: SuperBakery): EditForm {
+function lojaToForm(b: SuperLoja): EditForm {
   return {
     name: b.name,
     slug: b.slug,
@@ -33,10 +33,10 @@ function bakeryToForm(b: SuperBakery): EditForm {
   };
 }
 
-export function SuperBakeries() {
+export function SuperLojas() {
   const { t } = useI18n();
   const { token } = useAuth();
-  const [items, setItems] = useState<SuperBakery[]>([]);
+  const [items, setItems] = useState<SuperLoja[]>([]);
   const [form, setForm] = useState({
     name: '',
     slug: '',
@@ -48,14 +48,14 @@ export function SuperBakeries() {
   const [err, setErr] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [editing, setEditing] = useState<SuperBakery | null>(null);
+  const [editing, setEditing] = useState<SuperLoja | null>(null);
   const [editForm, setEditForm] = useState<EditForm | null>(null);
   const [saving, setSaving] = useState(false);
 
   const load = async () => {
     if (!token) return;
     try {
-      const list = await superApi.bakeries.list(token);
+      const list = await superApi.lojas.list(token);
       setItems(list);
       setErr(null);
     } catch (e) {
@@ -85,9 +85,9 @@ export function SuperBakeries() {
     };
   }, [editing]);
 
-  const openEdit = (b: SuperBakery) => {
+  const openEdit = (b: SuperLoja) => {
     setEditing(b);
-    setEditForm(bakeryToForm(b));
+    setEditForm(lojaToForm(b));
     setErr(null);
   };
 
@@ -97,7 +97,7 @@ export function SuperBakeries() {
     setSaving(true);
     setErr(null);
     try {
-      await superApi.bakeries.patch(token, editing.id, {
+      await superApi.lojas.patch(token, editing.id, {
         name: editForm.name.trim(),
         slug: editForm.slug.trim().toLowerCase().replace(/\s+/g, '-'),
         domain: editForm.domain.trim() ? editForm.domain.trim() : null,
@@ -125,7 +125,7 @@ export function SuperBakeries() {
     setCreating(true);
     setErr(null);
     try {
-      await superApi.bakeries.create(token, {
+      await superApi.lojas.create(token, {
         name: form.name.trim(),
         slug: form.slug.trim().toLowerCase().replace(/\s+/g, '-'),
         addressLine: form.addressLine.trim(),
@@ -153,7 +153,7 @@ export function SuperBakeries() {
   const toggle = async (id: string, active: boolean) => {
     if (!token) return;
     try {
-      await superApi.bakeries.patch(token, id, { active: !active });
+      await superApi.lojas.patch(token, id, { active: !active });
       await load();
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Erro');
@@ -161,9 +161,9 @@ export function SuperBakeries() {
   };
 
   const remove = async (id: string) => {
-    if (!token || !confirm(t('superBakeries.confirmDelete'))) return;
+    if (!token || !confirm(t('superLojas.confirmDelete'))) return;
     try {
-      await superApi.bakeries.remove(token, id);
+      await superApi.lojas.remove(token, id);
       await load();
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Erro');
@@ -173,7 +173,7 @@ export function SuperBakeries() {
   return (
     <div>
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-2xl font-semibold text-stone-900">Padarias</h1>
+        <h1 className="text-2xl font-semibold text-ink">Lojas</h1>
         <Button
           type="button"
           onClick={() => {
@@ -189,7 +189,7 @@ export function SuperBakeries() {
             setCreateOpen(true);
           }}
         >
-          {t('superBakeries.add')}
+          {t('superLojas.add')}
         </Button>
       </div>
       {err && <p className="mb-4 text-sm text-red-600">{err}</p>}
@@ -198,12 +198,12 @@ export function SuperBakeries() {
           <Card key={b.id}>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="font-semibold text-stone-900">{b.name}</p>
-                <p className="text-sm text-stone-500">
+                <p className="font-semibold text-ink">{b.name}</p>
+                <p className="text-sm text-muted">
                   {b.slug} · {b.plan} · utilizadores {b._count.users} · produtos {b._count.products} · pedidos{' '}
                   {b._count.orders}
                 </p>
-                {!b.active && <span className="text-xs text-amber-700">Inativa</span>}
+                {!b.active && <span className="text-xs text-warning">Inativa</span>}
               </div>
               <div className="flex flex-wrap gap-2">
                 <Button type="button" variant="secondary" className="text-sm" onClick={() => openEdit(b)}>
@@ -224,8 +224,8 @@ export function SuperBakeries() {
       <SheetDialog
         open={createOpen}
         onClose={() => !creating && setCreateOpen(false)}
-        title={t('superBakeries.newBakery')}
-        titleId="super-create-bakery-title"
+        title={t('superLojas.newLoja')}
+        titleId="super-create-loja-title"
         maxWidthClassName="max-w-lg"
         closeDisabled={creating}
       >
@@ -239,7 +239,7 @@ export function SuperBakeries() {
             <Input
               value={form.slug}
               onChange={(e) => setForm((f) => ({ ...f, slug: e.target.value }))}
-              placeholder="minha-padaria"
+              placeholder="minha-loja"
               required
             />
           </div>
@@ -284,7 +284,7 @@ export function SuperBakeries() {
           </div>
           <div className="flex flex-wrap gap-2 sm:col-span-2">
             <Button type="submit" disabled={creating}>
-              {creating ? 'A criar…' : 'Criar padaria'}
+              {creating ? 'A criar…' : 'Criar loja'}
             </Button>
             <Button type="button" variant="secondary" disabled={creating} onClick={() => setCreateOpen(false)}>
               Cancelar
@@ -298,7 +298,7 @@ export function SuperBakeries() {
           className="fixed inset-0 z-[70] flex items-end justify-center sm:items-center sm:p-4"
           role="dialog"
           aria-modal="true"
-          aria-labelledby="super-edit-bakery-title"
+          aria-labelledby="super-edit-loja-title"
         >
           <button
             type="button"
@@ -307,16 +307,16 @@ export function SuperBakeries() {
             aria-label="Fechar"
           />
           <div
-            className="relative max-h-[min(92dvh,720px)] w-full max-w-lg overflow-y-auto overscroll-contain rounded-t-2xl border border-stone-200 bg-white shadow-2xl sm:rounded-2xl"
+            className="relative max-h-[min(92dvh,720px)] w-full max-w-lg overflow-y-auto overscroll-contain rounded-t-2xl border border-border bg-surface shadow-2xl sm:rounded-2xl"
             style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
           >
-            <div className="sticky top-0 flex items-center justify-between border-b border-stone-100 bg-white px-4 py-3 sm:px-6">
-              <h2 id="super-edit-bakery-title" className="text-lg font-semibold text-stone-900">
-                {t('superBakeries.editBakery')}
+            <div className="sticky top-0 flex items-center justify-between border-b border-border bg-surface px-4 py-3 sm:px-6">
+              <h2 id="super-edit-loja-title" className="text-lg font-semibold text-ink">
+                {t('superLojas.editLoja')}
               </h2>
               <button
                 type="button"
-                className="rounded-xl p-2 text-stone-500 hover:bg-stone-100"
+                className="rounded-xl p-2 text-muted hover:bg-slate-100"
                 onClick={() => !saving && setEditing(null)}
                 disabled={saving}
                 aria-label="Fechar"
@@ -325,9 +325,9 @@ export function SuperBakeries() {
               </button>
             </div>
             <form onSubmit={saveEdit} className="space-y-4 px-4 py-4 sm:px-6">
-              <p className="text-sm text-stone-600">
-                <span className="font-medium text-stone-800">{editing.name}</span>
-                <span className="text-stone-500"> · {editing.slug}</span>
+              <p className="text-sm text-muted">
+                <span className="font-medium text-ink">{editing.name}</span>
+                <span className="text-muted"> · {editing.slug}</span>
               </p>
 
               <div>
@@ -355,7 +355,7 @@ export function SuperBakeries() {
                   onChange={(e) => setEditForm((f) => (f ? { ...f, domain: e.target.value } : f))}
                   placeholder="loja.exemplo.pt"
                 />
-                <p className="mt-1 text-xs text-stone-500">Vazio remove o domínio.</p>
+                <p className="mt-1 text-xs text-muted">Vazio remove o domínio.</p>
               </div>
               <div>
                 <Label>Fuso horário</Label>
@@ -369,7 +369,7 @@ export function SuperBakeries() {
               <div>
                 <Label>Plano</Label>
                 <select
-                  className="w-full rounded-xl border border-stone-200 bg-white px-3 py-2.5 text-stone-900 focus:border-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-200"
+                  className="w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-ink focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary-200"
                   value={editForm.plan}
                   onChange={(e) =>
                     setEditForm((f) =>
@@ -386,17 +386,17 @@ export function SuperBakeries() {
                 <input
                   id="edit-active"
                   type="checkbox"
-                  className="h-4 w-4 rounded border-stone-300 text-orange-600 focus:ring-orange-400"
+                  className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary-400"
                   checked={editForm.active}
                   onChange={(e) => setEditForm((f) => (f ? { ...f, active: e.target.checked } : f))}
                 />
-                <label htmlFor="edit-active" className="text-sm text-stone-700">
-                  Padaria ativa
+                <label htmlFor="edit-active" className="text-sm text-ink">
+                  Loja ativa
                 </label>
               </div>
 
-              <div className="border-t border-stone-100 pt-4">
-                <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-stone-500">Contacto público</p>
+              <div className="border-t border-border pt-4">
+                <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted">Contacto público</p>
                 <div className="space-y-3">
                   <div>
                     <Label>Morada</Label>
@@ -438,7 +438,7 @@ export function SuperBakeries() {
                 </div>
               </div>
 
-              <div className="flex flex-wrap gap-2 border-t border-stone-100 pt-4">
+              <div className="flex flex-wrap gap-2 border-t border-border pt-4">
                 <Button type="submit" disabled={saving}>
                   {saving ? t('common.saving') : t('common.saveChanges')}
                 </Button>

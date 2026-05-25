@@ -24,12 +24,19 @@ function adminNavLinks(base: string, t: (key: string) => string) {
   ];
 }
 
+const navClass = ({ isActive }: { isActive: boolean }) =>
+  `flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 ${
+    isActive
+      ? 'bg-primary-soft text-primary-soft-text shadow-sm'
+      : 'text-muted hover:bg-slate-50 hover:text-ink'
+  }`;
+
 export function AdminLayout() {
   const { t } = useI18n();
   const slug = useResolvedTenantSlug();
   const base = useAdminPathBase();
   const hostTenant = useHostTenantSlug();
-  const { token, user, bakery, logout } = useAuth();
+  const { token, user, loja, logout } = useAuth();
   const [open, setOpen] = useState(false);
   const links = adminNavLinks(base, t);
 
@@ -37,28 +44,18 @@ export function AdminLayout() {
     return <Navigate to="/" replace />;
   }
 
-  if (!token || !user || user.role !== 'BAKERY_ADMIN') {
+  if (!token || !user || user.role !== 'LOJA_ADMIN') {
     return <Navigate to={`${base}/entrar`} replace />;
   }
-  if (bakery && bakery.slug !== slug) {
-    return <Navigate to={hostTenant ? '/admin' : `/admin/${bakery.slug}`} replace />;
+  if (loja && loja.slug !== slug) {
+    return <Navigate to={hostTenant ? '/admin' : `/admin/${loja.slug}`} replace />;
   }
 
   const nav = (
-    <nav className="flex flex-col gap-1 sm:gap-0">
+    <nav className="flex flex-col gap-0.5">
       {links.map(({ to, end, label, icon: Icon }) => (
-        <NavLink
-          key={to}
-          to={to}
-          end={end}
-          onClick={() => setOpen(false)}
-          className={({ isActive }) =>
-            `flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium ${
-              isActive ? 'bg-accent-soft text-accent-soft-text' : 'font-medium text-muted hover:bg-canvas hover:text-ink'
-            }`
-          }
-        >
-          <Icon className="h-4 w-4 shrink-0" />
+        <NavLink key={to} to={to} end={end} onClick={() => setOpen(false)} className={navClass}>
+          <Icon className="h-4 w-4 shrink-0 opacity-80" />
           {label}
         </NavLink>
       ))}
@@ -67,36 +64,41 @@ export function AdminLayout() {
 
   return (
     <div className="min-h-dvh bg-canvas">
-      <header className="sticky top-0 z-10 border-b-2 border-ink/10 bg-surface/95 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
-          <div className="min-w-0">
-            <p className="truncate text-sm font-extrabold text-ink">Peaksy</p>
-            <p className="truncate text-xs font-semibold text-muted">{bakery?.name ?? slug}</p>
-            <a
-              href={hostTenant ? '/' : `/loja/${slug}`}
-              className="mt-0.5 block truncate text-xs font-bold text-accent hover:underline"
-            >
-              {t('adminNav.viewShop')}
-            </a>
+      <header className="sticky top-0 z-20 border-b border-border bg-surface/80 backdrop-blur-md">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3.5 sm:px-6">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-sm font-bold text-white shadow-sm">
+              P
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-ink">Peaksy</p>
+              <p className="truncate text-xs text-muted">{loja?.name ?? slug}</p>
+            </div>
           </div>
           <button
             type="button"
-            className="rounded-lg p-2 text-ink sm:hidden"
+            className="rounded-lg p-2 text-muted transition-colors hover:bg-slate-100 hover:text-ink lg:hidden"
             onClick={() => setOpen((o) => !o)}
             aria-label={t('common.menu')}
           >
             <Menu className="h-5 w-5" />
           </button>
-          <div className="hidden items-center gap-3 sm:flex">
+          <div className="hidden items-center gap-4 lg:flex">
+            <a
+              href={hostTenant ? '/' : `/loja/${slug}`}
+              className="text-xs font-medium text-primary transition-colors hover:text-primary-hover"
+            >
+              {t('adminNav.viewShop')}
+            </a>
             <LanguageSwitcher variant="footer" />
-            <span className="max-w-[140px] truncate text-xs font-medium text-muted">{user.email}</span>
+            <span className="max-w-[160px] truncate text-xs text-muted">{user.email}</span>
             <button
               type="button"
               onClick={() => {
                 logout();
                 window.location.href = `${base}/entrar`;
               }}
-              className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-sm font-semibold text-ink hover:bg-canvas"
+              className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-muted transition-colors hover:bg-slate-100 hover:text-ink"
             >
               <LogOut className="h-4 w-4" />
               {t('common.logout')}
@@ -104,8 +106,8 @@ export function AdminLayout() {
           </div>
         </div>
         {open && (
-          <div className="border-t-2 border-ink/5 bg-surface px-4 py-3 sm:hidden">
-            <div className="mb-3 flex justify-end">
+          <div className="border-t border-border bg-surface px-4 py-4 lg:hidden">
+            <div className="mb-4 flex justify-end">
               <LanguageSwitcher variant="footer" />
             </div>
             {nav}
@@ -115,7 +117,7 @@ export function AdminLayout() {
                 logout();
                 window.location.href = `${base}/entrar`;
               }}
-              className="mt-2 flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-ink"
+              className="mt-4 flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-muted hover:bg-slate-50"
             >
               <LogOut className="h-4 w-4" />
               {t('common.logout')}
@@ -124,9 +126,13 @@ export function AdminLayout() {
         )}
       </header>
 
-      <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-6 sm:flex-row sm:py-8">
-        <aside className="hidden w-52 shrink-0 sm:block">{nav}</aside>
-        <main className="min-w-0 flex-1">
+      <div className="mx-auto flex max-w-6xl flex-col gap-8 px-4 py-8 sm:flex-row sm:px-6">
+        <aside className="hidden w-56 shrink-0 lg:block">
+          <div className="sticky top-24 rounded-2xl border border-border bg-surface p-3 shadow-[var(--shadow-card)]">
+            {nav}
+          </div>
+        </aside>
+        <main className="min-w-0 flex-1 pb-12">
           <Outlet />
         </main>
       </div>

@@ -1,10 +1,10 @@
 # Peaksy API
 
-Backend da plataforma **Peaksy** — SaaS multi-tenant de pré-encomendas em white-label (padarias e outros negócios com levantamento agendado).
+Backend da plataforma **Peaksy** — SaaS multi-tenant de pré-encomendas em white-label (lojas e outros negócios com levantamento agendado).
 
 ## 🏗️ Arquitetura
 
-Cada **tenant** (ex.: uma padaria) pode ter subdomínio dedicado ou domínio próprio:
+Cada **tenant** (ex.: uma loja) pode ter subdomínio dedicado ou domínio próprio:
 
 - `{slug}.peaksy.com` — produção (subdomínio da plataforma)
 - `{slug}.peaksy.local` — desenvolvimento local
@@ -73,21 +73,21 @@ POST /auth/login
 }
 ```
 
-Para **admin de padaria**, `tenantSlug` é obrigatório e tem de ser o slug da padaria dessa conta. **Super admin** não usa `tenantSlug`.
+Para **admin de loja**, `tenantSlug` é obrigatório e tem de ser o slug da loja dessa conta. **Super admin** não usa `tenantSlug`.
 
 O token JWT retornado deve ser incluído no header `Authorization: Bearer <token>` para endpoints protegidos.
 
 ## 🏪 Resolução de Tenant
 
-O sistema resolve automaticamente o tenant (padaria) baseado no header `Host`:
+O sistema resolve automaticamente o tenant (loja) baseado no header `Host`:
 
 1. **Subdomínio padrão**: `{slug}.peaksy.com` ou `{slug}.peaksy.local`
    - Extrai o slug do subdomínio
-   - Busca a padaria no banco de dados
-   - Anexa `request.tenant` com informações da padaria
+   - Busca a loja no banco de dados
+   - Anexa `request.tenant` com informações da loja
 
 2. **Domínio customizado** (futuro): `{domain}`
-   - Busca padaria pelo campo `domain`
+   - Busca loja pelo campo `domain`
 
 3. **Super Admin**: `slicesofbravery.pt` ou `localhost`
    - Permite apenas endpoints `/super/*` e `/auth/*`
@@ -125,7 +125,7 @@ Após executar o seed, os seguintes usuários estarão disponíveis:
 - **Password**: `Admin123!`
 - **Acesso**: Endpoints `/super/*` (sem necessidade de tenant)
 
-### Bakery Admin
+### Loja Admin
 - **Email**: `admin@lojademo.local`
 - **Password**: `Admin123!`
 - **Loja demo**: Loja Demo (slug: `lojademo`)
@@ -181,12 +181,12 @@ stripe trigger checkout.session.completed
 - `GET /admin/orders/summary?pickupDate=YYYY-MM-DD` - Resumo para produção
 
 ### Super Admin (JWT, sem tenant)
-- `GET /super/bakeries` - Lista padarias
-- `POST /super/bakeries` - Cria padaria
+- `GET /super/lojas` - Lista lojas
+- `POST /super/lojas` - Cria loja
 - `GET /super/users` - Lista usuários
 - `POST /super/users` - Cria usuário
 - `GET /super/metrics` - Métricas globais
-- `GET /super/bakeries/:id/metrics` - Métricas de uma padaria
+- `GET /super/lojas/:id/metrics` - Métricas de uma loja
 
 ## 🛠️ Desenvolvimento
 
@@ -217,7 +217,7 @@ src/
   /modules
     /auth           # Rotas de autenticação
     /public         # Rotas públicas (checkout, produtos, etc)
-    /admin          # Rotas de admin da padaria
+    /admin          # Rotas de admin da loja
     /super          # Rotas de super admin
   /lib              # Utilitários (errors, dates, logger)
   server.ts         # Arquivo principal
@@ -225,7 +225,7 @@ src/
 
 ## 🔒 Segurança
 
-- **Isolamento de tenant**: Todas as queries de admin filtram por `bakeryId`
+- **Isolamento de tenant**: Todas as queries de admin filtram por `lojaId`
 - **Rate limiting**: Aplicado em `/auth/login` e `/public/checkout`
 - **Validação**: Todas as requisições são validadas com Zod
 - **JWT**: Autenticação baseada em tokens
@@ -240,7 +240,7 @@ src/
 - Status: `RECEIVED` → `READY` → `PICKED_UP`
 
 ### Datas
-- Comparações de "hoje" usam o timezone da padaria (padrão: `Europe/Lisbon`)
+- Comparações de "hoje" usam o timezone da loja (padrão: `Europe/Lisbon`)
 - `pickupDate` deve ser estritamente maior que hoje
 
 ## 🐳 Docker (Desenvolvimento Local)

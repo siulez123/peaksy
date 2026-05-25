@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { ChevronUp, ImageIcon, Minus, Plus, ShoppingBag, Trash2, X } from 'lucide-react';
-import { publicApi, formatMoney, productImageUrl, type BakeryPublic } from '../../api';
+import { publicApi, formatMoney, productImageUrl, type LojaPublic } from '../../api';
 import { isValidInternationalPhone } from '../../lib/phone';
 import { formatPickupHourLabel, pickupHalfHourSlotsBetween } from '../../lib/timeOfDay';
 import { useI18n } from '../../i18n/context';
 import { ShopPublicFooter } from '../../components/ShopPublicFooter';
 import { ShopPublicHeader } from '../../components/ShopPublicHeader';
-import { BakeryNotFoundPage } from '../BakeryNotFoundPage';
+import { LojaNotFoundPage } from '../LojaNotFoundPage';
 import { Button, Card, Input, Label } from '../../components/ui';
 import { useHostTenantSlug } from '../../lib/tenantHost';
 
@@ -55,10 +55,10 @@ function CartPanel({
         className={`mb-3 flex items-center gap-2 font-semibold text-ink ${isSheet ? 'justify-between' : ''}`}
       >
         <div className="flex min-w-0 flex-1 items-center gap-2">
-          <ShoppingBag className="h-5 w-5 shrink-0 text-accent" />
+          <ShoppingBag className="h-5 w-5 shrink-0 text-primary" />
           <span>{t('shop.cart')}</span>
           {lines.length > 0 && (
-            <span className="shrink-0 rounded-full bg-accent-soft px-2 py-0.5 text-xs font-medium text-accent-soft-text">
+            <span className="shrink-0 rounded-full bg-primary-soft px-2 py-0.5 text-xs font-medium text-primary-soft-text">
               {itemCount === 1 ? t('shop.oneItem', { count: itemCount }) : t('shop.nItems', { count: itemCount })}
             </span>
           )}
@@ -82,20 +82,20 @@ function CartPanel({
           {lines.map((l) => (
             <li
               key={l.productId}
-              className="rounded-xl border border-ink/5 bg-canvas/50 p-3"
+              className="rounded-xl border border-border bg-canvas/50 p-3"
             >
               <div className="min-w-0">
                 <p className="break-words font-medium leading-snug text-ink">{l.name}</p>
                 <p className="mt-1 break-words text-xs leading-snug text-muted">{l.variant}</p>
                 <p className="mt-1 text-xs tabular-nums text-muted">
-                  {formatMoney(l.priceCents)} <span className="text-zinc-400">{t('common.perUnit')}</span>
+                  {formatMoney(l.priceCents)} <span className="text-muted">{t('common.perUnit')}</span>
                 </p>
               </div>
-              <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-ink/5/80 pt-3">
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-border/80 pt-3">
                 <div className="flex items-center gap-1.5">
                   <button
                     type="button"
-                    className="rounded-lg border border-border bg-white p-2 hover:bg-canvas"
+                    className="rounded-lg border border-border bg-surface p-2 hover:bg-canvas"
                     onClick={() => onSetLineQty(l.productId, l.qty - 1)}
                     aria-label={`Menos um ${l.name}`}
                   >
@@ -106,7 +106,7 @@ function CartPanel({
                   </span>
                   <button
                     type="button"
-                    className="rounded-lg border border-border bg-white p-2 hover:bg-canvas"
+                    className="rounded-lg border border-border bg-surface p-2 hover:bg-canvas"
                     onClick={() => onSetLineQty(l.productId, l.qty + 1)}
                     aria-label={`Mais um ${l.name}`}
                   >
@@ -119,7 +119,7 @@ function CartPanel({
                   </span>
                   <button
                     type="button"
-                    className="rounded-lg p-1.5 text-zinc-400 transition hover:bg-red-50 hover:text-red-700"
+                    className="rounded-lg p-1.5 text-muted transition hover:bg-red-50 hover:text-red-700"
                     onClick={() => onSetLineQty(l.productId, 0)}
                     aria-label={t('shop.removeLine', { name: l.name, variant: l.variant })}
                   >
@@ -129,14 +129,14 @@ function CartPanel({
               </div>
             </li>
           ))}
-          <li className="flex justify-between border-t border-ink/5 pt-2 font-semibold">
+          <li className="flex justify-between border-t border-border pt-2 font-semibold">
             <span>{t('common.total')}</span>
             <span>{formatMoney(totalCents)}</span>
           </li>
         </ul>
       )}
 
-      <div className="border-t border-ink/5 pt-4">
+      <div className="border-t border-border pt-4">
         <Button
           type="button"
           className="w-full"
@@ -154,7 +154,7 @@ type CheckoutModalProps = {
   open: boolean;
   onClose: () => void;
   paying: boolean;
-  bakeryLabel: string;
+  lojaLabel: string;
   days: ShopDayRow[];
   pickupDate: string;
   setPickupDate: (v: string) => void;
@@ -183,7 +183,7 @@ function CheckoutModal({
   open,
   onClose,
   paying,
-  bakeryLabel,
+  lojaLabel,
   days,
   pickupDate,
   setPickupDate,
@@ -222,8 +222,8 @@ function CheckoutModal({
         }}
         aria-label={t('common.close')}
       />
-      <div className="relative max-h-[min(92dvh,720px)] w-full max-w-md overflow-y-auto overscroll-contain rounded-t-2xl border border-border bg-white shadow-2xl sm:rounded-2xl" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
-        <div className="sticky top-0 flex items-center justify-between border-b border-ink/5 bg-white px-4 py-3 sm:px-6">
+      <div className="relative max-h-[min(92dvh,720px)] w-full max-w-md overflow-y-auto overscroll-contain rounded-t-2xl border border-border bg-surface shadow-2xl sm:rounded-2xl" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
+        <div className="sticky top-0 flex items-center justify-between border-b border-border bg-surface px-4 py-3 sm:px-6">
           <h2 id="checkout-modal-title" className="text-lg font-semibold text-ink">
             {t('shop.checkoutTitle')}
           </h2>
@@ -239,10 +239,10 @@ function CheckoutModal({
         </div>
         <div className="space-y-4 px-4 py-4 sm:px-6">
           <p className="text-sm text-muted">
-            <span className="font-medium text-ink">{bakeryLabel}</span>
+            <span className="font-medium text-ink">{lojaLabel}</span>
             {' · '}
             {t('shop.checkoutTotal')}{' '}
-            <span className="font-semibold text-accent">{formatMoney(totalCents)}</span>
+            <span className="font-semibold text-primary">{formatMoney(totalCents)}</span>
           </p>
           <p className="text-xs leading-relaxed text-muted">{t('shop.stripeHint')}</p>
 
@@ -252,10 +252,10 @@ function CheckoutModal({
             </p>
           )}
 
-          <div className="rounded-xl border border-ink/5 bg-canvas/80 p-3">
+          <div className="rounded-xl border border-border bg-canvas/80 p-3">
             <h3 className="mb-2 text-sm font-semibold text-ink">{t('shop.pickupDayTime')}</h3>
             {days.length === 0 ? (
-              <p className="text-sm text-amber-800">{t('shop.noPickupDays')}</p>
+              <p className="text-sm text-warning">{t('shop.noPickupDays')}</p>
             ) : (
               <>
                 <div className="flex flex-wrap gap-2">
@@ -271,9 +271,9 @@ function CheckoutModal({
                       }}
                       className={`rounded-xl border px-3 py-2 text-sm ${
                         pickupDate === d.pickupDate
-                          ? 'border-accent bg-accent-soft text-accent-soft-text'
+                          ? 'border-primary bg-primary-soft text-primary-soft-text'
                           : d.canOrder
-                            ? 'border-border bg-white hover:border-accent'
+                            ? 'border-border bg-surface hover:border-primary'
                             : 'cursor-not-allowed opacity-40'
                       }`}
                     >
@@ -286,14 +286,14 @@ function CheckoutModal({
                     <div className="mt-3">
                       <Label>{t('shop.pickupTime')}</Label>
                       {selectedDay.ordersOpenAt && new Date(selectedDay.ordersOpenAt) > new Date() && (
-                        <p className="mb-2 text-xs text-amber-800">
+                        <p className="mb-2 text-xs text-warning">
                           {t('shop.ordersOpenAt', {
                             date: formatDateTime(selectedDay.ordersOpenAt),
                           })}
                         </p>
                       )}
                       {pickupHourSlots.length === 0 ? (
-                        <p className="mt-1 text-sm text-amber-800" role="alert">
+                        <p className="mt-1 text-sm text-warning" role="alert">
                           {t('shop.noPickupHours')}
                         </p>
                       ) : (
@@ -304,7 +304,7 @@ function CheckoutModal({
                           onChange={(e) => setPickupTime(e.target.value)}
                           disabled={paying}
                           required
-                          className="mt-1 max-w-[12rem] w-full rounded-xl border border-border bg-white px-3 py-2.5 text-ink focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent-soft disabled:opacity-60"
+                          className="mt-1 max-w-[12rem] w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-ink focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
                         >
                           {pickupHourSlots.map((slot) => (
                             <option key={slot} value={slot}>
@@ -412,19 +412,19 @@ export function ShopPage() {
   const [mobileCartOpen, setMobileCartOpen] = useState(false);
   const [orderModalOpen, setOrderModalOpen] = useState(false);
   const [checkoutErr, setCheckoutErr] = useState<string | null>(null);
-  type BakeryHead = 'loading' | BakeryPublic | 'fail';
-  const [bakeryHead, setBakeryHead] = useState<BakeryHead>('loading');
+  type LojaHead = 'loading' | LojaPublic | 'fail';
+  const [lojaHead, setLojaHead] = useState<LojaHead>('loading');
 
   useEffect(() => {
     let cancelled = false;
-    setBakeryHead('loading');
+    setLojaHead('loading');
     void publicApi
-      .bakery(slug)
+      .loja(slug)
       .then((b) => {
-        if (!cancelled) setBakeryHead(b);
+        if (!cancelled) setLojaHead(b);
       })
       .catch(() => {
-        if (!cancelled) setBakeryHead('fail');
+        if (!cancelled) setLojaHead('fail');
       });
     return () => {
       cancelled = true;
@@ -432,19 +432,19 @@ export function ShopPage() {
   }, [slug]);
 
   const shopTitle =
-    bakeryHead === 'loading'
+    lojaHead === 'loading'
       ? t('shop.loadingTitle')
-      : bakeryHead === 'fail'
+      : lojaHead === 'fail'
         ? t('shop.order')
-        : bakeryHead.name;
+        : lojaHead.name;
   const shopSubtitle =
-    bakeryHead !== 'loading' && bakeryHead !== 'fail' ? t('shop.preOrders') : undefined;
+    lojaHead !== 'loading' && lojaHead !== 'fail' ? t('shop.preOrders') : undefined;
 
   useEffect(() => {
     let cancelled = false;
     if (!slug) return;
-    if (bakeryHead === 'loading') return;
-    if (bakeryHead === 'fail') {
+    if (lojaHead === 'loading') return;
+    if (lojaHead === 'fail') {
       setDays([]);
       setPickupDate('');
       setPickupTime('');
@@ -477,14 +477,14 @@ export function ShopPage() {
     return () => {
       cancelled = true;
     };
-  }, [slug, bakeryHead]);
+  }, [slug, lojaHead]);
 
   useEffect(() => {
     if (!pickupDate || !slug) {
       setProducts([]);
       return;
     }
-    if (bakeryHead === 'loading' || bakeryHead === 'fail') {
+    if (lojaHead === 'loading' || lojaHead === 'fail') {
       setProducts([]);
       return;
     }
@@ -500,7 +500,7 @@ export function ShopPage() {
     return () => {
       cancelled = true;
     };
-  }, [slug, pickupDate, bakeryHead]);
+  }, [slug, pickupDate, lojaHead]);
 
   /** Ao mudar o dia, mantém no carrinho só artigos que existem no catálogo desse dia (evita apagar tudo). */
   useEffect(() => {
@@ -679,8 +679,8 @@ export function ShopPage() {
     onSetLineQty: setQty,
   };
 
-  const bakeryLabel =
-    bakeryHead === 'loading' ? '…' : bakeryHead === 'fail' ? t('shop.bakery') : bakeryHead.name;
+  const lojaLabel =
+    lojaHead === 'loading' ? '…' : lojaHead === 'fail' ? t('shop.loja') : lojaHead.name;
 
   const hasOpenPickupDays = days.some((d) => d.canOrder);
 
@@ -689,7 +689,7 @@ export function ShopPage() {
       <div className="mx-auto max-w-lg px-4 py-16 text-center">
         <p className="text-muted">
           {t('shop.noTenantPrefix')}
-          <a href="/loja" className="text-accent hover:underline">
+          <a href="/loja" className="text-primary hover:underline">
             {t('shop.pickBySlug')}
           </a>
           {t('shop.noTenantSuffix')}
@@ -698,8 +698,8 @@ export function ShopPage() {
     );
   }
 
-  if (bakeryHead === 'fail') {
-    return <BakeryNotFoundPage slug={slug} />;
+  if (lojaHead === 'fail') {
+    return <LojaNotFoundPage slug={slug} />;
   }
 
   return (
@@ -708,7 +708,7 @@ export function ShopPage() {
         lines.length > 0 ? 'pb-32 lg:pb-14' : 'pb-10 sm:pb-12'
       }`}
     >
-      <ShopPublicHeader bakeryLabel={shopTitle} subtitle={shopSubtitle} />
+      <ShopPublicHeader lojaLabel={shopTitle} subtitle={shopSubtitle} />
 
       {loading && <p className="text-muted">{t('common.loading')}</p>}
       {loadErr && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{loadErr}</p>}
@@ -724,7 +724,7 @@ export function ShopPage() {
                   return (
                     <li
                       key={p.id}
-                      className="flex flex-col overflow-hidden rounded-2xl border border-border bg-white shadow-sm transition-shadow hover:shadow-md"
+                      className="flex flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-sm transition-shadow hover:shadow-md"
                     >
                       <div className="relative aspect-[5/4] w-full overflow-hidden bg-canvas">
                         {img ? (
@@ -735,7 +735,7 @@ export function ShopPage() {
                             loading="lazy"
                           />
                         ) : (
-                          <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-zinc-400">
+                          <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-muted">
                             <ImageIcon className="h-14 w-14 opacity-60" strokeWidth={1.25} />
                             <span className="text-xs">{t('shop.noImage')}</span>
                           </div>
@@ -747,7 +747,7 @@ export function ShopPage() {
                             {p.name}
                           </p>
                           <p className="mt-0.5 text-sm text-muted">{p.variant}</p>
-                          <p className="mt-2 text-lg font-semibold text-accent">
+                          <p className="mt-2 text-lg font-semibold text-primary">
                             {formatMoney(p.priceCents)}
                           </p>
                         </div>
@@ -802,13 +802,13 @@ export function ShopPage() {
       </div>
 
       <ShopPublicFooter
-        bakeryName={shopTitle}
-        bakery={bakeryHead === 'loading' ? null : bakeryHead}
+        lojaName={shopTitle}
+        lojaPublic={typeof lojaHead === 'object' ? lojaHead : null}
       />
 
       {lines.length > 0 && (
         <div
-          className="fixed bottom-0 left-0 right-0 z-50 border-t border-border/90 bg-white/95 shadow-[0_-8px_32px_rgba(0,0,0,0.1)] backdrop-blur-md lg:hidden"
+          className="fixed bottom-0 left-0 right-0 z-50 border-t border-border/90 bg-surface/95 shadow-[0_-8px_32px_rgba(0,0,0,0.1)] backdrop-blur-md lg:hidden"
           style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
         >
           <div className="mx-auto flex max-w-6xl items-stretch gap-2 px-3 pt-3 sm:px-4">
@@ -818,7 +818,7 @@ export function ShopPage() {
               onClick={() => setMobileCartOpen(true)}
             >
               <span className="flex min-w-0 items-center gap-2">
-                <ShoppingBag className="h-5 w-5 shrink-0 text-accent" aria-hidden />
+                <ShoppingBag className="h-5 w-5 shrink-0 text-primary" aria-hidden />
                 <span className="truncate text-sm font-semibold text-ink">
                   {itemCount === 1 ? t('shop.oneItem', { count: itemCount }) : t('shop.nItems', { count: itemCount })}
                 </span>
@@ -829,7 +829,7 @@ export function ShopPage() {
             </button>
             <button
               type="button"
-              className="inline-flex shrink-0 items-center gap-1 rounded-xl bg-accent px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-accent-hover"
+              className="inline-flex shrink-0 items-center gap-1 rounded-xl bg-primary px-4 py-3 text-sm font-medium text-white shadow-[var(--shadow-primary)] transition-all hover:bg-primary-hover"
               onClick={() => setMobileCartOpen(true)}
             >
               {t('shop.cart')}
@@ -847,7 +847,7 @@ export function ShopPage() {
             onClick={() => setMobileCartOpen(false)}
             aria-label={t('shop.closeCartSummary')}
           />
-          <div className="absolute inset-x-0 bottom-0 flex max-h-[min(92dvh,920px)] flex-col rounded-t-2xl border border-border bg-white shadow-2xl">
+          <div className="absolute inset-x-0 bottom-0 flex max-h-[min(92dvh,920px)] flex-col rounded-t-2xl border border-border bg-surface shadow-2xl">
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 sm:px-6 sm:pt-6">
               <h2 id="cart-sheet-title" className="sr-only">
                 {t('shop.cart')}
@@ -866,7 +866,7 @@ export function ShopPage() {
         open={orderModalOpen}
         onClose={() => setOrderModalOpen(false)}
         paying={paying}
-        bakeryLabel={bakeryLabel}
+        lojaLabel={lojaLabel}
         days={days}
         pickupDate={pickupDate}
         setPickupDate={setPickupDate}

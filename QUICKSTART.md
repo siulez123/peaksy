@@ -103,7 +103,7 @@ Como você não tem permissões para editar `/etc/hosts`, use o header `X-Tenant
 # Listar produtos da loja demo
 curl -H "X-Tenant-Slug: lojademo" http://localhost:3000/public/products
 
-# Fazer login como admin da padaria (tenantSlug = slug da padaria da conta)
+# Fazer login como admin da loja (tenantSlug = slug da loja da conta)
 curl -X POST http://localhost:3000/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"admin@lojademo.local","password":"Admin123!","tenantSlug":"lojademo"}'
@@ -121,7 +121,7 @@ Acesse: http://localhost:3000/docs
 ## 👤 Usuários Padrão (após seed)
 
 - **Super Admin**: `super@peaksy.local` / `Admin123!`
-- **Bakery Admin**: `admin@lojademo.local` / `Admin123!`
+- **Loja Admin**: `admin@lojademo.local` / `Admin123!`
 
 ## 🛑 Parar os serviços
 

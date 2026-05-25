@@ -58,8 +58,8 @@ export function SuperLoginPage() {
           </Button>
         </form>
       </Card>
-      <p className="mt-4 text-center text-sm text-stone-500">
-        <Link to="/" className="font-bold text-accent hover:underline">
+      <p className="mt-4 text-center text-sm text-muted">
+        <Link to="/" className="font-bold text-primary hover:text-primary-hover hover:underline">
           {t('superLogin.home')}
         </Link>
       </p>

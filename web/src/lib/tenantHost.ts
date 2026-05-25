@@ -4,7 +4,7 @@ import { useParams } from 'react-router-dom';
 const APP_DOMAIN = import.meta.env.VITE_APP_DOMAIN || 'peaksy.com';
 
 /**
- * Resolve o slug da padaria a partir do hostname (ex.: lojademo.peaksy.com → lojademo).
+ * Resolve o slug da loja a partir do hostname (ex.: lojademo.peaksy.com → lojademo).
  * Em localhost: usa VITE_DEV_TENANT_SLUG se definido; caso contrário null.
  * Reservado: super.<domínio>, www, apex.
  */
@@ -44,7 +44,7 @@ export function useHostTenantSlug(): string | null {
   }, []);
 }
 
-/** Slug da padaria para API: parâmetro da URL ou host. */
+/** Slug da loja para API: parâmetro da URL ou host. */
 export function useResolvedTenantSlug(): string {
   const { slug: p } = useParams<{ slug?: string }>();
   const host = useHostTenantSlug();

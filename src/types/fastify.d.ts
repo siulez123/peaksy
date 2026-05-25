@@ -3,12 +3,12 @@ import { RawBodyRequest } from '@fastify/raw-body';
 export interface UserPayload {
   id: string;
   email: string;
-  role: 'SUPER_ADMIN' | 'BAKERY_ADMIN';
-  bakeryId: string | null;
+  role: 'SUPER_ADMIN' | 'LOJA_ADMIN';
+  lojaId: string | null;
 }
 
 export interface TenantPayload {
-  bakeryId: string;
+  lojaId: string;
   slug: string;
   name: string;
   timezone: string;
@@ -30,7 +30,7 @@ declare module 'fastify' {
   interface FastifyInstance {
     prisma: import('@prisma/client').PrismaClient;
     authenticate: (request: FastifyRequest) => Promise<void>;
-    requireBakeryAdmin: (request: FastifyRequest) => Promise<void>;
+    requireLojaAdmin: (request: FastifyRequest) => Promise<void>;
     requireSuperAdmin: (request: FastifyRequest) => Promise<void>;
     requireTenant: (request: FastifyRequest) => Promise<void>;
   }

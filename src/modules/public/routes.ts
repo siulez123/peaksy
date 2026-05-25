@@ -89,12 +89,12 @@ export async function publicRoutes(fastify: FastifyInstance) {
     }
   };
 
-  // GET /public/bakery — nome público da padaria (resolve por X-Tenant-Slug)
+  // GET /public/loja — nome público da loja (resolve por X-Tenant-Slug)
   fastify.get(
-    '/public/bakery',
+    '/public/loja',
     {
       schema: {
-        description: 'Dados públicos da padaria (nome)',
+        description: 'Dados públicos da loja (nome)',
         tags: ['public'],
         response: {
           200: {
@@ -114,8 +114,8 @@ export async function publicRoutes(fastify: FastifyInstance) {
     },
     async (request, reply) => {
       const tenant = request.tenant!;
-      const bakery = await fastify.prisma.bakery.findUnique({
-        where: { id: tenant.bakeryId },
+      const loja = await fastify.prisma.loja.findUnique({
+        where: { id: tenant.lojaId },
         select: {
           name: true,
           slug: true,
@@ -125,10 +125,10 @@ export async function publicRoutes(fastify: FastifyInstance) {
           phone: true,
         },
       });
-      if (!bakery) {
-        throw new NotFoundError('Bakery not found');
+      if (!loja) {
+        throw new NotFoundError('Loja not found');
       }
-      return bakery;
+      return loja;
     }
   );
 
@@ -167,7 +167,7 @@ export async function publicRoutes(fastify: FastifyInstance) {
 
       const rows = await fastify.prisma.availableDay.findMany({
         where: {
-          bakeryId: tenant.bakeryId,
+          lojaId: tenant.lojaId,
           active: true,
         },
         orderBy: {
@@ -248,7 +248,7 @@ export async function publicRoutes(fastify: FastifyInstance) {
       const { pickupDate } = request.query as { pickupDate?: string };
 
       const where: any = {
-        bakeryId: tenant.bakeryId,
+        lojaId: tenant.lojaId,
         active: true,
       };
 
@@ -256,7 +256,7 @@ export async function publicRoutes(fastify: FastifyInstance) {
       if (pickupDate) {
         const windows = await fastify.prisma.availableDay.findMany({
           where: {
-            bakeryId: tenant.bakeryId,
+            lojaId: tenant.lojaId,
             active: true,
           },
           include: { pickupDateRules: true },
@@ -340,14 +340,14 @@ export async function publicRoutes(fastify: FastifyInstance) {
       const tenant = request.tenant!;
       const data = checkoutSchema.parse(request.body);
 
-      // Dia de levantamento: hoje ou futuro (no calendário da padaria), não apenas "depois de hoje"
+      // Dia de levantamento: hoje ou futuro (no calendário da loja), não apenas "depois de hoje"
       if (!isDateTodayOrAfter(data.pickupDate, tenant.timezone)) {
         throw new ValidationError('A data de levantamento não pode ser anterior a hoje.');
       }
 
       const windows = await fastify.prisma.availableDay.findMany({
         where: {
-          bakeryId: tenant.bakeryId,
+          lojaId: tenant.lojaId,
           active: true,
         },
         include: {
@@ -398,7 +398,7 @@ export async function publicRoutes(fastify: FastifyInstance) {
       const products = await fastify.prisma.product.findMany({
         where: {
           id: { in: productIds },
-          bakeryId: tenant.bakeryId,
+          lojaId: tenant.lojaId,
           active: true,
         },
       });
@@ -477,7 +477,7 @@ export async function publicRoutes(fastify: FastifyInstance) {
       // Create order (unpaid)
       const order = await fastify.prisma.order.create({
         data: {
-          bakeryId: tenant.bakeryId,
+          lojaId: tenant.lojaId,
           availableDayId: availableDay.id,
           pickupDate: new Date(data.pickupDate),
           pickupTime: pt,
@@ -527,7 +527,7 @@ export async function publicRoutes(fastify: FastifyInstance) {
           cancel_url: `${baseUrl}${cancelRel}`,
           metadata: {
             orderId: order.id,
-            bakeryId: tenant.bakeryId,
+            lojaId: tenant.lojaId,
           },
         });
       } catch (stripeErr: unknown) {

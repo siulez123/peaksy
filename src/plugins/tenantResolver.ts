@@ -3,7 +3,7 @@ import { FastifyInstance, FastifyPluginOptions, FastifyRequest } from 'fastify';
 import { NotFoundError, ForbiddenError } from '../lib/errors';
 
 export interface Tenant {
-  bakeryId: string;
+  lojaId: string;
   slug: string;
   name: string;
   timezone: string;
@@ -54,22 +54,22 @@ async function tenantResolverPluginFn(
         'Processing X-Tenant-Slug header'
       );
       try {
-        const bakery = await fastify.prisma.bakery.findUnique({
+        const loja = await fastify.prisma.loja.findUnique({
           where: { slug: devTenantSlug },
         });
 
-        if (bakery && bakery.active) {
+        if (loja && loja.active) {
           request.tenant = {
-            bakeryId: bakery.id,
-            slug: bakery.slug,
-            name: bakery.name,
-            timezone: bakery.timezone,
+            lojaId: loja.id,
+            slug: loja.slug,
+            name: loja.name,
+            timezone: loja.timezone,
           };
           request.log.info({ tenant: request.tenant }, 'Tenant resolved from X-Tenant-Slug');
           return;
         } else {
-          request.log.warn({ devTenantSlug, bakeryFound: !!bakery }, 'Bakery not found or inactive');
-          throw new NotFoundError(`Bakery with slug '${devTenantSlug}' not found or inactive`);
+          request.log.warn({ devTenantSlug, lojaFound: !!loja }, 'Loja not found or inactive');
+          throw new NotFoundError(`Loja with slug '${devTenantSlug}' not found or inactive`);
         }
       } catch (err: any) {
         if (err instanceof NotFoundError) {
@@ -106,15 +106,15 @@ async function tenantResolverPluginFn(
       slug = hostWithoutPort.replace('.peaksy.local', '');
     } else {
       // Future: check custom domain
-      const bakery = await fastify.prisma.bakery.findUnique({
+      const loja = await fastify.prisma.loja.findUnique({
         where: { domain: hostWithoutPort },
       });
-      if (bakery) {
+      if (loja) {
         request.tenant = {
-          bakeryId: bakery.id,
-          slug: bakery.slug,
-          name: bakery.name,
-          timezone: bakery.timezone,
+          lojaId: loja.id,
+          slug: loja.slug,
+          name: loja.name,
+          timezone: loja.timezone,
         };
         return;
       }
@@ -122,36 +122,36 @@ async function tenantResolverPluginFn(
 
     request.log.info({ slug, hostWithoutPort }, 'Extracted slug');
 
-    // Host “genérico” (ex.: peaksy.up.railway.app, domínio custom sem sub-padaria): não há tenant no Host.
+    // Host “genérico” (ex.: peaksy.up.railway.app, domínio custom sem sub-loja): não há tenant no Host.
     // O SPA na raiz e rotas /auth funcionam sem tenant; a API pública usa X-Tenant-Slug (ex.: /loja/lojademo no FE).
     if (!slug) {
       request.log.info(
         { hostWithoutPort },
-        'Sem subdomínio de padaria — continua sem tenant (resolve depois por header nas rotas que precisem)'
+        'Sem subdomínio de loja — continua sem tenant (resolve depois por header nas rotas que precisem)'
       );
       return;
     }
 
-    // Load bakery from database
-    request.log.info({ slug }, 'Loading bakery from database');
-    const bakery = await fastify.prisma.bakery.findUnique({
+    // Load loja from database
+    request.log.info({ slug }, 'Loading loja from database');
+    const loja = await fastify.prisma.loja.findUnique({
       where: { slug },
     });
 
-    if (!bakery) {
-      request.log.warn({ slug }, 'Bakery not found in database');
-      throw new NotFoundError('Bakery not found');
+    if (!loja) {
+      request.log.warn({ slug }, 'Loja not found in database');
+      throw new NotFoundError('Loja not found');
     }
 
-    if (!bakery.active) {
-      throw new ForbiddenError('Bakery is not active');
+    if (!loja.active) {
+      throw new ForbiddenError('Loja is not active');
     }
 
     request.tenant = {
-      bakeryId: bakery.id,
-      slug: bakery.slug,
-      name: bakery.name,
-      timezone: bakery.timezone,
+      lojaId: loja.id,
+      slug: loja.slug,
+      name: loja.name,
+      timezone: loja.timezone,
     };
     request.log.info({ tenant: request.tenant }, 'Tenant resolved successfully');
   });
@@ -167,16 +167,16 @@ async function tenantResolverPluginFn(
     const devTenantSlug = request.headers['x-tenant-slug'] as string | undefined;
     if (devTenantSlug) {
       request.log.info({ devTenantSlug }, 'Resolving tenant from X-Tenant-Slug in requireTenant');
-      const bakery = await fastify.prisma.bakery.findUnique({
+      const loja = await fastify.prisma.loja.findUnique({
         where: { slug: devTenantSlug },
       });
 
-      if (bakery && bakery.active) {
+      if (loja && loja.active) {
         request.tenant = {
-          bakeryId: bakery.id,
-          slug: bakery.slug,
-          name: bakery.name,
-          timezone: bakery.timezone,
+          lojaId: loja.id,
+          slug: loja.slug,
+          name: loja.name,
+          timezone: loja.timezone,
         };
         request.log.info({ tenant: request.tenant }, 'Tenant resolved from X-Tenant-Slug in requireTenant');
         return;

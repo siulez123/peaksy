@@ -27,16 +27,16 @@ export function productImageUrl(path: string | null | undefined): string | null 
   return `${apiAssetOrigin()}${path}`;
 }
 
-export type UserRole = 'SUPER_ADMIN' | 'BAKERY_ADMIN';
+export type UserRole = 'SUPER_ADMIN' | 'LOJA_ADMIN';
 
 export interface AuthUser {
   id: string;
   email: string;
   role: UserRole;
-  bakeryId: string | null;
+  lojaId: string | null;
 }
 
-export interface BakeryRef {
+export interface LojaRef {
   id: string;
   name: string;
   slug: string;
@@ -47,13 +47,13 @@ export type SuperUser = {
   id: string;
   email: string;
   role: UserRole;
-  bakeryId: string | null;
-  bakery: BakeryRef | null;
+  lojaId: string | null;
+  loja: LojaRef | null;
   createdAt: string;
 };
 
-/** Dados públicos da padaria (GET /public/bakery). */
-export interface BakeryPublic {
+/** Dados públicos da loja (GET /public/loja). */
+export interface LojaPublic {
   name: string;
   slug: string;
   addressLine: string;
@@ -65,7 +65,7 @@ export interface BakeryPublic {
 export interface LoginResponse {
   token: string;
   user: AuthUser;
-  bakery: BakeryRef | null;
+  loja: LojaRef | null;
 }
 
 async function parseJson<T>(res: Response): Promise<T> {
@@ -105,7 +105,7 @@ export async function apiFetch<T>(
 }
 
 export const auth = {
-  /** `tenantSlug` obrigatório para login de BAKERY_ADMIN (deve ser o slug da padaria do ecrã de login). */
+  /** `tenantSlug` obrigatório para login de LOJA_ADMIN (deve ser o slug da loja do ecrã de login). */
   login: (email: string, password: string, tenantSlug?: string | null) =>
     apiFetch<LoginResponse>('/auth/login', {
       method: 'POST',
@@ -122,12 +122,12 @@ export const auth = {
       id: string;
       email: string;
       role: UserRole;
-      bakery: BakeryRef | null;
+      loja: LojaRef | null;
     }>('/admin/me', { token, tenantSlug }),
 };
 
 export const publicApi = {
-  bakery: (slug: string) => apiFetch<BakeryPublic>('/public/bakery', { tenantSlug: slug }),
+  loja: (slug: string) => apiFetch<LojaPublic>('/public/loja', { tenantSlug: slug }),
   availableDays: (slug: string) =>
     apiFetch<
       Array<{
@@ -330,8 +330,8 @@ export const adminApi = {
   },
 };
 
-/** Padaria na área de super-admin (lista ou GET). */
-export type SuperBakery = {
+/** Loja na área de super-admin (lista ou GET). */
+export type SuperLoja = {
   id: string;
   name: string;
   slug: string;
@@ -348,29 +348,29 @@ export type SuperBakery = {
 };
 
 export const superApi = {
-  bakeries: {
+  lojas: {
     list: (token: string, active?: boolean) => {
       const q = active !== undefined ? `?active=${active}` : '';
-      return apiFetch<Array<SuperBakery>>(`/super/bakeries${q}`, { token });
+      return apiFetch<Array<SuperLoja>>(`/super/lojas${q}`, { token });
     },
     create: (token: string, body: Record<string, unknown>) =>
-      apiFetch('/super/bakeries', { method: 'POST', token, body: JSON.stringify(body) }),
+      apiFetch('/super/lojas', { method: 'POST', token, body: JSON.stringify(body) }),
     patch: (token: string, id: string, body: Record<string, unknown>) =>
-      apiFetch(`/super/bakeries/${id}`, { method: 'PATCH', token, body: JSON.stringify(body) }),
-    remove: (token: string, id: string) => apiFetch(`/super/bakeries/${id}`, { method: 'DELETE', token }),
+      apiFetch(`/super/lojas/${id}`, { method: 'PATCH', token, body: JSON.stringify(body) }),
+    remove: (token: string, id: string) => apiFetch(`/super/lojas/${id}`, { method: 'DELETE', token }),
     metrics: (token: string, id: string, from?: string, to?: string) => {
       const p = new URLSearchParams();
       if (from) p.set('from', from);
       if (to) p.set('to', to);
       const s = p.toString();
-      return apiFetch(`/super/bakeries/${id}/metrics${s ? `?${s}` : ''}`, { token });
+      return apiFetch(`/super/lojas/${id}/metrics${s ? `?${s}` : ''}`, { token });
     },
   },
   users: {
-    list: (token: string, q?: { role?: string; bakeryId?: string }) => {
+    list: (token: string, q?: { role?: string; lojaId?: string }) => {
       const p = new URLSearchParams();
       if (q?.role) p.set('role', q.role);
-      if (q?.bakeryId) p.set('bakeryId', q.bakeryId);
+      if (q?.lojaId) p.set('lojaId', q.lojaId);
       const s = p.toString();
       return apiFetch<Array<SuperUser>>(`/super/users${s ? `?${s}` : ''}`, { token });
     },

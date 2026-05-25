@@ -1,23 +1,23 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ExternalLink, LayoutDashboard, LogIn, X } from 'lucide-react';
-import { auth, type BakeryPublic } from '../api';
+import { auth, type LojaPublic } from '../api';
 import { useAuth } from '../context/AuthContext';
-import { googleMapsSearchUrl, telHref } from '../lib/bakeryContact';
+import { googleMapsSearchUrl, telHref } from '../lib/lojaContact';
 import { useAdminPathBase, useResolvedTenantSlug } from '../lib/tenantHost';
 import { Button, Input, Label } from './ui';
 import { useI18n } from '../i18n/context';
 
 type Props = {
-  bakeryName: string;
+  lojaName: string;
   subtitle?: string;
-  /** Dados públicos da padaria (contacto); null enquanto carrega ou em erro. */
-  bakery: BakeryPublic | null;
+  /** Dados públicos da loja (contacto); null enquanto carrega ou em erro. */
+  lojaPublic: LojaPublic | null;
 };
 
-export function ShopPublicFooter({ bakeryName, subtitle, bakery }: Props) {
+export function ShopPublicFooter({ lojaName, subtitle, lojaPublic }: Props) {
   const { t } = useI18n();
-  const { token, user, bakery: sessionBakery, logout, setSession } = useAuth();
+  const { token, user, loja: sessionLoja, logout, setSession } = useAuth();
   const slug = useResolvedTenantSlug();
   const adminBase = useAdminPathBase();
   const [loginOpen, setLoginOpen] = useState(false);
@@ -26,16 +26,16 @@ export function ShopPublicFooter({ bakeryName, subtitle, bakery }: Props) {
   const [loginErr, setLoginErr] = useState<string | null>(null);
   const [loginLoading, setLoginLoading] = useState(false);
 
-  const isBakeryAdminHere =
-    token && user?.role === 'BAKERY_ADMIN' && sessionBakery && sessionBakery.slug === slug;
+  const isLojaAdminHere =
+    token && user?.role === 'LOJA_ADMIN' && sessionLoja && sessionLoja.slug === slug;
 
-  const mapsUrl = bakery ? googleMapsSearchUrl(bakery) : null;
+  const mapsUrl = lojaPublic ? googleMapsSearchUrl(lojaPublic) : null;
   const hasContact =
-    bakery &&
-    (bakery.addressLine.trim() ||
-      bakery.postalCode.trim() ||
-      bakery.locality.trim() ||
-      bakery.phone.trim());
+    lojaPublic &&
+    (lojaPublic.addressLine.trim() ||
+      lojaPublic.postalCode.trim() ||
+      lojaPublic.locality.trim() ||
+      lojaPublic.phone.trim());
 
   useEffect(() => {
     if (!loginOpen) return;
@@ -65,8 +65,8 @@ export function ShopPublicFooter({ bakeryName, subtitle, bakery }: Props) {
     setLoginLoading(true);
     try {
       const data = await auth.login(email, password, slug);
-      if (data.user.role !== 'BAKERY_ADMIN') {
-        setLoginErr(t('footer.bakeryAdminOnly'));
+      if (data.user.role !== 'LOJA_ADMIN') {
+        setLoginErr(t('footer.lojaAdminOnly'));
         return;
       }
       setSession(data);
@@ -82,60 +82,60 @@ export function ShopPublicFooter({ bakeryName, subtitle, bakery }: Props) {
 
   return (
     <>
-      <footer className="mt-12 border-t-2 border-ink/10 pt-8">
+      <footer className="mt-16 border-t border-border pt-10">
         <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-12 lg:gap-10">
           <div className="lg:col-span-4">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-muted">{t('footer.bakery')}</h2>
-            <p className="mt-2 text-lg font-extrabold text-ink">{bakeryName}</p>
+            <h2 className="text-xs font-bold uppercase tracking-wider text-muted">{t('footer.loja')}</h2>
+            <p className="mt-2 text-lg font-semibold text-ink">{lojaName}</p>
 
-            {hasContact && bakery && (
-              <div className="mt-3 border-t border-ink/5 pt-2">
+            {hasContact && lojaPublic && (
+              <div className="mt-3 border-t border-border pt-2">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-muted">{t('footer.contact')}</h3>
-                <address className="mt-2 space-y-2 not-italic text-sm font-medium leading-relaxed text-ink/80">
-                  {(bakery.addressLine.trim() || bakery.postalCode.trim() || bakery.locality.trim()) && (
+                <address className="mt-2 space-y-2 not-italic text-sm font-medium leading-relaxed text-muted">
+                  {(lojaPublic.addressLine.trim() || lojaPublic.postalCode.trim() || lojaPublic.locality.trim()) && (
                     <div>
                       {mapsUrl ? (
                         <a
                           href={mapsUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="group inline-flex max-w-full flex-col gap-0.5 text-accent underline decoration-accent/40 underline-offset-2 transition hover:text-accent-hover hover:decoration-accent"
+                          className="group inline-flex max-w-full flex-col gap-0.5 text-primary underline decoration-primary/30 underline-offset-2 transition hover:text-primary-hover hover:decoration-primary"
                         >
-                          {bakery.addressLine.trim() ? (
-                            <span className="break-words text-ink">{bakery.addressLine}</span>
+                          {lojaPublic.addressLine.trim() ? (
+                            <span className="break-words text-ink">{lojaPublic.addressLine}</span>
                           ) : null}
-                          {(bakery.postalCode.trim() || bakery.locality.trim()) && (
+                          {(lojaPublic.postalCode.trim() || lojaPublic.locality.trim()) && (
                             <span className="break-words text-ink">
-                              {[bakery.postalCode, bakery.locality].filter((s) => s.trim()).join(' ')}
+                              {[lojaPublic.postalCode, lojaPublic.locality].filter((s) => s.trim()).join(' ')}
                             </span>
                           )}
-                          <span className="mt-1 inline-flex items-center gap-1 text-xs font-bold text-accent">
+                          <span className="mt-1 inline-flex items-center gap-1 text-xs font-bold text-primary">
                             {t('footer.maps')}
                             <ExternalLink className="h-3.5 w-3.5 shrink-0" aria-hidden />
                           </span>
                         </a>
                       ) : (
                         <>
-                          {bakery.addressLine.trim() ? (
-                            <p className="text-ink">{bakery.addressLine}</p>
+                          {lojaPublic.addressLine.trim() ? (
+                            <p className="text-ink">{lojaPublic.addressLine}</p>
                           ) : null}
-                          {(bakery.postalCode.trim() || bakery.locality.trim()) && (
+                          {(lojaPublic.postalCode.trim() || lojaPublic.locality.trim()) && (
                             <p className="text-muted">
-                              {[bakery.postalCode, bakery.locality].filter((s) => s.trim()).join(' ')}
+                              {[lojaPublic.postalCode, lojaPublic.locality].filter((s) => s.trim()).join(' ')}
                             </p>
                           )}
                         </>
                       )}
                     </div>
                   )}
-                  {bakery.phone.trim() && (
+                  {lojaPublic.phone.trim() && (
                     <p>
                       <span className="text-muted">{t('footer.phoneLabel')}</span>
                       <a
-                        href={telHref(bakery.phone)}
-                        className="font-bold text-accent underline decoration-accent/40 underline-offset-2 hover:text-accent-hover"
+                        href={telHref(lojaPublic.phone)}
+                        className="font-bold text-primary underline decoration-primary/30 underline-offset-2 hover:text-primary-hover"
                       >
-                        {bakery.phone}
+                        {lojaPublic.phone}
                       </a>
                     </p>
                   )}
@@ -147,11 +147,11 @@ export function ShopPublicFooter({ bakeryName, subtitle, bakery }: Props) {
           <div className="lg:col-span-5">
             <h2 className="text-xs font-bold uppercase tracking-wider text-muted">{t('footer.administrators')}</h2>
             <div className="mt-4">
-              {isBakeryAdminHere ? (
+              {isLojaAdminHere ? (
                 <div className="flex flex-wrap items-center gap-2">
                   <Link
                     to={adminBase}
-                    className="inline-flex items-center justify-center gap-2 rounded-xl border-2 border-ink/10 bg-surface px-4 py-2.5 text-sm font-bold text-ink shadow-sm transition hover:bg-canvas"
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-surface px-4 py-2.5 text-sm font-bold text-ink shadow-sm transition hover:bg-canvas"
                   >
                     <LayoutDashboard className="h-4 w-4" />
                     {t('footer.manageShop')}
@@ -171,7 +171,7 @@ export function ShopPublicFooter({ bakeryName, subtitle, bakery }: Props) {
                 <button
                   type="button"
                   aria-haspopup="dialog"
-                  className="inline-flex w-full max-w-xs items-center justify-center gap-2 rounded-xl border-2 border-ink/10 bg-surface px-4 py-2.5 text-sm font-bold text-ink shadow-sm transition hover:bg-canvas sm:w-auto"
+                  className="inline-flex w-full max-w-xs items-center justify-center gap-2 rounded-xl border border-border bg-surface px-4 py-2.5 text-sm font-bold text-ink shadow-sm transition hover:bg-canvas sm:w-auto"
                   onClick={() => {
                     setLoginOpen(true);
                     setLoginErr(null);
@@ -184,19 +184,19 @@ export function ShopPublicFooter({ bakeryName, subtitle, bakery }: Props) {
             </div>
           </div>
 
-          <div className="flex flex-col gap-4 border-t-2 border-ink/5 pt-6 sm:col-span-2 sm:border-0 sm:pt-0 lg:col-span-3 lg:border-t-0">
+          <div className="flex flex-col gap-4 border-t border-border/5 pt-6 sm:col-span-2 sm:border-0 sm:pt-0 lg:col-span-3 lg:border-t-0">
             <p className="text-xs font-medium leading-relaxed text-muted">
               Powered by{' '}
               <a
                 href="https://slicesofbravery.pt"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="font-bold text-ink underline decoration-ink/20 underline-offset-2 transition hover:text-accent"
+                className="font-bold text-ink underline decoration-ink/20 underline-offset-2 transition hover:text-primary"
               >
                 Slices of Bravery Lda
               </a>
             </p>
-            <p className="text-xs font-medium text-zinc-400">{t('footer.rights')}</p>
+            <p className="text-xs font-medium text-muted">{t('footer.rights')}</p>
           </div>
         </div>
       </footer>
@@ -217,10 +217,10 @@ export function ShopPublicFooter({ bakeryName, subtitle, bakery }: Props) {
             aria-label={t('common.close')}
           />
           <div
-            className="relative max-h-[min(92dvh,720px)] w-full max-w-md overflow-y-auto overscroll-contain rounded-t-2xl border border-border bg-white shadow-2xl sm:rounded-2xl"
+            className="relative max-h-[min(92dvh,720px)] w-full max-w-md overflow-y-auto overscroll-contain rounded-t-2xl border border-border bg-surface shadow-2xl sm:rounded-2xl"
             style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
           >
-            <div className="sticky top-0 flex items-center justify-between border-b border-ink/5 bg-white px-4 py-3 sm:px-6">
+            <div className="sticky top-0 flex items-center justify-between border-b border-border bg-surface px-4 py-3 sm:px-6">
               <h2 id="admin-login-modal-title" className="text-lg font-semibold text-ink">
                 {t('footer.signInTitle')}
               </h2>
@@ -236,7 +236,7 @@ export function ShopPublicFooter({ bakeryName, subtitle, bakery }: Props) {
             </div>
             <div className="space-y-4 px-4 py-4 sm:px-6">
               <p className="text-sm text-muted">
-                <span className="font-medium text-ink">{bakeryName}</span>
+                <span className="font-medium text-ink">{lojaName}</span>
                 {subtitle ? (
                   <>
                     {' · '}

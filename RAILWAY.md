@@ -19,9 +19,9 @@ O servidor **não chega a escutar** na porta se o processo morrer no arranque. C
 
 ### Dados iniciais (seed) — 404 na loja ou 401 no login
 
-O `migrate deploy` **não** insere utilizadores nem padarias. Se vires:
+O `migrate deploy` **não** insere utilizadores nem lojas. Se vires:
 
-- `Bakery with slug 'lojademo' not found or inactive`, ou
+- `Loja with slug 'lojademo' not found or inactive`, ou
 - `Invalid credentials` com `super@peaksy.local` / `Admin123!`,
 
 é porque a base de dados de produção **ainda não correu o seed** (`prisma/seed.ts`), que cria a loja demo, o super admin e o admin da loja demo.
@@ -142,7 +142,7 @@ Depois do seed bem sucedido, `/loja/lojademo` e o login do super admin com as cr
 
 ## Domínio e URLs da loja
 
-No URL por defeito da Railway (`https://<serviço>.up.railway.app`) **não há subdomínio por padaria**. O host é só da plataforma; o resolver **não** exige tenant nesse caso.
+No URL por defeito da Railway (`https://<serviço>.up.railway.app`) **não há subdomínio por loja**. O host é só da plataforma; o resolver **não** exige tenant nesse caso.
 
 | O que queres | URL (exemplo) |
 |----------------|---------------|

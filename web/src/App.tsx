@@ -1,4 +1,4 @@
-import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { useHostTenantSlug } from './lib/tenantHost';
 import { ApexHomePage } from './pages/ApexHomePage';
@@ -15,11 +15,11 @@ import { AdminProduction } from './pages/admin/AdminProduction';
 import { SuperLoginPage } from './pages/super/SuperLoginPage';
 import { SuperLayout } from './pages/super/SuperLayout';
 import { SuperDashboard } from './pages/super/SuperDashboard';
-import { SuperBakeries } from './pages/super/SuperBakeries';
+import { SuperLojas } from './pages/super/SuperLojas';
 import { SuperUsers } from './pages/super/SuperUsers';
 import { NotFoundPage } from './pages/NotFoundPage';
 
-/** Raiz: loja no subdomínio ou página do domínio principal (sem padaria no host). */
+/** Raiz: loja no subdomínio ou página do domínio principal (sem loja no host). */
 function TenantOrApexHome() {
   const host = useHostTenantSlug();
   if (host) return <ShopPage />;
@@ -34,7 +34,8 @@ export default function App() {
           <Route path="/super/entrar" element={<SuperLoginPage />} />
           <Route path="/super" element={<SuperLayout />}>
             <Route index element={<SuperDashboard />} />
-            <Route path="padarias" element={<SuperBakeries />} />
+            <Route path="lojas" element={<SuperLojas />} />
+            <Route path="padarias" element={<Navigate to="/super/lojas" replace />} />
             <Route path="utilizadores" element={<SuperUsers />} />
           </Route>
 

@@ -1,5 +1,5 @@
 export const pt = {
-  lang: { en: 'English', fr: 'Français', pt: 'Português' },
+  lang: { label: 'Idioma', en: 'English', fr: 'Français', pt: 'Português' },
   common: {
     loading: 'A carregar…',
     save: 'Guardar',
@@ -56,7 +56,7 @@ export const pt = {
     desc: 'O endereço que procuras não existe ou foi movido.',
     back: 'Ir para o início',
   },
-  bakeryNotFound: {
+  lojaNotFound: {
     title: 'Loja não encontrada',
     desc: 'Não há uma loja registada com o identificador «{{slug}}». Verifica o endereço ou o link que recebeste.',
     hostHint:
@@ -67,7 +67,7 @@ export const pt = {
   shop: {
     preOrders: 'Pré-encomendas',
     order: 'Encomendar',
-    bakery: 'Loja',
+    loja: 'Loja',
     loadingTitle: 'A carregar…',
     noTenantPrefix:
       'Não foi possível identificar a loja. Usa o subdomínio (ex.: lojademo.localhost) ou ',
@@ -119,7 +119,7 @@ export const pt = {
     backToShop: 'Voltar à loja',
   },
   footer: {
-    bakery: 'Loja',
+    loja: 'Loja',
     store: 'Loja',
     contact: 'Contacto',
     maps: 'Ver no Google Maps',
@@ -129,7 +129,7 @@ export const pt = {
     signInDesc:
       'Introduz as credenciais de administrador desta loja. A sessão mantém-se neste dispositivo.',
     noTenant: 'Não foi possível identificar a loja.',
-    bakeryAdminOnly: 'Esta área é só para administradores de loja.',
+    lojaAdminOnly: 'Esta área é só para administradores de loja.',
     administrators: 'Administradores',
     phoneLabel: 'Telefone · ',
     signIn: 'Entrar',
@@ -141,7 +141,7 @@ export const pt = {
     loading: 'A carregar…',
     notFound: 'Loja não encontrada',
     subtitle: 'Iniciar sessão de administrador',
-    bakeryAdminOnly: 'Esta área é só para administradores de loja.',
+    lojaAdminOnly: 'Esta área é só para administradores de loja.',
     signIn: 'Entrar',
     signingIn: 'A entrar…',
     home: 'Início',
@@ -216,7 +216,7 @@ export const pt = {
   },
   superNav: {
     metrics: 'Métricas',
-    bakeries: 'Lojas',
+    lojas: 'Lojas',
     users: 'Utilizadores',
   },
   superLogin: {
@@ -230,20 +230,20 @@ export const pt = {
   superDashboard: {
     title: 'Métricas globais',
   },
-  superBakeries: {
+  superLojas: {
     add: 'Adicionar loja',
-    newBakery: 'Nova loja',
+    newLoja: 'Nova loja',
     confirmDelete: 'Apagar loja?',
-    editBakery: 'Editar loja',
+    editLoja: 'Editar loja',
     addressPlaceholder: 'Rua, número, andar…',
     domainEmpty: 'Vazio remove o domínio.',
     publicContact: 'Contacto público',
   },
   superUsers: {
-    selectBakery: 'Seleciona uma loja para admin de loja.',
+    selectLoja: 'Seleciona uma loja para admin de loja.',
     passwordBlank: 'Deixar em branco para não alterar',
     passwordMin: 'Mínimo 8 caracteres se preencheres.',
     roleSuper: 'Super admin',
-    roleBakery: 'Admin loja',
+    roleLoja: 'Admin loja',
   },
 };

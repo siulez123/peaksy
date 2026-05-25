@@ -40,7 +40,7 @@ export function parseDateFromDB(dateString: string): Date {
   return new Date(dateString + 'T00:00:00');
 }
 
-/** Data de levantamento `YYYY-MM-DD` estritamente posterior ao dia civil atual no fuso da padaria. */
+/** Data de levantamento `YYYY-MM-DD` estritamente posterior ao dia civil atual no fuso da loja. */
 export function isFuturePickupCalendarDate(dateStr: string, timezone: string): boolean {
   const pickup = DateTime.fromISO(dateStr, { zone: timezone }).startOf('day');
   if (!pickup.isValid) return false;

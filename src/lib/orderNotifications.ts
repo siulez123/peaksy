@@ -70,7 +70,7 @@ export async function notifyOrderPaid(orderId: string, prisma: PrismaClient, log
     where: { id: orderId },
     include: {
       items: true,
-      bakery: { select: { name: true } },
+      loja: { select: { name: true } },
     },
   });
 
@@ -80,7 +80,7 @@ export async function notifyOrderPaid(orderId: string, prisma: PrismaClient, log
   const pickupWhen = `${pickup} ${order.pickupTime}`;
   const linesShort = order.items.map((i) => `${i.productNameSnapshot} x${i.quantity}`).join(', ');
   const total = formatMoneyEUR(order.totalCents);
-  const smsBody = `${order.bakery.name}: encomenda paga ${total}. Levantamento ${pickupWhen}. ${linesShort}`.slice(
+  const smsBody = `${order.loja.name}: encomenda paga ${total}. Levantamento ${pickupWhen}. ${linesShort}`.slice(
     0,
     1500
   );
@@ -89,7 +89,7 @@ export async function notifyOrderPaid(orderId: string, prisma: PrismaClient, log
 
   const email = order.customerEmail?.trim();
   if (email) {
-    const subject = `Encomenda confirmada — ${order.bakery.name}`;
+    const subject = `Encomenda confirmada — ${order.loja.name}`;
     const itemsHtml = order.items
       .map(
         (i) =>
@@ -99,7 +99,7 @@ export async function notifyOrderPaid(orderId: string, prisma: PrismaClient, log
 
     const html = `
       <p>Olá ${escapeHtml(order.customerName)},</p>
-      <p>A tua encomenda em <strong>${escapeHtml(order.bakery.name)}</strong> foi paga com sucesso.</p>
+      <p>A tua encomenda em <strong>${escapeHtml(order.loja.name)}</strong> foi paga com sucesso.</p>
       <p><strong>Total:</strong> ${total}<br/>
       <strong>Levantamento:</strong> ${pickup} às ${escapeHtml(order.pickupTime)}</p>
       <ul>${itemsHtml}</ul>

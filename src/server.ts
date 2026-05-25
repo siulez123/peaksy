@@ -105,16 +105,16 @@ async function build() {
           prisma = new PrismaClient();
         }
         
-        const bakery = await prisma.bakery.findUnique({
+        const loja = await prisma.loja.findUnique({
           where: { slug: devTenantSlug },
         });
 
-        if (bakery && bakery.active) {
+        if (loja && loja.active) {
           (request as any).tenant = {
-            bakeryId: bakery.id,
-            slug: bakery.slug,
-            name: bakery.name,
-            timezone: bakery.timezone,
+            lojaId: loja.id,
+            slug: loja.slug,
+            name: loja.name,
+            timezone: loja.timezone,
           };
           return;
         }

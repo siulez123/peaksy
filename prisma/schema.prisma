@@ -9,7 +9,7 @@ datasource db {
 
 enum UserRole {
   SUPER_ADMIN
-  BAKERY_ADMIN
+  LOJA_ADMIN @map("BAKERY_ADMIN")
 }
 
 enum Plan {
@@ -24,7 +24,7 @@ enum OrderStatus {
   PICKED_UP
 }
 
-model Bakery {
+model Loja {
   id        String   @id @default(uuid())
   name      String
   slug      String   @unique
@@ -51,20 +51,20 @@ model Bakery {
 
 model User {
   id           String    @id @default(uuid())
-  bakeryId     String?
+  lojaId       String?   @map("bakeryId")
   role         UserRole
   email        String    @unique
   passwordHash String
   createdAt    DateTime  @default(now())
 
-  bakery Bakery? @relation(fields: [bakeryId], references: [id], onDelete: Cascade)
+  loja Loja? @relation(fields: [lojaId], references: [id], onDelete: Cascade)
 
   @@map("users")
 }
 
 model Product {
   id          String   @id @default(uuid())
-  bakeryId    String
+  lojaId      String   @map("bakeryId")
   name        String
   variant     String
   priceCents  Int
@@ -72,16 +72,16 @@ model Product {
   active      Boolean  @default(true)
   createdAt   DateTime @default(now())
 
-  bakery              Bakery                   @relation(fields: [bakeryId], references: [id], onDelete: Cascade)
+  loja                Loja                     @relation(fields: [lojaId], references: [id], onDelete: Cascade)
   orderItems          OrderItem[]
-  productCaps          AvailableDayProductCap[]
+  productCaps         AvailableDayProductCap[]
 
   @@map("products")
 }
 
 model AvailableDay {
   id            String   @id @default(uuid())
-  bakeryId      String
+  lojaId        String   @map("bakeryId")
   /// Primeiro dia de levantamento do período (cache = mínimo das regras)
   pickupDate    DateTime @db.Date
   /// Último dia de levantamento do período (cache = máximo das regras)
@@ -97,41 +97,41 @@ model AvailableDay {
   dayCapTotal   Int?
   createdAt     DateTime @default(now())
 
-  bakery          Bakery                   @relation(fields: [bakeryId], references: [id], onDelete: Cascade)
+  loja            Loja                     @relation(fields: [lojaId], references: [id], onDelete: Cascade)
   orders          Order[]
   productCaps     AvailableDayProductCap[]
   pickupDateRules AvailableDayPickupDate[]
 
-  @@index([bakeryId, pickupDate])
+  @@index([lojaId, pickupDate], map: "available_days_bakeryId_pickupDate_idx")
   @@map("available_days")
 }
 
 /// Uma data civil de levantamento com o respetivo limite de encomenda (antes do dia de levantamento).
 model AvailableDayPickupDate {
   id             String   @id @default(uuid())
-  bakeryId       String
+  lojaId         String   @map("bakeryId")
   availableDayId String
   pickupDate     DateTime @db.Date
   orderDeadline  DateTime
 
-  bakery       Bakery       @relation(fields: [bakeryId], references: [id], onDelete: Cascade)
+  loja         Loja         @relation(fields: [lojaId], references: [id], onDelete: Cascade)
   availableDay AvailableDay @relation(fields: [availableDayId], references: [id], onDelete: Cascade)
 
   @@unique([availableDayId, pickupDate])
-  @@index([bakeryId, pickupDate])
+  @@index([lojaId, pickupDate], map: "available_day_pickup_dates_bakeryId_pickupDate_idx")
   @@map("available_day_pickup_dates")
 }
 
 model AvailableDayProductCap {
-  id             String        @id @default(uuid())
-  bakeryId       String
+  id             String @id @default(uuid())
+  lojaId         String @map("bakeryId")
   availableDayId String
   productId      String
   cap            Int
 
-  bakery       Bakery        @relation(fields: [bakeryId], references: [id], onDelete: Cascade)
-  availableDay AvailableDay  @relation(fields: [availableDayId], references: [id], onDelete: Cascade)
-  product      Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  loja         Loja         @relation(fields: [lojaId], references: [id], onDelete: Cascade)
+  availableDay AvailableDay @relation(fields: [availableDayId], references: [id], onDelete: Cascade)
+  product      Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@unique([availableDayId, productId])
   @@map("available_day_product_caps")
@@ -139,41 +139,40 @@ model AvailableDayProductCap {
 
 model Order {
   id              String      @id @default(uuid())
-  bakeryId       String
-  availableDayId String
-  pickupDate     DateTime    @db.Date
+  lojaId          String      @map("bakeryId")
+  availableDayId  String
+  pickupDate      DateTime    @db.Date
   /// Hora de levantamento escolhida (HH:00 ou HH:30)
-  pickupTime     String
-  customerName   String
-  customerPhone  String
-  customerEmail  String?
-  notes          String?      @db.VarChar(100)
-  status         OrderStatus  @default(RECEIVED)
-  totalCents     Int
-  paid           Boolean      @default(false)
+  pickupTime      String
+  customerName    String
+  customerPhone   String
+  customerEmail   String?
+  notes           String?     @db.VarChar(100)
+  status          OrderStatus @default(RECEIVED)
+  totalCents      Int
+  paid            Boolean     @default(false)
   stripeSessionId String?
-  createdAt      DateTime    @default(now())
+  createdAt       DateTime    @default(now())
 
-  bakery     Bakery       @relation(fields: [bakeryId], references: [id], onDelete: Cascade)
+  loja         Loja         @relation(fields: [lojaId], references: [id], onDelete: Cascade)
   availableDay AvailableDay @relation(fields: [availableDayId], references: [id], onDelete: Cascade)
-  items      OrderItem[]
+  items        OrderItem[]
 
   @@map("orders")
 }
 
 model OrderItem {
-  id                      String   @id @default(uuid())
+  id                      String  @id @default(uuid())
   orderId                 String
-  productId              String
-  productNameSnapshot    String
-  variantSnapshot        String
-  unitPriceCentsSnapshot Int
-  quantity               Int
-  ready                  Boolean  @default(false)
+  productId               String
+  productNameSnapshot     String
+  variantSnapshot         String
+  unitPriceCentsSnapshot  Int
+  quantity                Int
+  ready                   Boolean @default(false)
 
   order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@map("order_items")
 }
-

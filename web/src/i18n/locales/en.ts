@@ -1,5 +1,5 @@
 export const en = {
-  lang: { en: 'English', fr: 'Français', pt: 'Português' },
+  lang: { label: 'Language', en: 'English', fr: 'Français', pt: 'Português' },
   common: {
     loading: 'Loading…',
     save: 'Save',
@@ -55,7 +55,7 @@ export const en = {
     desc: 'The address you are looking for does not exist or has moved.',
     back: 'Go to home',
   },
-  bakeryNotFound: {
+  lojaNotFound: {
     title: 'Shop not found',
     desc: 'There is no registered shop with identifier «{{slug}}». Check the address or link you received.',
     hostHint: 'If the address is correct, the shop may have been deactivated. Contact whoever sent you the link.',
@@ -65,7 +65,7 @@ export const en = {
   shop: {
     preOrders: 'Pre-orders',
     order: 'Order',
-    bakery: 'Shop',
+    loja: 'Shop',
     loadingTitle: 'Loading…',
     noTenantPrefix:
       'Could not identify the shop. Use the subdomain (e.g. lojademo.localhost) or ',
@@ -117,7 +117,7 @@ export const en = {
     backToShop: 'Back to shop',
   },
   footer: {
-    bakery: 'Shop',
+    loja: 'Shop',
     store: 'Store',
     contact: 'Contact',
     maps: 'View on Google Maps',
@@ -126,7 +126,7 @@ export const en = {
     signInTitle: 'Administrator sign-in',
     signInDesc: 'Enter credentials for this shop. Session stays on this device.',
     noTenant: 'Could not identify the shop.',
-    bakeryAdminOnly: 'This area is for shop administrators only.',
+    lojaAdminOnly: 'This area is for shop administrators only.',
     administrators: 'Administrators',
     phoneLabel: 'Phone · ',
     signIn: 'Sign in',
@@ -138,7 +138,7 @@ export const en = {
     loading: 'Loading…',
     notFound: 'Shop not found',
     subtitle: 'Administrator sign-in',
-    bakeryAdminOnly: 'This area is for shop administrators only.',
+    lojaAdminOnly: 'This area is for shop administrators only.',
     signIn: 'Sign in',
     signingIn: 'Signing in…',
     home: 'Home',
@@ -213,7 +213,7 @@ export const en = {
   },
   superNav: {
     metrics: 'Metrics',
-    bakeries: 'Shops',
+    lojas: 'Shops',
     users: 'Users',
   },
   superLogin: {
@@ -227,21 +227,21 @@ export const en = {
   superDashboard: {
     title: 'Global metrics',
   },
-  superBakeries: {
+  superLojas: {
     add: 'Add shop',
-    newBakery: 'New shop',
+    newLoja: 'New shop',
     confirmDelete: 'Delete shop?',
-    editBakery: 'Edit shop',
+    editLoja: 'Edit shop',
     addressPlaceholder: 'Street, number, floor…',
     domainEmpty: 'Empty removes the domain.',
     publicContact: 'Public contact',
   },
   superUsers: {
-    selectBakery: 'Select a shop for bakery admin.',
+    selectLoja: 'Select a shop for loja admin.',
     passwordBlank: 'Leave blank to keep unchanged',
     passwordMin: 'Minimum 8 characters if you fill it in.',
     roleSuper: 'Super admin',
-    roleBakery: 'Shop admin',
+    roleLoja: 'Shop admin',
   },
 } as const;
 

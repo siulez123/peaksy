@@ -155,18 +155,18 @@ async function syncOrderStatusFromItemReadiness(
   }
 }
 
-async function assertProductCapsForBakery(
+async function assertProductCapsForLoja(
   prisma: FastifyInstance['prisma'],
-  bakeryId: string,
+  lojaId: string,
   caps: Array<{ productId: string; cap: number }>
 ): Promise<void> {
   if (caps.length === 0) return;
   const ids = [...new Set(caps.map((c) => c.productId))];
   const found = await prisma.product.count({
-    where: { bakeryId, id: { in: ids }, active: true },
+    where: { lojaId, id: { in: ids }, active: true },
   });
   if (found !== ids.length) {
-    throw new ValidationError('Um ou mais produtos são inválidos ou não pertencem a esta padaria.');
+    throw new ValidationError('Um ou mais produtos são inválidos ou não pertencem a esta loja.');
   }
 }
 
@@ -186,7 +186,7 @@ function validatePickupDeadlineRules(
 
 async function assertPickupDatesNoOverlap(
   prisma: FastifyInstance['prisma'],
-  bakeryId: string,
+  lojaId: string,
   pickupDateStrs: string[],
   excludeAvailableDayId?: string
 ): Promise<void> {
@@ -195,7 +195,7 @@ async function assertPickupDatesNoOverlap(
   const asDates = unique.map((s) => new Date(`${s}T12:00:00.000Z`));
   const clashes = await prisma.availableDayPickupDate.findMany({
     where: {
-      bakeryId,
+      lojaId,
       pickupDate: { in: asDates },
       ...(excludeAvailableDayId ? { availableDayId: { not: excludeAvailableDayId } } : {}),
     },
@@ -210,8 +210,8 @@ async function assertPickupDatesNoOverlap(
 
 export async function adminRoutes(fastify: FastifyInstance) {
   // Helper functions for hooks
-  const requireBakeryAdmin = async (request: any, reply: any) => {
-    await fastify.requireBakeryAdmin(request);
+  const requireLojaAdmin = async (request: any, reply: any) => {
+    await fastify.requireLojaAdmin(request);
   };
   const requireTenant = async (request: any, reply: any) => {
     await fastify.requireTenant(request);
@@ -222,7 +222,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
     '/admin/products',
     {
       schema: {
-        description: 'List all products for bakery',
+        description: 'List all products for loja',
         tags: ['admin'],
         security: [{ bearerAuth: [] }],
         response: {
@@ -243,18 +243,18 @@ export async function adminRoutes(fastify: FastifyInstance) {
           },
         },
       },
-      onRequest: [requireBakeryAdmin, requireTenant],
+      onRequest: [requireLojaAdmin, requireTenant],
     },
     async (request, reply) => {
       const tenant = request.tenant!;
       const user = request.user!;
 
-      if (user.bakeryId !== tenant.bakeryId) {
+      if (user.lojaId !== tenant.lojaId) {
         throw new ForbiddenError('Access denied');
       }
 
       const products = await fastify.prisma.product.findMany({
-        where: { bakeryId: tenant.bakeryId },
+        where: { lojaId: tenant.lojaId },
         orderBy: [{ name: 'asc' }, { variant: 'asc' }],
       });
 
@@ -286,13 +286,13 @@ export async function adminRoutes(fastify: FastifyInstance) {
           },
         },
       },
-      onRequest: [requireBakeryAdmin, requireTenant],
+      onRequest: [requireLojaAdmin, requireTenant],
     },
     async (request, reply) => {
       const tenant = request.tenant!;
       const user = request.user!;
 
-      if (user.bakeryId !== tenant.bakeryId) {
+      if (user.lojaId !== tenant.lojaId) {
         throw new ForbiddenError('Access denied');
       }
 
@@ -315,7 +315,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
           data: {
             id,
             ...data,
-            bakeryId: tenant.bakeryId,
+            lojaId: tenant.lojaId,
             imageUrl,
           },
         });
@@ -327,7 +327,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
       const product = await fastify.prisma.product.create({
         data: {
           ...data,
-          bakeryId: tenant.bakeryId,
+          lojaId: tenant.lojaId,
         },
       });
 
@@ -350,13 +350,13 @@ export async function adminRoutes(fastify: FastifyInstance) {
           },
         },
       },
-      onRequest: [requireBakeryAdmin, requireTenant],
+      onRequest: [requireLojaAdmin, requireTenant],
     },
     async (request, reply) => {
       const tenant = request.tenant!;
       const user = request.user!;
 
-      if (user.bakeryId !== tenant.bakeryId) {
+      if (user.lojaId !== tenant.lojaId) {
         throw new ForbiddenError('Access denied');
       }
 
@@ -365,7 +365,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
       const product = await fastify.prisma.product.findFirst({
         where: {
           id,
-          bakeryId: tenant.bakeryId,
+          lojaId: tenant.lojaId,
         },
       });
 
@@ -393,13 +393,13 @@ export async function adminRoutes(fastify: FastifyInstance) {
           },
         },
       },
-      onRequest: [requireBakeryAdmin, requireTenant],
+      onRequest: [requireLojaAdmin, requireTenant],
     },
     async (request, reply) => {
       const tenant = request.tenant!;
       const user = request.user!;
 
-      if (user.bakeryId !== tenant.bakeryId) {
+      if (user.lojaId !== tenant.lojaId) {
         throw new ForbiddenError('Access denied');
       }
 
@@ -408,7 +408,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
       const existing = await fastify.prisma.product.findFirst({
         where: {
           id,
-          bakeryId: tenant.bakeryId,
+          lojaId: tenant.lojaId,
         },
       });
 
@@ -449,7 +449,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
       const product = await fastify.prisma.product.updateMany({
         where: {
           id,
-          bakeryId: tenant.bakeryId,
+          lojaId: tenant.lojaId,
         },
         data,
       });
@@ -481,13 +481,13 @@ export async function adminRoutes(fastify: FastifyInstance) {
           },
         },
       },
-      onRequest: [requireBakeryAdmin, requireTenant],
+      onRequest: [requireLojaAdmin, requireTenant],
     },
     async (request, reply) => {
       const tenant = request.tenant!;
       const user = request.user!;
 
-      if (user.bakeryId !== tenant.bakeryId) {
+      if (user.lojaId !== tenant.lojaId) {
         throw new ForbiddenError('Access denied');
       }
 
@@ -496,7 +496,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
       const existing = await fastify.prisma.product.findFirst({
         where: {
           id,
-          bakeryId: tenant.bakeryId,
+          lojaId: tenant.lojaId,
         },
       });
 
@@ -530,20 +530,20 @@ export async function adminRoutes(fastify: FastifyInstance) {
           },
         },
       },
-      onRequest: [requireBakeryAdmin, requireTenant],
+      onRequest: [requireLojaAdmin, requireTenant],
     },
     async (request, reply) => {
       const tenant = request.tenant!;
       const user = request.user!;
 
-      if (user.bakeryId !== tenant.bakeryId) {
+      if (user.lojaId !== tenant.lojaId) {
         throw new ForbiddenError('Access denied');
       }
 
       const { pickupDate } = request.query as { pickupDate?: string };
 
       const where: any = {
-        bakeryId: tenant.bakeryId,
+        lojaId: tenant.lojaId,
       };
 
       const days = await fastify.prisma.availableDay.findMany({
@@ -614,13 +614,13 @@ export async function adminRoutes(fastify: FastifyInstance) {
           },
         },
       },
-      onRequest: [requireBakeryAdmin, requireTenant],
+      onRequest: [requireLojaAdmin, requireTenant],
     },
     async (request, reply) => {
       const tenant = request.tenant!;
       const user = request.user!;
 
-      if (user.bakeryId !== tenant.bakeryId) {
+      if (user.lojaId !== tenant.lojaId) {
         throw new ForbiddenError('Access denied');
       }
 
@@ -637,15 +637,15 @@ export async function adminRoutes(fastify: FastifyInstance) {
       validatePickupDeadlineRules(sorted, tenant.timezone);
       await assertPickupDatesNoOverlap(
         fastify.prisma,
-        tenant.bakeryId,
+        tenant.lojaId,
         sorted.map((r) => r.pickupDate)
       );
-      await assertProductCapsForBakery(fastify.prisma, tenant.bakeryId, data.productCaps);
+      await assertProductCapsForLoja(fastify.prisma, tenant.lojaId, data.productCaps);
 
       const day = await fastify.prisma.$transaction(async (tx) => {
         const created = await tx.availableDay.create({
           data: {
-            bakeryId: tenant.bakeryId,
+            lojaId: tenant.lojaId,
             pickupDate: new Date(`${minPickup}T12:00:00.000Z`),
             pickupEndDate: new Date(`${maxPickup}T12:00:00.000Z`),
             ordersOpenAt:
@@ -662,7 +662,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
           await tx.availableDayPickupDate.create({
             data: {
               id: randomUUID(),
-              bakeryId: tenant.bakeryId,
+              lojaId: tenant.lojaId,
               availableDayId: created.id,
               pickupDate: new Date(`${r.pickupDate}T12:00:00.000Z`),
               orderDeadline: new Date(r.orderDeadline),
@@ -672,7 +672,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
         if (data.productCaps.length > 0) {
           await tx.availableDayProductCap.createMany({
             data: data.productCaps.map((pc) => ({
-              bakeryId: tenant.bakeryId,
+              lojaId: tenant.lojaId,
               availableDayId: created.id,
               productId: pc.productId,
               cap: pc.cap,
@@ -720,13 +720,13 @@ export async function adminRoutes(fastify: FastifyInstance) {
           },
         },
       },
-      onRequest: [requireBakeryAdmin, requireTenant],
+      onRequest: [requireLojaAdmin, requireTenant],
     },
     async (request, reply) => {
       const tenant = request.tenant!;
       const user = request.user!;
 
-      if (user.bakeryId !== tenant.bakeryId) {
+      if (user.lojaId !== tenant.lojaId) {
         throw new ForbiddenError('Access denied');
       }
 
@@ -736,7 +736,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
       const existing = await fastify.prisma.availableDay.findFirst({
         where: {
           id,
-          bakeryId: tenant.bakeryId,
+          lojaId: tenant.lojaId,
         },
       });
 
@@ -749,14 +749,14 @@ export async function adminRoutes(fastify: FastifyInstance) {
         validatePickupDeadlineRules(sorted, tenant.timezone);
         await assertPickupDatesNoOverlap(
           fastify.prisma,
-          tenant.bakeryId,
+          tenant.lojaId,
           sorted.map((r) => r.pickupDate),
           id
         );
       }
 
       if (data.productCaps !== undefined) {
-        await assertProductCapsForBakery(fastify.prisma, tenant.bakeryId, data.productCaps);
+        await assertProductCapsForLoja(fastify.prisma, tenant.lojaId, data.productCaps);
       }
 
       const updateData: Record<string, unknown> = {};
@@ -792,7 +792,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
             await tx.availableDayPickupDate.create({
               data: {
                 id: randomUUID(),
-                bakeryId: tenant.bakeryId,
+                lojaId: tenant.lojaId,
                 availableDayId: id,
                 pickupDate: new Date(`${r.pickupDate}T12:00:00.000Z`),
                 orderDeadline: new Date(r.orderDeadline),
@@ -805,7 +805,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
           if (data.productCaps.length > 0) {
             await tx.availableDayProductCap.createMany({
               data: data.productCaps.map((pc) => ({
-                bakeryId: tenant.bakeryId,
+                lojaId: tenant.lojaId,
                 availableDayId: id,
                 productId: pc.productId,
                 cap: pc.cap,
@@ -853,13 +853,13 @@ export async function adminRoutes(fastify: FastifyInstance) {
           },
         },
       },
-      onRequest: [requireBakeryAdmin, requireTenant],
+      onRequest: [requireLojaAdmin, requireTenant],
     },
     async (request, reply) => {
       const tenant = request.tenant!;
       const user = request.user!;
 
-      if (user.bakeryId !== tenant.bakeryId) {
+      if (user.lojaId !== tenant.lojaId) {
         throw new ForbiddenError('Access denied');
       }
 
@@ -868,7 +868,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
       const existingDay = await fastify.prisma.availableDay.findFirst({
         where: {
           id,
-          bakeryId: tenant.bakeryId,
+          lojaId: tenant.lojaId,
         },
       });
 
@@ -908,13 +908,13 @@ export async function adminRoutes(fastify: FastifyInstance) {
           },
         },
       },
-      onRequest: [requireBakeryAdmin, requireTenant],
+      onRequest: [requireLojaAdmin, requireTenant],
     },
     async (request, reply) => {
       const tenant = request.tenant!;
       const user = request.user!;
 
-      if (user.bakeryId !== tenant.bakeryId) {
+      if (user.lojaId !== tenant.lojaId) {
         throw new ForbiddenError('Access denied');
       }
 
@@ -923,7 +923,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
       const day = await fastify.prisma.availableDay.findFirst({
         where: {
           id,
-          bakeryId: tenant.bakeryId,
+          lojaId: tenant.lojaId,
         },
       });
 
@@ -934,7 +934,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
       const caps = await fastify.prisma.availableDayProductCap.findMany({
         where: {
           availableDayId: id,
-          bakeryId: tenant.bakeryId,
+          lojaId: tenant.lojaId,
         },
         include: {
           product: true,
@@ -968,26 +968,26 @@ export async function adminRoutes(fastify: FastifyInstance) {
           },
         },
       },
-      onRequest: [requireBakeryAdmin, requireTenant],
+      onRequest: [requireLojaAdmin, requireTenant],
     },
     async (request, reply) => {
       const tenant = request.tenant!;
       const user = request.user!;
 
-      if (user.bakeryId !== tenant.bakeryId) {
+      if (user.lojaId !== tenant.lojaId) {
         throw new ForbiddenError('Access denied');
       }
 
       const { id } = request.params as { id: string };
       const data = productCapSchema.parse(request.body);
 
-      // Verify day and product belong to bakery
+      // Verify day and product belong to loja
       const [day, product] = await Promise.all([
         fastify.prisma.availableDay.findFirst({
-          where: { id, bakeryId: tenant.bakeryId },
+          where: { id, lojaId: tenant.lojaId },
         }),
         fastify.prisma.product.findFirst({
-          where: { id: data.productId, bakeryId: tenant.bakeryId },
+          where: { id: data.productId, lojaId: tenant.lojaId },
         }),
       ]);
 
@@ -1007,7 +1007,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
         },
         update: { cap: data.cap },
         create: {
-          bakeryId: tenant.bakeryId,
+          lojaId: tenant.lojaId,
           availableDayId: id,
           productId: data.productId,
           cap: data.cap,
@@ -1034,13 +1034,13 @@ export async function adminRoutes(fastify: FastifyInstance) {
           },
         },
       },
-      onRequest: [requireBakeryAdmin, requireTenant],
+      onRequest: [requireLojaAdmin, requireTenant],
     },
     async (request, reply) => {
       const tenant = request.tenant!;
       const user = request.user!;
 
-      if (user.bakeryId !== tenant.bakeryId) {
+      if (user.lojaId !== tenant.lojaId) {
         throw new ForbiddenError('Access denied');
       }
 
@@ -1053,7 +1053,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
         where: {
           availableDayId: id,
           productId,
-          bakeryId: tenant.bakeryId,
+          lojaId: tenant.lojaId,
         },
       });
 
@@ -1086,13 +1086,13 @@ export async function adminRoutes(fastify: FastifyInstance) {
           },
         },
       },
-      onRequest: [requireBakeryAdmin, requireTenant],
+      onRequest: [requireLojaAdmin, requireTenant],
     },
     async (request, reply) => {
       const tenant = request.tenant!;
       const user = request.user!;
 
-      if (user.bakeryId !== tenant.bakeryId) {
+      if (user.lojaId !== tenant.lojaId) {
         throw new ForbiddenError('Access denied');
       }
 
@@ -1106,7 +1106,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
       };
 
       const where: Record<string, unknown> = {
-        bakeryId: tenant.bakeryId,
+        lojaId: tenant.lojaId,
       };
 
       if (q.pickupDate) {
@@ -1185,13 +1185,13 @@ export async function adminRoutes(fastify: FastifyInstance) {
           },
         },
       },
-      onRequest: [requireBakeryAdmin, requireTenant],
+      onRequest: [requireLojaAdmin, requireTenant],
     },
     async (request, reply) => {
       const tenant = request.tenant!;
       const user = request.user!;
 
-      if (user.bakeryId !== tenant.bakeryId) {
+      if (user.lojaId !== tenant.lojaId) {
         throw new ForbiddenError('Access denied');
       }
 
@@ -1199,7 +1199,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
       const { ready } = orderItemReadySchema.parse(request.body);
 
       const existing = await fastify.prisma.order.findFirst({
-        where: { id: orderId, bakeryId: tenant.bakeryId },
+        where: { id: orderId, lojaId: tenant.lojaId },
         select: { status: true },
       });
       if (!existing) {
@@ -1253,13 +1253,13 @@ export async function adminRoutes(fastify: FastifyInstance) {
           },
         },
       },
-      onRequest: [requireBakeryAdmin, requireTenant],
+      onRequest: [requireLojaAdmin, requireTenant],
     },
     async (request, reply) => {
       const tenant = request.tenant!;
       const user = request.user!;
 
-      if (user.bakeryId !== tenant.bakeryId) {
+      if (user.lojaId !== tenant.lojaId) {
         throw new ForbiddenError('Access denied');
       }
 
@@ -1267,7 +1267,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
       orderStatusUpdateSchema.parse(request.body);
 
       const current = await fastify.prisma.order.findFirst({
-        where: { id, bakeryId: tenant.bakeryId },
+        where: { id, lojaId: tenant.lojaId },
         select: { status: true },
       });
       if (!current) {
@@ -1313,13 +1313,13 @@ export async function adminRoutes(fastify: FastifyInstance) {
           },
         },
       },
-      onRequest: [requireBakeryAdmin, requireTenant],
+      onRequest: [requireLojaAdmin, requireTenant],
     },
     async (request, reply) => {
       const tenant = request.tenant!;
       const user = request.user!;
 
-      if (user.bakeryId !== tenant.bakeryId) {
+      if (user.lojaId !== tenant.lojaId) {
         throw new ForbiddenError('Access denied');
       }
 
@@ -1331,7 +1331,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
 
       const orders = await fastify.prisma.order.findMany({
         where: {
-          bakeryId: tenant.bakeryId,
+          lojaId: tenant.lojaId,
           pickupDate: new Date(pickupDate),
           paid: true,
         },
@@ -1398,13 +1398,13 @@ export async function adminRoutes(fastify: FastifyInstance) {
           },
         },
       },
-      onRequest: [requireBakeryAdmin, requireTenant],
+      onRequest: [requireLojaAdmin, requireTenant],
     },
     async (request, reply) => {
       const tenant = request.tenant!;
       const user = request.user!;
 
-      if (user.bakeryId !== tenant.bakeryId) {
+      if (user.lojaId !== tenant.lojaId) {
         throw new ForbiddenError('Access denied');
       }
 
@@ -1447,7 +1447,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
       }
 
       const where: Record<string, unknown> = {
-        bakeryId: tenant.bakeryId,
+        lojaId: tenant.lojaId,
         paid: true,
         pickupDate: {
           gte: from,

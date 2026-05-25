@@ -2,39 +2,58 @@ import { useI18n, LOCALE_FLAGS, type Locale } from '../i18n/context';
 
 const LOCALES: Locale[] = ['en', 'fr', 'pt'];
 
-const selectClass: Record<'default' | 'dark' | 'footer', string> = {
-  default:
-    'cursor-pointer rounded-lg border border-border bg-surface py-1.5 pl-2.5 pr-8 text-sm font-semibold text-ink shadow-sm transition hover:border-zinc-400 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent-soft',
-  dark:
-    'cursor-pointer rounded-lg border border-zinc-600 bg-zinc-800 py-1.5 pl-2.5 pr-8 text-sm font-semibold text-white shadow-sm transition hover:border-zinc-500 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40',
-  footer:
-    'cursor-pointer rounded-md border border-border bg-canvas py-1 pl-2 pr-7 text-xs font-semibold text-ink transition hover:bg-surface focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent-soft',
+const groupClass: Record<'default' | 'dark' | 'footer', string> = {
+  default: 'rounded-lg border border-border bg-surface p-0.5 shadow-sm',
+  dark: 'rounded-lg border border-white/15 bg-white/5 p-0.5 backdrop-blur-md',
+  footer: 'rounded-lg border border-border bg-canvas p-0.5',
+};
+
+const btnClass: Record<'default' | 'dark' | 'footer', { base: string; active: string }> = {
+  default: {
+    base: 'text-base leading-none text-muted transition-colors hover:bg-canvas hover:text-ink',
+    active: 'bg-primary-soft text-ink shadow-sm',
+  },
+  dark: {
+    base: 'text-base leading-none text-white/50 transition-colors hover:bg-white/10 hover:text-white',
+    active: 'bg-white/15 text-white shadow-sm',
+  },
+  footer: {
+    base: 'text-sm leading-none text-muted transition-colors hover:bg-surface hover:text-ink',
+    active: 'bg-surface text-ink shadow-sm ring-1 ring-border',
+  },
 };
 
 type Props = {
-  /** Estilo conforme o fundo onde o controlo aparece. */
-  variant?: keyof typeof selectClass;
+  variant?: keyof typeof groupClass;
   className?: string;
 };
 
 export function LanguageSwitcher({ variant = 'default', className = '' }: Props) {
   const { locale, setLocale, t } = useI18n();
+  const styles = btnClass[variant];
 
   return (
-    <label className={`inline-flex shrink-0 items-center ${className}`.trim()}>
-      <span className="sr-only">Language</span>
-      <select
-        value={locale}
-        onChange={(e) => setLocale(e.target.value as Locale)}
-        className={selectClass[variant]}
-        aria-label="Language"
-      >
-        {LOCALES.map((loc) => (
-          <option key={loc} value={loc}>
-            {LOCALE_FLAGS[loc]} {t(`lang.${loc}`)}
-          </option>
-        ))}
-      </select>
-    </label>
+    <div
+      role="group"
+      aria-label={t('lang.label')}
+      className={`inline-flex shrink-0 items-center gap-0.5 ${groupClass[variant]} ${className}`.trim()}
+    >
+      {LOCALES.map((loc) => {
+        const active = locale === loc;
+        return (
+          <button
+            key={loc}
+            type="button"
+            onClick={() => setLocale(loc)}
+            aria-label={t(`lang.${loc}`)}
+            aria-pressed={active}
+            title={t(`lang.${loc}`)}
+            className={`rounded-md px-2 py-1.5 ${styles.base} ${active ? styles.active : ''}`}
+          >
+            <span aria-hidden="true">{LOCALE_FLAGS[loc]}</span>
+          </button>
+        );
+      })}
+    </div>
   );
 }

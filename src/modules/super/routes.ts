@@ -3,7 +3,7 @@ import { z } from 'zod';
 import bcrypt from 'bcryptjs';
 import { NotFoundError, ValidationError, ConflictError } from '../../lib/errors';
 
-const bakeryCreateSchema = z.object({
+const lojaCreateSchema = z.object({
   name: z.string().min(1).max(200),
   slug: z.string().min(1).max(100).regex(/^[a-z0-9-]+$/),
   domain: z.string().max(255).optional(),
@@ -17,7 +17,7 @@ const bakeryCreateSchema = z.object({
 });
 
 /** PATCH: todos os campos opcionais; `domain` pode ser `null` para limpar. */
-const bakeryUpdateSchema = z.object({
+const lojaUpdateSchema = z.object({
   name: z.string().min(1).max(200).optional(),
   slug: z.string().min(1).max(100).regex(/^[a-z0-9-]+$/).optional(),
   domain: z.union([z.string().max(255), z.null()]).optional(),
@@ -33,15 +33,15 @@ const bakeryUpdateSchema = z.object({
 const userCreateSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
-  role: z.enum(['SUPER_ADMIN', 'BAKERY_ADMIN']),
-  bakeryId: z.string().uuid().optional(),
+  role: z.enum(['SUPER_ADMIN', 'LOJA_ADMIN']),
+  lojaId: z.string().uuid().optional(),
 });
 
 const userUpdateSchema = z.object({
   email: z.string().email().optional(),
   password: z.string().min(8).optional(),
-  role: z.enum(['SUPER_ADMIN', 'BAKERY_ADMIN']).optional(),
-  bakeryId: z.string().uuid().nullable().optional(),
+  role: z.enum(['SUPER_ADMIN', 'LOJA_ADMIN']).optional(),
+  lojaId: z.string().uuid().nullable().optional(),
 });
 
 export async function superRoutes(fastify: FastifyInstance) {
@@ -50,9 +50,9 @@ export async function superRoutes(fastify: FastifyInstance) {
     await fastify.requireSuperAdmin(request);
   };
   // Bakeries CRUD
-  // GET /super/bakeries
+  // GET /super/lojas
   fastify.get(
-    '/super/bakeries',
+    '/super/lojas',
     {
       schema: {
         description: 'List all bakeries',
@@ -75,7 +75,7 @@ export async function superRoutes(fastify: FastifyInstance) {
         where.active = active;
       }
 
-      const bakeries = await fastify.prisma.bakery.findMany({
+      const bakeries = await fastify.prisma.loja.findMany({
         where,
         orderBy: { createdAt: 'desc' },
         include: {
@@ -93,12 +93,12 @@ export async function superRoutes(fastify: FastifyInstance) {
     }
   );
 
-  // POST /super/bakeries
+  // POST /super/lojas
   fastify.post(
-    '/super/bakeries',
+    '/super/lojas',
     {
       schema: {
-        description: 'Create a bakery',
+        description: 'Create a loja',
         tags: ['super'],
         security: [{ bearerAuth: [] }],
         body: {
@@ -121,10 +121,10 @@ export async function superRoutes(fastify: FastifyInstance) {
       onRequest: [requireSuperAdmin],
     },
     async (request, reply) => {
-      const data = bakeryCreateSchema.parse(request.body);
+      const data = lojaCreateSchema.parse(request.body);
 
       // Check slug uniqueness
-      const existing = await fastify.prisma.bakery.findUnique({
+      const existing = await fastify.prisma.loja.findUnique({
         where: { slug: data.slug },
       });
 
@@ -134,7 +134,7 @@ export async function superRoutes(fastify: FastifyInstance) {
 
       // Check domain uniqueness if provided
       if (data.domain) {
-        const existingDomain = await fastify.prisma.bakery.findUnique({
+        const existingDomain = await fastify.prisma.loja.findUnique({
           where: { domain: data.domain },
         });
 
@@ -143,20 +143,20 @@ export async function superRoutes(fastify: FastifyInstance) {
         }
       }
 
-      const bakery = await fastify.prisma.bakery.create({
+      const loja = await fastify.prisma.loja.create({
         data,
       });
 
-      return reply.status(201).send(bakery);
+      return reply.status(201).send(loja);
     }
   );
 
-  // GET /super/bakeries/:id
+  // GET /super/lojas/:id
   fastify.get(
-    '/super/bakeries/:id',
+    '/super/lojas/:id',
     {
       schema: {
-        description: 'Get a bakery',
+        description: 'Get a loja',
         tags: ['super'],
         security: [{ bearerAuth: [] }],
         params: {
@@ -171,7 +171,7 @@ export async function superRoutes(fastify: FastifyInstance) {
     async (request, reply) => {
       const { id } = request.params as { id: string };
 
-      const bakery = await fastify.prisma.bakery.findUnique({
+      const loja = await fastify.prisma.loja.findUnique({
         where: { id },
         include: {
           _count: {
@@ -184,20 +184,20 @@ export async function superRoutes(fastify: FastifyInstance) {
         },
       });
 
-      if (!bakery) {
-        throw new NotFoundError('Bakery not found');
+      if (!loja) {
+        throw new NotFoundError('Loja not found');
       }
 
-      return bakery;
+      return loja;
     }
   );
 
-  // PATCH /super/bakeries/:id
+  // PATCH /super/lojas/:id
   fastify.patch(
-    '/super/bakeries/:id',
+    '/super/lojas/:id',
     {
       schema: {
-        description: 'Update a bakery',
+        description: 'Update a loja',
         tags: ['super'],
         security: [{ bearerAuth: [] }],
         params: {
@@ -211,11 +211,11 @@ export async function superRoutes(fastify: FastifyInstance) {
     },
     async (request, reply) => {
       const { id } = request.params as { id: string };
-      const data = bakeryUpdateSchema.parse(request.body);
+      const data = lojaUpdateSchema.parse(request.body);
 
       // Check slug uniqueness if updating
       if (data.slug) {
-        const existing = await fastify.prisma.bakery.findFirst({
+        const existing = await fastify.prisma.loja.findFirst({
           where: {
             slug: data.slug,
             id: { not: id },
@@ -229,7 +229,7 @@ export async function superRoutes(fastify: FastifyInstance) {
 
       // Check domain uniqueness if updating
       if (data.domain) {
-        const existingDomain = await fastify.prisma.bakery.findFirst({
+        const existingDomain = await fastify.prisma.loja.findFirst({
           where: {
             domain: data.domain,
             id: { not: id },
@@ -241,21 +241,21 @@ export async function superRoutes(fastify: FastifyInstance) {
         }
       }
 
-      const bakery = await fastify.prisma.bakery.update({
+      const loja = await fastify.prisma.loja.update({
         where: { id },
         data,
       });
 
-      return bakery;
+      return loja;
     }
   );
 
-  // DELETE /super/bakeries/:id
+  // DELETE /super/lojas/:id
   fastify.delete(
-    '/super/bakeries/:id',
+    '/super/lojas/:id',
     {
       schema: {
-        description: 'Delete a bakery',
+        description: 'Delete a loja',
         tags: ['super'],
         security: [{ bearerAuth: [] }],
         params: {
@@ -270,7 +270,7 @@ export async function superRoutes(fastify: FastifyInstance) {
     async (request, reply) => {
       const { id } = request.params as { id: string };
 
-      const bakery = await fastify.prisma.bakery.delete({
+      const loja = await fastify.prisma.loja.delete({
         where: { id },
       });
 
@@ -290,31 +290,31 @@ export async function superRoutes(fastify: FastifyInstance) {
         querystring: {
           type: 'object',
           properties: {
-            role: { type: 'string', enum: ['SUPER_ADMIN', 'BAKERY_ADMIN'] },
-            bakeryId: { type: 'string' },
+            role: { type: 'string', enum: ['SUPER_ADMIN', 'LOJA_ADMIN'] },
+            lojaId: { type: 'string' },
           },
         },
       },
       onRequest: [requireSuperAdmin],
     },
     async (request, reply) => {
-      const { role, bakeryId } = request.query as {
+      const { role, lojaId } = request.query as {
         role?: string;
-        bakeryId?: string;
+        lojaId?: string;
       };
 
       const where: any = {};
       if (role) {
         where.role = role;
       }
-      if (bakeryId) {
-        where.bakeryId = bakeryId;
+      if (lojaId) {
+        where.lojaId = lojaId;
       }
 
       const users = await fastify.prisma.user.findMany({
         where,
         include: {
-          bakery: true,
+          loja: true,
         },
         orderBy: { createdAt: 'desc' },
       });
@@ -323,12 +323,12 @@ export async function superRoutes(fastify: FastifyInstance) {
         id: user.id,
         email: user.email,
         role: user.role,
-        bakeryId: user.bakeryId,
-        bakery: user.bakery
+        lojaId: user.lojaId,
+        loja: user.loja
           ? {
-              id: user.bakery.id,
-              name: user.bakery.name,
-              slug: user.bakery.slug,
+              id: user.loja.id,
+              name: user.loja.name,
+              slug: user.loja.slug,
             }
           : null,
         createdAt: user.createdAt,
@@ -350,8 +350,8 @@ export async function superRoutes(fastify: FastifyInstance) {
           properties: {
             email: { type: 'string', format: 'email' },
             password: { type: 'string' },
-            role: { type: 'string', enum: ['SUPER_ADMIN', 'BAKERY_ADMIN'] },
-            bakeryId: { type: 'string' },
+            role: { type: 'string', enum: ['SUPER_ADMIN', 'LOJA_ADMIN'] },
+            lojaId: { type: 'string' },
           },
         },
       },
@@ -360,14 +360,14 @@ export async function superRoutes(fastify: FastifyInstance) {
     async (request, reply) => {
       const data = userCreateSchema.parse(request.body);
 
-      // Validate bakery admin has bakeryId
-      if (data.role === 'BAKERY_ADMIN' && !data.bakeryId) {
-        throw new ValidationError('Bakery admin must have a bakeryId');
+      // Validate loja admin has lojaId
+      if (data.role === 'LOJA_ADMIN' && !data.lojaId) {
+        throw new ValidationError('Loja admin must have a lojaId');
       }
 
-      // Validate super admin has no bakeryId
-      if (data.role === 'SUPER_ADMIN' && data.bakeryId) {
-        throw new ValidationError('Super admin cannot have a bakeryId');
+      // Validate super admin has no lojaId
+      if (data.role === 'SUPER_ADMIN' && data.lojaId) {
+        throw new ValidationError('Super admin cannot have a lojaId');
       }
 
       // Check email uniqueness
@@ -379,14 +379,14 @@ export async function superRoutes(fastify: FastifyInstance) {
         throw new ConflictError('Email already exists');
       }
 
-      // Verify bakery exists if provided
-      if (data.bakeryId) {
-        const bakery = await fastify.prisma.bakery.findUnique({
-          where: { id: data.bakeryId },
+      // Verify loja exists if provided
+      if (data.lojaId) {
+        const loja = await fastify.prisma.loja.findUnique({
+          where: { id: data.lojaId },
         });
 
-        if (!bakery) {
-          throw new NotFoundError('Bakery not found');
+        if (!loja) {
+          throw new NotFoundError('Loja not found');
         }
       }
 
@@ -397,10 +397,10 @@ export async function superRoutes(fastify: FastifyInstance) {
           email: data.email,
           passwordHash,
           role: data.role,
-          bakeryId: data.bakeryId || null,
+          lojaId: data.lojaId || null,
         },
         include: {
-          bakery: true,
+          loja: true,
         },
       });
 
@@ -408,12 +408,12 @@ export async function superRoutes(fastify: FastifyInstance) {
         id: user.id,
         email: user.email,
         role: user.role,
-        bakeryId: user.bakeryId,
-        bakery: user.bakery
+        lojaId: user.lojaId,
+        loja: user.loja
           ? {
-              id: user.bakery.id,
-              name: user.bakery.name,
-              slug: user.bakery.slug,
+              id: user.loja.id,
+              name: user.loja.name,
+              slug: user.loja.slug,
             }
           : null,
         createdAt: user.createdAt,
@@ -452,19 +452,19 @@ export async function superRoutes(fastify: FastifyInstance) {
 
       const newRole = data.role ?? user.role;
 
-      if (newRole === 'BAKERY_ADMIN') {
-        const effectiveBakeryId =
-          data.bakeryId !== undefined && data.bakeryId !== null ? data.bakeryId : user.bakeryId;
-        if (!effectiveBakeryId) {
-          throw new ValidationError('Bakery admin must have a bakeryId');
+      if (newRole === 'LOJA_ADMIN') {
+        const effectiveLojaId =
+          data.lojaId !== undefined && data.lojaId !== null ? data.lojaId : user.lojaId;
+        if (!effectiveLojaId) {
+          throw new ValidationError('Loja admin must have a lojaId');
         }
       }
 
       if (newRole === 'SUPER_ADMIN') {
-        const effectiveBakeryId =
-          data.bakeryId !== undefined ? data.bakeryId : user.bakeryId;
-        if (effectiveBakeryId != null) {
-          throw new ValidationError('Super admin cannot have a bakeryId');
+        const effectiveLojaId =
+          data.lojaId !== undefined ? data.lojaId : user.lojaId;
+        if (effectiveLojaId != null) {
+          throw new ValidationError('Super admin cannot have a lojaId');
         }
       }
 
@@ -479,14 +479,14 @@ export async function superRoutes(fastify: FastifyInstance) {
         }
       }
 
-      // Verify bakery exists if provided
-      if (data.bakeryId) {
-        const bakery = await fastify.prisma.bakery.findUnique({
-          where: { id: data.bakeryId },
+      // Verify loja exists if provided
+      if (data.lojaId) {
+        const loja = await fastify.prisma.loja.findUnique({
+          where: { id: data.lojaId },
         });
 
-        if (!bakery) {
-          throw new NotFoundError('Bakery not found');
+        if (!loja) {
+          throw new NotFoundError('Loja not found');
         }
       }
 
@@ -500,7 +500,7 @@ export async function superRoutes(fastify: FastifyInstance) {
         where: { id },
         data: updateData,
         include: {
-          bakery: true,
+          loja: true,
         },
       });
 
@@ -508,12 +508,12 @@ export async function superRoutes(fastify: FastifyInstance) {
         id: updated.id,
         email: updated.email,
         role: updated.role,
-        bakeryId: updated.bakeryId,
-        bakery: updated.bakery
+        lojaId: updated.lojaId,
+        loja: updated.loja
           ? {
-              id: updated.bakery.id,
-              name: updated.bakery.name,
-              slug: updated.bakery.slug,
+              id: updated.loja.id,
+              name: updated.loja.name,
+              slug: updated.loja.slug,
             }
           : null,
         createdAt: updated.createdAt,
@@ -597,8 +597,8 @@ export async function superRoutes(fastify: FastifyInstance) {
         totalOrders,
         totalRevenue,
       ] = await Promise.all([
-        fastify.prisma.bakery.count(),
-        fastify.prisma.bakery.count({ where: { active: true } }),
+        fastify.prisma.loja.count(),
+        fastify.prisma.loja.count({ where: { active: true } }),
         fastify.prisma.user.count(),
         fastify.prisma.order.count({ where }),
         fastify.prisma.order.aggregate({
@@ -613,7 +613,7 @@ export async function superRoutes(fastify: FastifyInstance) {
       ]);
 
       return {
-        bakeries: {
+        lojas: {
           total: totalBakeries,
           active: activeBakeries,
         },
@@ -630,12 +630,12 @@ export async function superRoutes(fastify: FastifyInstance) {
     }
   );
 
-  // GET /super/bakeries/:id/metrics
+  // GET /super/lojas/:id/metrics
   fastify.get(
-    '/super/bakeries/:id/metrics',
+    '/super/lojas/:id/metrics',
     {
       schema: {
-        description: 'Get metrics for a specific bakery',
+        description: 'Get metrics for a specific loja',
         tags: ['super'],
         security: [{ bearerAuth: [] }],
         params: {
@@ -661,16 +661,16 @@ export async function superRoutes(fastify: FastifyInstance) {
         to?: string;
       };
 
-      const bakery = await fastify.prisma.bakery.findUnique({
+      const loja = await fastify.prisma.loja.findUnique({
         where: { id },
       });
 
-      if (!bakery) {
-        throw new NotFoundError('Bakery not found');
+      if (!loja) {
+        throw new NotFoundError('Loja not found');
       }
 
       const where: any = {
-        bakeryId: id,
+        lojaId: id,
       };
 
       if (from || to) {
@@ -695,15 +695,15 @@ export async function superRoutes(fastify: FastifyInstance) {
           },
         }),
         fastify.prisma.product.count({
-          where: { bakeryId: id },
+          where: { lojaId: id },
         }),
       ]);
 
       return {
-        bakery: {
-          id: bakery.id,
-          name: bakery.name,
-          slug: bakery.slug,
+        loja: {
+          id: loja.id,
+          name: loja.name,
+          slug: loja.slug,
         },
         products: {
           total: totalProducts,

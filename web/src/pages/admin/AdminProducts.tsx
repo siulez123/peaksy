@@ -167,7 +167,7 @@ export function AdminProducts() {
   return (
     <div>
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-2xl font-semibold text-stone-900">{t('adminProducts.title')}</h1>
+        <h1 className="text-2xl font-semibold text-ink">{t('adminProducts.title')}</h1>
         <Button
           type="button"
           onClick={() => {
@@ -183,7 +183,7 @@ export function AdminProducts() {
       </div>
       {err && <p className="mb-4 text-sm text-red-600">{err}</p>}
       {loading ? (
-        <p className="text-stone-500">A carregar…</p>
+        <p className="text-muted">A carregar…</p>
       ) : (
         <div className="space-y-4">
           {items.map((p) => (
@@ -194,15 +194,15 @@ export function AdminProducts() {
                     <img
                       src={productImageUrl(p.imageUrl)!}
                       alt=""
-                      className="h-16 w-16 shrink-0 rounded-lg border border-stone-200 bg-stone-50 object-cover"
+                      className="h-16 w-16 shrink-0 rounded-lg border border-border bg-slate-50 object-cover"
                     />
                   )}
                   <div>
-                    <p className="font-medium text-stone-900">
-                      {p.name} <span className="text-stone-500">{p.variant}</span>
+                    <p className="font-medium text-ink">
+                      {p.name} <span className="text-muted">{p.variant}</span>
                     </p>
-                    <p className="text-sm text-orange-700">{formatMoney(p.priceCents)}</p>
-                    {!p.active && <span className="text-xs text-amber-700">Inativo</span>}
+                    <p className="text-sm text-primary-hover">{formatMoney(p.priceCents)}</p>
+                    {!p.active && <span className="text-xs text-warning">Inativo</span>}
                   </div>
                 </div>
                 <div className="flex gap-2">
@@ -268,7 +268,7 @@ export function AdminProducts() {
             <input
               type="file"
               accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml"
-              className="mt-1 block w-full text-sm text-stone-600 file:mr-3 file:rounded-lg file:border-0 file:bg-orange-50 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-orange-800"
+              className="mt-1 block w-full text-sm text-muted file:mr-3 file:rounded-lg file:border-0 file:bg-primary-50 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-primary-800"
               onChange={(e) => setNewImage(e.target.files?.[0] ?? null)}
             />
           </div>
@@ -293,13 +293,13 @@ export function AdminProducts() {
       >
         <form onSubmit={saveEdit} className="grid gap-3 sm:grid-cols-2">
           {editingProduct && productImageUrl(editingProduct.imageUrl) && !editImage && (
-            <div className="sm:col-span-2 flex items-center gap-3 rounded-xl border border-stone-100 bg-stone-50/80 p-3">
+            <div className="sm:col-span-2 flex items-center gap-3 rounded-xl border border-border bg-slate-50/80 p-3">
               <img
                 src={productImageUrl(editingProduct.imageUrl)!}
                 alt=""
-                className="h-14 w-14 shrink-0 rounded-lg border border-stone-200 object-cover"
+                className="h-14 w-14 shrink-0 rounded-lg border border-border object-cover"
               />
-              <p className="text-sm text-stone-600">Imagem actual. Escolhe um ficheiro abaixo para substituir.</p>
+              <p className="text-sm text-muted">Imagem actual. Escolhe um ficheiro abaixo para substituir.</p>
             </div>
           )}
           <div>
@@ -342,7 +342,7 @@ export function AdminProducts() {
             <input
               type="file"
               accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml"
-              className="mt-1 block w-full text-sm text-stone-600 file:mr-3 file:rounded-lg file:border-0 file:bg-orange-50 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-orange-800"
+              className="mt-1 block w-full text-sm text-muted file:mr-3 file:rounded-lg file:border-0 file:bg-primary-50 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-primary-800"
               onChange={(e) => setEditImage(e.target.files?.[0] ?? null)}
             />
           </div>

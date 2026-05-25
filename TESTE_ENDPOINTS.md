@@ -10,7 +10,7 @@ O header `X-Tenant-Slug` não está funcionando corretamente. Use uma das soluç
 # Listar produtos
 curl -H "Host: lojademo.peaksy.local" http://localhost:3000/public/products
 
-# Fazer login (admin de padaria: incluir tenantSlug)
+# Fazer login (admin de loja: incluir tenantSlug)
 curl -X POST http://localhost:3000/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"admin@lojademo.local","password":"Admin123!","tenantSlug":"lojademo"}'
@@ -25,7 +25,7 @@ curl http://localhost:3000/health
 # Swagger docs
 open http://localhost:3000/docs
 
-# Login admin de padaria (tenantSlug obrigatório)
+# Login admin de loja (tenantSlug obrigatório)
 curl -X POST http://localhost:3000/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"admin@lojademo.local","password":"Admin123!","tenantSlug":"lojademo"}'
@@ -34,8 +34,8 @@ curl -X POST http://localhost:3000/auth/login \
 ## Solução 3: Endpoints Super Admin (não precisam de tenant)
 
 ```bash
-# Listar padarias (precisa de token JWT)
-curl -H "Authorization: Bearer SEU_TOKEN" http://localhost:3000/super/bakeries
+# Listar lojas (precisa de token JWT)
+curl -H "Authorization: Bearer SEU_TOKEN" http://localhost:3000/super/lojas
 ```
 
 ## Status Atual

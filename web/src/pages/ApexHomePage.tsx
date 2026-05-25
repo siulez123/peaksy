@@ -54,8 +54,8 @@ function HeroPreview() {
   };
 
   return (
-    <div className="relative mx-auto w-full max-w-lg lg:mx-0 lg:max-w-none">
-      <div className="absolute -inset-4 rounded-3xl bg-indigo-500/20 blur-3xl" aria-hidden />
+    <div className="relative mx-auto w-full min-w-0 max-w-lg overflow-hidden lg:mx-0 lg:max-w-none">
+      <div className="pointer-events-none absolute inset-0 rounded-3xl bg-indigo-500/15 blur-2xl" aria-hidden />
       <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-slate-900/80 shadow-2xl backdrop-blur-sm">
         <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
           <span className="text-sm font-semibold text-white">{t('apex.previewTitle')}</span>
@@ -63,8 +63,8 @@ function HeroPreview() {
             {t('apex.previewLive')}
           </span>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[320px] text-left text-xs">
+        <div className="overflow-x-auto overscroll-x-contain">
+          <table className="w-full min-w-0 text-left text-xs">
             <thead>
               <tr className="border-b border-white/5 text-slate-500">
                 <th className="px-4 py-2 font-medium">{t('apex.previewColId')}</th>
@@ -131,26 +131,26 @@ export function ApexHomePage() {
   ];
 
   return (
-    <div className="min-h-dvh bg-canvas">
+    <div className="min-h-dvh max-w-full overflow-x-clip bg-canvas">
       {/* Hero + nav */}
-      <header className="relative overflow-hidden bg-gradient-to-b from-slate-950 via-slate-900 to-slate-900">
+      <header className="relative max-w-full overflow-hidden bg-gradient-to-b from-slate-950 via-slate-900 to-slate-900">
         <div
           className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(79,70,229,0.35),transparent)]"
           aria-hidden
         />
 
-        <nav className="relative z-10 mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-5 sm:px-6">
-          <PeaksyLogo light />
-          <div className="hidden items-center gap-8 md:flex">
+        <nav className="relative z-10 mx-auto flex w-full min-w-0 max-w-6xl items-center justify-between gap-2 px-4 py-5 sm:gap-4 sm:px-6">
+          <PeaksyLogo light className="min-w-0 shrink" />
+          <div className="hidden min-w-0 items-center gap-6 md:flex lg:gap-8">
             <NavLink href="#features">{t('apex.navFeatures')}</NavLink>
             <NavLink href="#how-it-works">{t('apex.navHowItWorks')}</NavLink>
             <NavLink href="#pricing">{t('apex.navPricing')}</NavLink>
             <NavLink href="#about">{t('apex.navAbout')}</NavLink>
           </div>
-          <LanguageSwitcher variant="dark" />
+          <LanguageSwitcher variant="dark" className="shrink-0" />
         </nav>
 
-        <div className="relative z-10 mx-auto grid max-w-6xl gap-12 px-4 pb-20 pt-6 sm:px-6 lg:grid-cols-2 lg:items-center lg:gap-16 lg:pb-28 lg:pt-10">
+        <div className="relative z-10 mx-auto grid w-full min-w-0 max-w-6xl gap-12 px-4 pb-20 pt-6 sm:px-6 lg:grid-cols-2 lg:items-center lg:gap-16 lg:pb-28 lg:pt-10">
           <div>
             <p className="inline-flex items-center gap-2 rounded-full border border-indigo-400/30 bg-indigo-500/10 py-1 pl-1 pr-3 text-xs font-medium text-indigo-200">
               <BrandIcon icon={TrendingUp} size="xs" className="shadow-none" />

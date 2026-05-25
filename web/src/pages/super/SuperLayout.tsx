@@ -39,7 +39,7 @@ export function SuperLayout() {
   );
 
   return (
-    <div className="min-h-dvh bg-canvas">
+    <div className="min-h-dvh max-w-full overflow-x-clip bg-canvas">
       <header className="sticky top-0 z-20 border-b border-border bg-surface/80 backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3.5 sm:px-6">
           <div className="flex items-center gap-3">

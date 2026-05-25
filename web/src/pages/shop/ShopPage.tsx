@@ -719,9 +719,9 @@ export function ShopPage() {
 
   return (
     <div
-      className={`mx-auto max-w-6xl px-4 pt-8 sm:pt-10 ${
+      className={`mx-auto max-w-full overflow-x-clip px-4 pt-8 sm:pt-10 ${
         showOrderingUI && lines.length > 0 ? 'pb-32 lg:pb-14' : 'pb-10 sm:pb-12'
-      }`}
+      } max-w-6xl`}
     >
       <ShopPublicHeader lojaLabel={shopTitle} subtitle={shopSubtitle} />
 

@@ -107,13 +107,6 @@ export const pt = {
     footerRights: '© {{year}} Peaksy. Todos os direitos reservados.',
     footerPlatform: 'Entrar na plataforma',
   },
-  pickSlug: {
-    shopTitle: 'Qual loja?',
-    adminTitle: 'Área da loja',
-    subtitle: 'Introduz o identificador (slug) da loja, ex.: lojademo',
-    label: 'Slug da loja',
-    placeholder: 'lojademo',
-  },
   notFound: {
     title: 'Página não encontrada',
     desc: 'O endereço que procuras não existe ou foi movido.',
@@ -125,17 +118,14 @@ export const pt = {
     hostHint:
       'Se o endereço estiver correto, a loja pode ter sido desativada. Contacta quem te enviou o link.',
     peaksyHome: 'Página inicial Peaksy',
-    pickAnother: 'Escolher loja',
   },
   shop: {
     preOrders: 'Pré-encomendas',
     order: 'Encomendar',
     loja: 'Loja',
     loadingTitle: 'A carregar…',
-    noTenantPrefix:
-      'Não foi possível identificar a loja. Usa o subdomínio (ex.: lojademo.localhost) ou ',
-    noTenantSuffix: '.',
-    pickBySlug: 'escolhe a loja por slug',
+    noTenant:
+      'Não foi possível identificar a loja. Cada padaria tem o seu endereço próprio (ex.: lojademo.peaksy.pro).',
     products: 'Produtos',
     infoClosedDesc:
       'As encomendas online não estão abertas neste momento. Usa os contactos abaixo ou volta quando abrir o próximo período de encomendas.',
@@ -203,6 +193,8 @@ export const pt = {
     cancelTitle: 'Pagamento cancelado',
     cancelBody: 'Podes voltar a tentar quando quiseres.',
     backToShop: 'Voltar à loja',
+    print: 'Imprimir',
+    continueShopping: 'Continuar',
   },
   footer: {
     loja: 'Loja',

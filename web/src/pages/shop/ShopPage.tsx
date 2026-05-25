@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ChevronUp, ImageIcon, Minus, Plus, ShoppingBag, Trash2, X } from 'lucide-react';
 import {
   publicApi,
@@ -7,6 +7,7 @@ import {
   productImageUrl,
   type CheckoutPaymentMethod,
   type LojaPublic,
+  type OrderConfirmation,
 } from '../../api';
 import { isValidInternationalPhone } from '../../lib/phone';
 import { formatPickupHourLabel, pickupHalfHourSlotsBetween } from '../../lib/timeOfDay';
@@ -16,7 +17,9 @@ import { ShopPublicHeader } from '../../components/ShopPublicHeader';
 import { ShopPublicInfoCenter } from '../../components/ShopPublicInfoCenter';
 import { LojaNotFoundPage } from '../LojaNotFoundPage';
 import { Button, Card, Input, Label } from '../../components/ui';
-import { useHostTenantSlug } from '../../lib/tenantHost';
+import { platformHomeHref, useHostTenantSlug, useResolvedTenantSlug } from '../../lib/tenantHost';
+import { shopHomePath, shopSuccessReturnPath } from '../../lib/shopPaths';
+import { OrderSuccessModal } from '../../components/OrderSuccessModal';
 
 const NOTES_MAX_LENGTH = 40;
 
@@ -457,9 +460,13 @@ function CheckoutModal({
 
 export function ShopPage() {
   const { t, localeTag } = useI18n();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { slug: slugParam } = useParams();
   const hostSlug = useHostTenantSlug();
-  const slug = slugParam ?? hostSlug ?? '';
+  const slug = useResolvedTenantSlug() || slugParam || hostSlug || '';
+  const orderIdParam = searchParams.get('order_id');
+  const sessionIdParam = searchParams.get('session_id');
   const fmtHour = (slot: string) => formatPickupHourLabel(slot, localeTag);
   const [days, setDays] = useState<ShopDayRow[]>([]);
   const [pickupDate, setPickupDate] = useState<string>('');
@@ -478,6 +485,9 @@ export function ShopPage() {
   const [paying, setPaying] = useState(false);
   const [mobileCartOpen, setMobileCartOpen] = useState(false);
   const [orderModalOpen, setOrderModalOpen] = useState(false);
+  const [successOpen, setSuccessOpen] = useState(false);
+  const [successOrder, setSuccessOrder] = useState<OrderConfirmation | null>(null);
+  const [successLoad, setSuccessLoad] = useState<'loading' | 'ok' | 'fail'>('loading');
   const [checkoutErr, setCheckoutErr] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<CheckoutPaymentMethod>('ONLINE');
   type LojaHead = 'loading' | LojaPublic | 'fail';
@@ -498,6 +508,39 @@ export function ShopPage() {
       cancelled = true;
     };
   }, [slug]);
+
+  const closeSuccess = useCallback(() => {
+    setSuccessOpen(false);
+    setSuccessOrder(null);
+    navigate(shopHomePath(slug, hostSlug), { replace: true });
+  }, [navigate, slug, hostSlug]);
+
+  useEffect(() => {
+    if (!slug || (!orderIdParam && !sessionIdParam)) return;
+    let cancelled = false;
+    setSuccessOpen(true);
+    setSuccessLoad('loading');
+    setCart({});
+    setOrderModalOpen(false);
+    setMobileCartOpen(false);
+    void publicApi
+      .orderConfirmation(slug, { orderId: orderIdParam, sessionId: sessionIdParam })
+      .then((data) => {
+        if (!cancelled) {
+          setSuccessOrder(data);
+          setSuccessLoad('ok');
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setSuccessOrder(null);
+          setSuccessLoad('fail');
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [slug, orderIdParam, sessionIdParam]);
 
   const lojaPublic = lojaHead !== 'loading' && lojaHead !== 'fail' ? lojaHead : null;
   const allowOnlinePayment = lojaPublic?.allowOnlinePayment ?? true;
@@ -689,6 +732,24 @@ export function ShopPage() {
     return () => window.removeEventListener('keydown', onKey);
   }, [orderModalOpen, paying]);
 
+  useEffect(() => {
+    if (!successOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [successOpen]);
+
+  useEffect(() => {
+    if (!successOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeSuccess();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [successOpen, closeSuccess]);
+
   const phoneTrimmed = customerPhone.trim();
   const phoneOk = phoneTrimmed.length > 0 && isValidInternationalPhone(customerPhone);
   const phoneError =
@@ -741,14 +802,18 @@ export function ShopPage() {
         customerPhone,
         customerEmail: customerEmail || undefined,
         notes: notes || undefined,
-        successPath: hostSlug ? '/sucesso' : `/loja/${slug}/sucesso`,
+        successPath: shopSuccessReturnPath(slug, hostSlug),
         cancelPath: hostSlug ? '/cancelar' : `/loja/${slug}/cancelar`,
         paymentMethod,
       });
       if (res.checkoutUrl) {
         window.location.href = res.checkoutUrl;
       } else if (res.successUrl) {
-        window.location.href = res.successUrl;
+        const u = new URL(res.successUrl, window.location.origin);
+        setOrderModalOpen(false);
+        setCart({});
+        navigate(`${u.pathname}${u.search}`, { replace: true });
+        return;
       } else {
         setCheckoutErr(t('common.paymentFailed'));
       }
@@ -787,13 +852,13 @@ export function ShopPage() {
   if (!slug) {
     return (
       <div className="mx-auto max-w-lg px-4 py-16 text-center">
-        <p className="text-muted">
-          {t('shop.noTenantPrefix')}
-          <a href="/loja" className="text-primary hover:underline">
-            {t('shop.pickBySlug')}
-          </a>
-          {t('shop.noTenantSuffix')}
-        </p>
+        <p className="text-muted">{t('shop.noTenant')}</p>
+        <a
+          href={platformHomeHref()}
+          className="mt-4 inline-flex text-sm font-medium text-primary hover:text-primary-hover hover:underline"
+        >
+          {t('lojaNotFound.peaksyHome')}
+        </a>
       </div>
     );
   }
@@ -1004,6 +1069,13 @@ export function ShopPage() {
         setPaymentMethod={setPaymentMethod}
       />
       )}
+
+      <OrderSuccessModal
+        open={successOpen}
+        onClose={closeSuccess}
+        order={successOrder}
+        loadState={successLoad}
+      />
     </div>
   );
 }

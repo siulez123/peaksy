@@ -37,7 +37,10 @@ function validateStripeReturnPath(
     throw new ValidationError('Caminho de retorno inválido.');
   }
   const okSuccess =
-    trimmed === '/sucesso' || trimmed === `/loja/${tenantSlug}/sucesso`;
+    trimmed === '/' ||
+    trimmed === `/loja/${tenantSlug}` ||
+    trimmed === '/sucesso' ||
+    trimmed === `/loja/${tenantSlug}/sucesso`;
   const okCancel =
     trimmed === '/cancelar' || trimmed === `/loja/${tenantSlug}/cancelar`;
   if (kind === 'success' && !okSuccess) {
@@ -508,7 +511,7 @@ export async function publicRoutes(fastify: FastifyInstance) {
       const baseUrl = frontendBase.replace(/\/$/, '');
       const successRel = data.successPath
         ? validateStripeReturnPath(data.successPath, tenant.slug, 'success')
-        : `/loja/${tenant.slug}/sucesso`;
+        : `/loja/${tenant.slug}`;
       const cancelRel = data.cancelPath
         ? validateStripeReturnPath(data.cancelPath, tenant.slug, 'cancel')
         : `/loja/${tenant.slug}/cancelar`;

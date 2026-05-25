@@ -107,13 +107,6 @@ export const fr = {
     footerRights: '© {{year}} Peaksy. Tous droits réservés.',
     footerPlatform: 'Connexion plateforme',
   },
-  pickSlug: {
-    shopTitle: 'Quelle boutique ?',
-    adminTitle: 'Espace boutique',
-    subtitle: 'Saisissez l’identifiant (slug) de la boutique, ex. lojademo',
-    label: 'Slug de la boutique',
-    placeholder: 'lojademo',
-  },
   notFound: {
     title: 'Page introuvable',
     desc: 'L’adresse recherchée n’existe pas ou a été déplacée.',
@@ -125,17 +118,14 @@ export const fr = {
     hostHint:
       'Si l’adresse est correcte, la boutique a peut-être été désactivée. Contactez l’expéditeur du lien.',
     peaksyHome: 'Accueil Peaksy',
-    pickAnother: 'Choisir une boutique',
   },
   shop: {
     preOrders: 'Précommandes',
     order: 'Commander',
     loja: 'Boutique',
     loadingTitle: 'Chargement…',
-    noTenantPrefix:
-      'Impossible d’identifier la boutique. Utilisez le sous-domaine (ex. lojademo.localhost) ou ',
-    noTenantSuffix: '.',
-    pickBySlug: 'choisir la boutique par slug',
+    noTenant:
+      'Impossible d’identifier la boutique. Chaque boutique a sa propre adresse (ex. lojademo.peaksy.pro).',
     products: 'Produits',
     infoClosedDesc:
       'Les commandes en ligne ne sont pas ouvertes pour le moment. Utilisez les coordonnées ci-dessous ou revenez lors de la prochaine période de commande.',
@@ -203,6 +193,8 @@ export const fr = {
     cancelTitle: 'Paiement annulé',
     cancelBody: 'Vous pouvez réessayer quand vous le souhaitez.',
     backToShop: 'Retour à la boutique',
+    print: 'Imprimer',
+    continueShopping: 'Continuer',
   },
   footer: {
     loja: 'Boutique',

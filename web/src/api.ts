@@ -185,7 +185,7 @@ export const publicApi = {
       customerPhone: string;
       customerEmail?: string;
       notes?: string;
-      /** Subdomínio da loja na raiz: `/sucesso` e `/cancelar`; em /loja/:slug omitir. */
+      /** Raiz da loja (`/` ou `/loja/:slug`) e `/cancelar` no subdomínio. */
       successPath?: string;
       cancelPath?: string;
       paymentMethod?: CheckoutPaymentMethod;

@@ -107,13 +107,6 @@ export const en = {
     footerRights: '© {{year}} Peaksy. All rights reserved.',
     footerPlatform: 'Platform sign in',
   },
-  pickSlug: {
-    shopTitle: 'Which shop?',
-    adminTitle: 'Shop area',
-    subtitle: 'Enter the shop identifier (slug), e.g. lojademo',
-    label: 'Shop slug',
-    placeholder: 'lojademo',
-  },
   notFound: {
     title: 'Page not found',
     desc: 'The address you are looking for does not exist or has moved.',
@@ -124,17 +117,14 @@ export const en = {
     desc: 'There is no registered shop with identifier «{{slug}}». Check the address or link you received.',
     hostHint: 'If the address is correct, the shop may have been deactivated. Contact whoever sent you the link.',
     peaksyHome: 'Peaksy home',
-    pickAnother: 'Choose shop',
   },
   shop: {
     preOrders: 'Pre-orders',
     order: 'Order',
     loja: 'Shop',
     loadingTitle: 'Loading…',
-    noTenantPrefix:
-      'Could not identify the shop. Use the subdomain (e.g. lojademo.localhost) or ',
-    noTenantSuffix: '.',
-    pickBySlug: 'choose shop by slug',
+    noTenant:
+      'Could not identify the shop. Each shop has its own address (e.g. lojademo.peaksy.pro).',
     products: 'Products',
     infoClosedDesc:
       'Online orders are not open at the moment. Use the contact details below or check back when the next ordering period starts.',
@@ -201,6 +191,8 @@ export const en = {
     cancelTitle: 'Payment cancelled',
     cancelBody: 'You can try again whenever you like.',
     backToShop: 'Back to shop',
+    print: 'Print',
+    continueShopping: 'Continue shopping',
   },
   footer: {
     loja: 'Shop',

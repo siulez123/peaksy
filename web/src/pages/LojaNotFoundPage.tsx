@@ -1,4 +1,3 @@
-import { Link } from 'react-router-dom';
 import { Store } from 'lucide-react';
 import { Card } from '../components/ui';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
@@ -23,21 +22,13 @@ export function LojaNotFoundPage({ slug }: { slug: string }) {
         {hostSlug ? (
           <p className="mt-4 text-xs text-muted">{t('lojaNotFound.hostHint')}</p>
         ) : null}
-        <div className="mt-8 flex flex-col gap-2 sm:flex-row sm:justify-center">
+        <div className="mt-8 flex justify-center">
           <a
             href={peaksyHomeHref}
             className="inline-flex min-h-[2.75rem] items-center justify-center rounded-xl bg-primary px-5 text-sm font-medium text-white shadow-[var(--shadow-primary)] transition-all hover:bg-primary-hover"
           >
             {t('lojaNotFound.peaksyHome')}
           </a>
-          {!hostSlug && (
-            <Link
-              to="/loja"
-              className="inline-flex min-h-[2.75rem] items-center justify-center rounded-xl border border-border bg-surface px-5 text-sm font-medium text-ink transition-colors hover:bg-canvas"
-            >
-              {t('lojaNotFound.pickAnother')}
-            </Link>
-          )}
         </div>
       </Card>
     </div>

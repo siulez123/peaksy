@@ -8,7 +8,6 @@ export type AnalyticsPageKey =
   | 'SHOP'
   | 'SHOP_SUCCESS'
   | 'SHOP_CANCEL'
-  | 'PICK_SLUG'
   | 'ADMIN_LOGIN'
   | 'ADMIN_DASHBOARD'
   | 'SUPER_LOGIN'
@@ -66,8 +65,13 @@ export function getStoredEmbedRef(): string | null {
 export function pathnameToAnalyticsPage(pathname: string): AnalyticsPageKey {
   const p = pathname.replace(/\/$/, '') || '/';
   if (p === '/') return 'APEX_HOME';
-  if (p === '/loja') return 'PICK_SLUG';
   if (p === '/sucesso' || /^\/loja\/[^/]+\/sucesso$/.test(p)) return 'SHOP_SUCCESS';
+  if (typeof window !== 'undefined') {
+    const q = new URLSearchParams(window.location.search);
+    if (q.has('order_id') || q.has('session_id')) {
+      if (p === '/' || /^\/loja\/[^/]+$/.test(p)) return 'SHOP_SUCCESS';
+    }
+  }
   if (p === '/cancelar' || /^\/loja\/[^/]+\/cancelar$/.test(p)) return 'SHOP_CANCEL';
   if (/^\/loja\/[^/]+$/.test(p)) return 'SHOP';
   if (p === '/admin/entrar' || /^\/admin\/[^/]+\/entrar$/.test(p)) return 'ADMIN_LOGIN';

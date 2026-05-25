@@ -2,9 +2,8 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { useHostTenantSlug } from './lib/tenantHost';
 import { ApexHomePage } from './pages/ApexHomePage';
-import { PickSlugPage } from './pages/PickSlugPage';
 import { ShopPage } from './pages/shop/ShopPage';
-import { ShopCancelPage, ShopSuccessPage } from './pages/shop/ShopMessagePage';
+import { ShopCancelPage, ShopSuccessRedirect } from './pages/shop/ShopMessagePage';
 import { AdminLoginPage } from './pages/admin/AdminLoginPage';
 import { AdminLayout } from './pages/admin/AdminLayout';
 import { AdminDashboard } from './pages/admin/AdminDashboard';
@@ -43,12 +42,12 @@ export default function App() {
             <Route path="utilizadores" element={<SuperUsers />} />
           </Route>
 
-          <Route path="/loja/:slug/sucesso" element={<ShopSuccessPage />} />
+          <Route path="/loja/:slug/sucesso" element={<ShopSuccessRedirect />} />
           <Route path="/loja/:slug/cancelar" element={<ShopCancelPage />} />
           <Route path="/loja/:slug" element={<ShopPage />} />
-          <Route path="/loja" element={<PickSlugPage mode="loja" />} />
+          <Route path="/loja" element={<Navigate to="/" replace />} />
 
-          <Route path="/sucesso" element={<ShopSuccessPage />} />
+          <Route path="/sucesso" element={<ShopSuccessRedirect />} />
           <Route path="/cancelar" element={<ShopCancelPage />} />
 
           <Route path="/admin/entrar" element={<AdminLoginPage />} />

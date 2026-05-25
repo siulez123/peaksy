@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { PrismaClient, OrderStatus, Plan, AnalyticsEventKind, AnalyticsPage } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import { createDefaultVatRatesForLoja, getDefaultVatRateIdForLoja } from '../src/lib/vatRates';
 
 const prisma = new PrismaClient();
 
@@ -448,6 +449,12 @@ async function provisionLoja(
     },
   });
 
+  const vatCount = await prisma.vatRate.count({ where: { lojaId: loja.id } });
+  if (vatCount === 0) {
+    await createDefaultVatRatesForLoja(prisma, loja.id);
+  }
+  const defaultVatRateId = await getDefaultVatRateIdForLoja(prisma, loja.id);
+
   const productRows = await Promise.all(
     seed.products.map((p) =>
       prisma.product.create({
@@ -455,6 +462,7 @@ async function provisionLoja(
           name: p.name,
           variant: p.variant,
           priceCents: p.priceCents,
+          vatRateId: defaultVatRateId,
           imageUrl: SEED_IMAGES[p.imageKey],
           lojaId: loja.id,
           active: true,

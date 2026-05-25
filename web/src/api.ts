@@ -52,6 +52,8 @@ export type SuperUser = {
   createdAt: string;
 };
 
+export type ProductDisplayLayout = 'LARGE' | 'MEDIUM' | 'SMALL';
+
 /** Dados públicos da loja (GET /public/loja). */
 export interface LojaPublic {
   name: string;
@@ -62,6 +64,7 @@ export interface LojaPublic {
   phone: string;
   allowOnlinePayment: boolean;
   allowInStorePayment: boolean;
+  productDisplayLayout: ProductDisplayLayout;
 }
 
 export type CheckoutPaymentMethod = 'ONLINE' | 'IN_STORE';
@@ -219,6 +222,9 @@ export const adminApi = {
           name: string;
           variant: string;
           priceCents: number;
+          vatRateId: string;
+          vatRateLabel: string;
+          vatRatePercent: number;
           imageUrl: string | null;
           active: boolean;
           createdAt: string;
@@ -390,6 +396,41 @@ export const adminApi = {
         '/admin/payment-settings',
         { method: 'PATCH', token, tenantSlug: slug, body: JSON.stringify(body) }
       ),
+  },
+  vatRates: {
+    list: (token: string, slug: string) =>
+      apiFetch<
+        Array<{
+          id: string;
+          label: string;
+          ratePercent: number;
+          sortOrder: number;
+          productCount: number;
+        }>
+      >('/admin/vat-rates', { token, tenantSlug: slug }),
+    create: (token: string, slug: string, body: { label: string; ratePercent: number }) =>
+      apiFetch('/admin/vat-rates', {
+        method: 'POST',
+        token,
+        tenantSlug: slug,
+        body: JSON.stringify(body),
+      }),
+    remove: (token: string, slug: string, id: string) =>
+      apiFetch(`/admin/vat-rates/${id}`, { method: 'DELETE', token, tenantSlug: slug }),
+  },
+  shopDisplay: {
+    get: (token: string, slug: string) =>
+      apiFetch<{ productDisplayLayout: ProductDisplayLayout }>('/admin/shop-display', {
+        token,
+        tenantSlug: slug,
+      }),
+    update: (token: string, slug: string, body: { productDisplayLayout: ProductDisplayLayout }) =>
+      apiFetch<{ productDisplayLayout: ProductDisplayLayout }>('/admin/shop-display', {
+        method: 'PATCH',
+        token,
+        tenantSlug: slug,
+        body: JSON.stringify(body),
+      }),
   },
 };
 

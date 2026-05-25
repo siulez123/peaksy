@@ -29,6 +29,13 @@ enum OrderPaymentMethod {
   IN_STORE
 }
 
+/// Apresentação dos produtos na loja pública.
+enum ProductDisplayLayout {
+  LARGE
+  MEDIUM
+  SMALL
+}
+
 enum AnalyticsEventKind {
   PAGE_VIEW
   EMBED_LAND
@@ -66,9 +73,12 @@ model Loja {
   allowOnlinePayment  Boolean @default(true)
   /// Pagamento no levantamento na loja
   allowInStorePayment Boolean @default(false)
+  /// Grelha de produtos na loja pública (grande = predefinido)
+  productDisplayLayout ProductDisplayLayout @default(LARGE)
   createdAt DateTime @default(now())
 
   users            User[]
+  vatRates         VatRate[]
   products         Product[]
   availableDays    AvailableDay[]
   orders           Order[]
@@ -112,17 +122,35 @@ model User {
   @@map("users")
 }
 
+model VatRate {
+  id          String   @id @default(uuid())
+  lojaId      String   @map("bakeryId")
+  label       String
+  ratePercent Decimal  @db.Decimal(5, 2)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  loja     Loja      @relation(fields: [lojaId], references: [id], onDelete: Cascade)
+  products Product[]
+
+  @@index([lojaId])
+  @@map("vat_rates")
+}
+
 model Product {
   id          String   @id @default(uuid())
   lojaId      String   @map("bakeryId")
+  vatRateId   String
   name        String
   variant     String
+  /// Preço com IVA incluído (cêntimos)
   priceCents  Int
   imageUrl    String?
   active      Boolean  @default(true)
   createdAt   DateTime @default(now())
 
   loja                Loja                     @relation(fields: [lojaId], references: [id], onDelete: Cascade)
+  vatRate             VatRate                  @relation(fields: [vatRateId], references: [id], onDelete: Restrict)
   orderItems          OrderItem[]
   productCaps         AvailableDayProductCap[]
 

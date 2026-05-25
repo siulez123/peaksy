@@ -113,6 +113,7 @@ export async function publicRoutes(fastify: FastifyInstance) {
               phone: { type: 'string' },
               allowOnlinePayment: { type: 'boolean' },
               allowInStorePayment: { type: 'boolean' },
+              productDisplayLayout: { type: 'string', enum: ['LARGE', 'MEDIUM', 'SMALL'] },
             },
           },
         },
@@ -132,6 +133,7 @@ export async function publicRoutes(fastify: FastifyInstance) {
           phone: true,
           allowOnlinePayment: true,
           allowInStorePayment: true,
+          productDisplayLayout: true,
         },
       });
       if (!loja) {

@@ -14,7 +14,6 @@ import {
   saveProductImageFile,
   deleteProductImageFile,
 } from '../../lib/productImage';
-
 async function readProductMultipart(request: FastifyRequest): Promise<{
   fields: Record<string, string>;
   image?: MultipartFile;
@@ -44,6 +43,7 @@ const productCreateSchema = z.object({
   name: z.string().min(1).max(200),
   variant: z.string().min(1).max(100),
   priceCents: z.number().int().positive(),
+  vatRateId: z.string().uuid(),
   active: z.boolean().optional().default(true),
 });
 
@@ -135,6 +135,41 @@ const orderStatusUpdateSchema = z.object({
 const orderItemReadySchema = z.object({
   ready: z.boolean(),
 });
+
+const vatRateCreateSchema = z.object({
+  label: z.string().min(1).max(80),
+  ratePercent: z.number().min(0).max(100),
+});
+
+const vatRateUpdateSchema = vatRateCreateSchema.partial().refine((d) => Object.keys(d).length > 0, {
+  message: 'Nada para atualizar.',
+});
+
+const shopDisplaySchema = z.object({
+  productDisplayLayout: z.enum(['LARGE', 'MEDIUM', 'SMALL']),
+});
+
+function vatRateJson(rate: { id: string; label: string; ratePercent: { toString(): string } | number; sortOrder: number }) {
+  return {
+    id: rate.id,
+    label: rate.label,
+    ratePercent: Number(rate.ratePercent),
+    sortOrder: rate.sortOrder,
+  };
+}
+
+async function assertVatRateForLoja(
+  fastify: FastifyInstance,
+  lojaId: string,
+  vatRateId: string
+): Promise<void> {
+  const rate = await fastify.prisma.vatRate.findFirst({
+    where: { id: vatRateId, lojaId },
+  });
+  if (!rate) {
+    throw new ValidationError('Escalão de IVA inválido para esta loja.');
+  }
+}
 
 async function syncOrderStatusFromItemReadiness(
   prisma: FastifyInstance['prisma'],
@@ -235,6 +270,9 @@ export async function adminRoutes(fastify: FastifyInstance) {
                 name: { type: 'string' },
                 variant: { type: 'string' },
                 priceCents: { type: 'number' },
+                vatRateId: { type: 'string' },
+                vatRateLabel: { type: 'string' },
+                vatRatePercent: { type: 'number' },
                 imageUrl: { type: 'string', nullable: true },
                 active: { type: 'boolean' },
                 createdAt: { type: 'string' },
@@ -255,10 +293,22 @@ export async function adminRoutes(fastify: FastifyInstance) {
 
       const products = await fastify.prisma.product.findMany({
         where: { lojaId: tenant.lojaId },
+        include: { vatRate: true },
         orderBy: [{ name: 'asc' }, { variant: 'asc' }],
       });
 
-      return products;
+      return products.map((p) => ({
+        id: p.id,
+        name: p.name,
+        variant: p.variant,
+        priceCents: p.priceCents,
+        vatRateId: p.vatRateId,
+        vatRateLabel: p.vatRate.label,
+        vatRatePercent: Number(p.vatRate.ratePercent),
+        imageUrl: p.imageUrl,
+        active: p.active,
+        createdAt: p.createdAt,
+      }));
     }
   );
 
@@ -304,8 +354,10 @@ export async function adminRoutes(fastify: FastifyInstance) {
           name: fields.name,
           variant: fields.variant,
           priceCents: Number(fields.priceCents),
+          vatRateId: fields.vatRateId,
           active: activeField ?? true,
         });
+        await assertVatRateForLoja(fastify, tenant.lojaId, data.vatRateId);
         const id = randomUUID();
         let imageUrl: string | null = null;
         if (image) {
@@ -314,7 +366,11 @@ export async function adminRoutes(fastify: FastifyInstance) {
         const product = await fastify.prisma.product.create({
           data: {
             id,
-            ...data,
+            name: data.name,
+            variant: data.variant,
+            priceCents: data.priceCents,
+            vatRateId: data.vatRateId,
+            active: data.active,
             lojaId: tenant.lojaId,
             imageUrl,
           },
@@ -323,10 +379,15 @@ export async function adminRoutes(fastify: FastifyInstance) {
       }
 
       const data = productCreateSchema.parse(request.body);
+      await assertVatRateForLoja(fastify, tenant.lojaId, data.vatRateId);
 
       const product = await fastify.prisma.product.create({
         data: {
-          ...data,
+          name: data.name,
+          variant: data.variant,
+          priceCents: data.priceCents,
+          vatRateId: data.vatRateId,
+          active: data.active,
           lojaId: tenant.lojaId,
         },
       });
@@ -423,9 +484,13 @@ export async function adminRoutes(fastify: FastifyInstance) {
         if (fields.name !== undefined) raw.name = fields.name;
         if (fields.variant !== undefined) raw.variant = fields.variant;
         if (fields.priceCents !== undefined) raw.priceCents = Number(fields.priceCents);
+        if (fields.vatRateId !== undefined) raw.vatRateId = fields.vatRateId;
         const ab = parseOptionalBool(fields.active);
         if (ab !== undefined) raw.active = ab;
         const data = productUpdateSchema.parse(raw);
+        if (data.vatRateId !== undefined) {
+          await assertVatRateForLoja(fastify, tenant.lojaId, data.vatRateId);
+        }
 
         let imageUrl = existing.imageUrl;
         if (image) {
@@ -445,6 +510,9 @@ export async function adminRoutes(fastify: FastifyInstance) {
       }
 
       const data = productUpdateSchema.parse(request.body);
+      if (data.vatRateId !== undefined) {
+        await assertVatRateForLoja(fastify, tenant.lojaId, data.vatRateId);
+      }
 
       const product = await fastify.prisma.product.updateMany({
         where: {
@@ -1626,6 +1694,239 @@ export async function adminRoutes(fastify: FastifyInstance) {
           allowInStorePayment: data.allowInStorePayment,
         },
         select: { allowOnlinePayment: true, allowInStorePayment: true },
+      });
+
+      return loja;
+    }
+  );
+
+  // GET /admin/vat-rates
+  fastify.get(
+    '/admin/vat-rates',
+    {
+      schema: {
+        description: 'Escalões de IVA da loja',
+        tags: ['admin'],
+        security: [{ bearerAuth: [] }],
+      },
+      onRequest: [requireLojaAdmin, requireTenant],
+    },
+    async (request, reply) => {
+      const tenant = request.tenant!;
+      const user = request.user!;
+      if (user.lojaId !== tenant.lojaId) {
+        throw new ForbiddenError('Access denied');
+      }
+
+      const rates = await fastify.prisma.vatRate.findMany({
+        where: { lojaId: tenant.lojaId },
+        orderBy: [{ sortOrder: 'asc' }, { label: 'asc' }],
+        include: { _count: { select: { products: true } } },
+      });
+
+      return rates.map((r) => ({
+        ...vatRateJson(r),
+        productCount: r._count.products,
+      }));
+    }
+  );
+
+  // POST /admin/vat-rates
+  fastify.post(
+    '/admin/vat-rates',
+    {
+      schema: {
+        description: 'Criar escalão de IVA',
+        tags: ['admin'],
+        security: [{ bearerAuth: [] }],
+        body: {
+          type: 'object',
+          required: ['label', 'ratePercent'],
+          properties: {
+            label: { type: 'string' },
+            ratePercent: { type: 'number' },
+          },
+        },
+      },
+      onRequest: [requireLojaAdmin, requireTenant],
+    },
+    async (request, reply) => {
+      const tenant = request.tenant!;
+      const user = request.user!;
+      if (user.lojaId !== tenant.lojaId) {
+        throw new ForbiddenError('Access denied');
+      }
+
+      const data = vatRateCreateSchema.parse(request.body);
+      const maxSort = await fastify.prisma.vatRate.aggregate({
+        where: { lojaId: tenant.lojaId },
+        _max: { sortOrder: true },
+      });
+
+      const rate = await fastify.prisma.vatRate.create({
+        data: {
+          lojaId: tenant.lojaId,
+          label: data.label.trim(),
+          ratePercent: data.ratePercent,
+          sortOrder: (maxSort._max.sortOrder ?? -1) + 1,
+        },
+      });
+
+      return reply.status(201).send(vatRateJson(rate));
+    }
+  );
+
+  // PATCH /admin/vat-rates/:id
+  fastify.patch(
+    '/admin/vat-rates/:id',
+    {
+      schema: {
+        description: 'Atualizar escalão de IVA',
+        tags: ['admin'],
+        security: [{ bearerAuth: [] }],
+        params: {
+          type: 'object',
+          properties: { id: { type: 'string' } },
+        },
+      },
+      onRequest: [requireLojaAdmin, requireTenant],
+    },
+    async (request, reply) => {
+      const tenant = request.tenant!;
+      const user = request.user!;
+      if (user.lojaId !== tenant.lojaId) {
+        throw new ForbiddenError('Access denied');
+      }
+
+      const { id } = request.params as { id: string };
+      const data = vatRateUpdateSchema.parse(request.body);
+
+      const existing = await fastify.prisma.vatRate.findFirst({
+        where: { id, lojaId: tenant.lojaId },
+      });
+      if (!existing) {
+        throw new NotFoundError('Escalão de IVA não encontrado');
+      }
+
+      const rate = await fastify.prisma.vatRate.update({
+        where: { id },
+        data: {
+          ...(data.label !== undefined ? { label: data.label.trim() } : {}),
+          ...(data.ratePercent !== undefined ? { ratePercent: data.ratePercent } : {}),
+        },
+      });
+
+      return vatRateJson(rate);
+    }
+  );
+
+  // DELETE /admin/vat-rates/:id
+  fastify.delete(
+    '/admin/vat-rates/:id',
+    {
+      schema: {
+        description: 'Remover escalão de IVA (sem produtos associados)',
+        tags: ['admin'],
+        security: [{ bearerAuth: [] }],
+        params: {
+          type: 'object',
+          properties: { id: { type: 'string' } },
+        },
+      },
+      onRequest: [requireLojaAdmin, requireTenant],
+    },
+    async (request, reply) => {
+      const tenant = request.tenant!;
+      const user = request.user!;
+      if (user.lojaId !== tenant.lojaId) {
+        throw new ForbiddenError('Access denied');
+      }
+
+      const { id } = request.params as { id: string };
+      const existing = await fastify.prisma.vatRate.findFirst({
+        where: { id, lojaId: tenant.lojaId },
+        include: { _count: { select: { products: true } } },
+      });
+      if (!existing) {
+        throw new NotFoundError('Escalão de IVA não encontrado');
+      }
+      if (existing._count.products > 0) {
+        throw new ConflictError('Não é possível remover um escalão associado a produtos.');
+      }
+
+      const totalRates = await fastify.prisma.vatRate.count({
+        where: { lojaId: tenant.lojaId },
+      });
+      if (totalRates <= 1) {
+        throw new ConflictError('Tem de existir pelo menos um escalão de IVA.');
+      }
+
+      await fastify.prisma.vatRate.delete({ where: { id } });
+      return reply.status(204).send();
+    }
+  );
+
+  // GET /admin/shop-display
+  fastify.get(
+    '/admin/shop-display',
+    {
+      schema: {
+        description: 'Layout de apresentação dos produtos na loja',
+        tags: ['admin'],
+        security: [{ bearerAuth: [] }],
+      },
+      onRequest: [requireLojaAdmin, requireTenant],
+    },
+    async (request, reply) => {
+      const tenant = request.tenant!;
+      const user = request.user!;
+      if (user.lojaId !== tenant.lojaId) {
+        throw new ForbiddenError('Access denied');
+      }
+
+      const loja = await fastify.prisma.loja.findUnique({
+        where: { id: tenant.lojaId },
+        select: { productDisplayLayout: true },
+      });
+      if (!loja) {
+        throw new NotFoundError('Loja not found');
+      }
+
+      return loja;
+    }
+  );
+
+  // PATCH /admin/shop-display
+  fastify.patch(
+    '/admin/shop-display',
+    {
+      schema: {
+        description: 'Atualizar layout de produtos na loja pública',
+        tags: ['admin'],
+        security: [{ bearerAuth: [] }],
+        body: {
+          type: 'object',
+          required: ['productDisplayLayout'],
+          properties: {
+            productDisplayLayout: { type: 'string', enum: ['LARGE', 'MEDIUM', 'SMALL'] },
+          },
+        },
+      },
+      onRequest: [requireLojaAdmin, requireTenant],
+    },
+    async (request, reply) => {
+      const tenant = request.tenant!;
+      const user = request.user!;
+      if (user.lojaId !== tenant.lojaId) {
+        throw new ForbiddenError('Access denied');
+      }
+
+      const data = shopDisplaySchema.parse(request.body);
+
+      const loja = await fastify.prisma.loja.update({
+        where: { id: tenant.lojaId },
+        data: { productDisplayLayout: data.productDisplayLayout },
+        select: { productDisplayLayout: true },
       });
 
       return loja;

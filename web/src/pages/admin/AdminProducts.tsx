@@ -6,24 +6,36 @@ import { Button, Card, Input, Label, SheetDialog } from '../../components/ui';
 import { useResolvedTenantSlug } from '../../lib/tenantHost';
 import { useI18n } from '../../i18n/context';
 
+type VatOption = { id: string; label: string; ratePercent: number };
+
 type ProductRow = {
   id: string;
   name: string;
   variant: string;
   priceCents: number;
+  vatRateId: string;
+  vatRateLabel: string;
+  vatRatePercent: number;
   imageUrl: string | null;
   active: boolean;
 };
 
-type FormState = { name: string; variant: string; price: string; active: boolean };
+type FormState = { name: string; variant: string; price: string; vatRateId: string; active: boolean };
 
-const emptyForm = (): FormState => ({ name: '', variant: '', price: '', active: true });
+const emptyForm = (vatRateId = ''): FormState => ({
+  name: '',
+  variant: '',
+  price: '',
+  vatRateId,
+  active: true,
+});
 
 export function AdminProducts() {
   const { t } = useI18n();
   const slug = useResolvedTenantSlug();
   const { token } = useAuth();
   const [items, setItems] = useState<ProductRow[]>([]);
+  const [vatRates, setVatRates] = useState<VatOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
@@ -39,8 +51,12 @@ export function AdminProducts() {
     if (!token) return;
     setLoading(true);
     try {
-      const list = await adminApi.products.list(token, slug);
+      const [list, rates] = await Promise.all([
+        adminApi.products.list(token, slug),
+        adminApi.vatRates.list(token, slug),
+      ]);
       setItems(list);
+      setVatRates(rates);
       setErr(null);
     } catch (e) {
       setErr(e instanceof Error ? e.message : t('common.genericError'));
@@ -48,6 +64,8 @@ export function AdminProducts() {
       setLoading(false);
     }
   };
+
+  const defaultVatRateId = vatRates[0]?.id ?? '';
 
   useEffect(() => {
     void load();
@@ -67,6 +85,10 @@ export function AdminProducts() {
       setErr(t('adminProducts.invalidPrice'));
       return;
     }
+    if (!newForm.vatRateId) {
+      setErr(t('adminProducts.noVatRates'));
+      return;
+    }
     setAddSaving(true);
     setErr(null);
     try {
@@ -75,6 +97,7 @@ export function AdminProducts() {
         fd.append('name', newForm.name.trim());
         fd.append('variant', newForm.variant.trim());
         fd.append('priceCents', String(priceCents));
+        fd.append('vatRateId', newForm.vatRateId);
         fd.append('active', String(newForm.active));
         fd.append('image', newImage);
         await adminApi.products.create(token, slug, fd);
@@ -83,10 +106,11 @@ export function AdminProducts() {
           name: newForm.name.trim(),
           variant: newForm.variant.trim(),
           priceCents,
+          vatRateId: newForm.vatRateId,
           active: newForm.active,
         });
       }
-      setNewForm(emptyForm());
+      setNewForm(emptyForm(defaultVatRateId));
       setNewImage(null);
       setAddOpen(false);
       await load();
@@ -120,6 +144,7 @@ export function AdminProducts() {
         fd.append('name', editForm.name.trim());
         fd.append('variant', editForm.variant.trim());
         fd.append('priceCents', String(priceCents));
+        fd.append('vatRateId', editForm.vatRateId);
         fd.append('active', String(editForm.active));
         fd.append('image', editImage);
         await adminApi.products.patch(token, slug, editingId, fd);
@@ -128,6 +153,7 @@ export function AdminProducts() {
           name: editForm.name.trim(),
           variant: editForm.variant.trim(),
           priceCents,
+          vatRateId: editForm.vatRateId,
           active: editForm.active,
         });
       }
@@ -158,9 +184,39 @@ export function AdminProducts() {
       name: p.name,
       variant: p.variant,
       price: (p.priceCents / 100).toFixed(2),
+      vatRateId: p.vatRateId,
       active: p.active,
     });
   };
+
+  const vatSelect = (
+    value: string,
+    onChange: (id: string) => void,
+    id: string
+  ) => (
+    <div>
+      <Label>{t('adminProducts.vatRate')}</Label>
+      <select
+        id={id}
+        className="mt-1 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-ink"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        required
+        disabled={vatRates.length === 0}
+      >
+        {vatRates.length === 0 ? (
+          <option value="">{t('adminProducts.noVatRates')}</option>
+        ) : (
+          vatRates.map((r) => (
+            <option key={r.id} value={r.id}>
+              {r.label} ({r.ratePercent}%)
+            </option>
+          ))
+        )}
+      </select>
+      <p className="mt-1 text-xs text-muted">{t('adminProducts.priceIncludesVat')}</p>
+    </div>
+  );
 
   const editingProduct = editingId ? items.find((x) => x.id === editingId) : undefined;
 
@@ -172,7 +228,7 @@ export function AdminProducts() {
           type="button"
           onClick={() => {
             setErr(null);
-            setNewForm(emptyForm());
+            setNewForm(emptyForm(defaultVatRateId));
             setNewImage(null);
             setAddOpen(true);
           }}
@@ -201,7 +257,12 @@ export function AdminProducts() {
                     <p className="font-medium text-ink">
                       {p.name} <span className="text-muted">{p.variant}</span>
                     </p>
-                    <p className="text-sm text-primary-hover">{formatMoney(p.priceCents)}</p>
+                    <p className="text-sm text-primary-hover">
+                      {formatMoney(p.priceCents)}{' '}
+                      <span className="text-muted">
+                        ({p.vatRateLabel} {p.vatRatePercent}%)
+                      </span>
+                    </p>
                     {!p.active && <span className="text-xs text-warning">{t('adminCommon.inactive')}</span>}
                   </div>
                 </div>
@@ -253,6 +314,7 @@ export function AdminProducts() {
               required
             />
           </div>
+          {vatSelect(newForm.vatRateId, (vatRateId) => setNewForm((f) => ({ ...f, vatRateId })), 'new-vat')}
           <div className="flex items-end">
             <label className="flex items-center gap-2 text-sm">
               <input
@@ -327,6 +389,7 @@ export function AdminProducts() {
               required
             />
           </div>
+          {vatSelect(editForm.vatRateId, (vatRateId) => setEditForm((f) => ({ ...f, vatRateId })), 'edit-vat')}
           <div className="flex items-end">
             <label className="flex items-center gap-2 text-sm">
               <input

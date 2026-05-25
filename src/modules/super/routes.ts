@@ -3,6 +3,7 @@ import { z } from 'zod';
 import bcrypt from 'bcryptjs';
 import { NotFoundError, ValidationError, ConflictError } from '../../lib/errors';
 import { analyticsCreatedAtWhere } from '../../lib/analytics';
+import { createDefaultVatRatesForLoja } from '../../lib/vatRates';
 
 const lojaCreateSchema = z
   .object({
@@ -268,6 +269,7 @@ export async function superRoutes(fastify: FastifyInstance) {
         const created = await tx.loja.create({
           data: lojaFields,
         });
+        await createDefaultVatRatesForLoja(tx, created.id);
         if (createLojaAdmin && adminEmail && passwordHash) {
           await tx.user.create({
             data: {

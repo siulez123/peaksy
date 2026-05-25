@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ChevronUp, ImageIcon, Minus, Plus, ShoppingBag, Trash2, X } from 'lucide-react';
+import { ChevronUp, Minus, Plus, ShoppingBag, Trash2, X } from 'lucide-react';
 import {
   publicApi,
   formatMoney,
-  productImageUrl,
   type CheckoutPaymentMethod,
   type LojaPublic,
   type OrderConfirmation,
@@ -20,6 +19,7 @@ import { Button, Card, Input, Label } from '../../components/ui';
 import { platformHomeHref, useHostTenantSlug, useResolvedTenantSlug } from '../../lib/tenantHost';
 import { shopHomePath, shopSuccessReturnPath } from '../../lib/shopPaths';
 import { OrderSuccessModal } from '../../components/OrderSuccessModal';
+import { ShopProductGrid } from '../../components/shop/ShopProductGrid';
 
 const NOTES_MAX_LENGTH = 40;
 
@@ -891,78 +891,14 @@ export function ShopPage() {
         <div className="space-y-6 lg:col-span-2">
             <Card>
               <h2 className="mb-3 font-semibold text-ink">{t('shop.products')}</h2>
-              <ul className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                {products.map((p) => {
-                  const img = productImageUrl(p.imageUrl);
-                  return (
-                    <li
-                      key={p.id}
-                      className="flex flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-sm transition-shadow hover:shadow-md"
-                    >
-                      <div className="relative aspect-[5/4] w-full overflow-hidden bg-canvas">
-                        {img ? (
-                          <img
-                            src={img}
-                            alt={`${p.name} ${p.variant}`}
-                            className="h-full w-full object-cover"
-                            loading="lazy"
-                          />
-                        ) : (
-                          <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-muted">
-                            <ImageIcon className="h-14 w-14 opacity-60" strokeWidth={1.25} />
-                            <span className="text-xs">{t('shop.noImage')}</span>
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex flex-1 flex-col gap-3 p-4">
-                        <div>
-                          <p className="text-base font-semibold leading-snug text-ink">
-                            {p.name}
-                          </p>
-                          <p className="mt-0.5 text-sm text-muted">{p.variant}</p>
-                          <p className="mt-2 text-lg font-semibold text-primary">
-                            {formatMoney(p.priceCents)}
-                          </p>
-                        </div>
-                        <div className="mt-auto flex w-full items-center justify-center gap-3 pt-1">
-                          {cart[p.id] ? (
-                            <>
-                              <button
-                                type="button"
-                                className="rounded-lg border border-border p-2 hover:bg-canvas"
-                                onClick={() => setQty(p.id, (cart[p.id]?.qty || 0) - 1)}
-                                aria-label={t('shop.minusOne')}
-                              >
-                                <Minus className="h-4 w-4" />
-                              </button>
-                              <span className="min-w-[2.5rem] text-center text-base font-semibold tabular-nums">
-                                {cart[p.id].qty}
-                              </span>
-                              <button
-                                type="button"
-                                className="rounded-lg border border-border p-2 hover:bg-canvas"
-                                onClick={() => add(p)}
-                                aria-label={t('shop.plusOne')}
-                              >
-                                <Plus className="h-4 w-4" />
-                              </button>
-                            </>
-                          ) : (
-                            <Button
-                              type="button"
-                              variant="secondary"
-                              className="w-full !py-2.5 text-sm font-medium"
-                              onClick={() => add(p)}
-                            >
-                              {t('shop.addToCart')}
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
+              <ShopProductGrid
+                layout={lojaPublic.productDisplayLayout ?? 'LARGE'}
+                products={products}
+                cart={cart}
+                t={t}
+                onAdd={add}
+                onSetQty={setQty}
+              />
             </Card>
         </div>
 

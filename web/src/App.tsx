@@ -22,6 +22,7 @@ import { AnalyticsTracker } from './components/AnalyticsTracker';
 import { CookieBanner } from './components/CookieBanner';
 import { AdminIntegracao } from './pages/admin/AdminIntegracao';
 import { AdminPayment } from './pages/admin/AdminPayment';
+import { AdminShopSettings } from './pages/admin/AdminShopSettings';
 
 /** Raiz: loja no subdomínio ou página do domínio principal (sem loja no host). */
 function TenantOrApexHome() {
@@ -65,6 +66,7 @@ export default function App() {
             <Route path="producao" element={<AdminProduction />} />
             <Route path="integracao" element={<AdminIntegracao />} />
             <Route path="pagamento" element={<AdminPayment />} />
+            <Route path="loja" element={<AdminShopSettings />} />
           </Route>
           <Route path="/admin/:slug" element={<AdminLayout />}>
             <Route index element={<AdminDashboard />} />
@@ -74,6 +76,7 @@ export default function App() {
             <Route path="producao" element={<AdminProduction />} />
             <Route path="integracao" element={<AdminIntegracao />} />
             <Route path="pagamento" element={<AdminPayment />} />
+            <Route path="loja" element={<AdminShopSettings />} />
           </Route>
 
           <Route path="/" element={<TenantOrApexHome />} />

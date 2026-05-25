@@ -1,4 +1,4 @@
-import { apiBase, apiFetch } from '../api';
+import { apiFetch } from '../api';
 
 const SESSION_KEY = 'peaksy_sid';
 const REF_KEY = 'peaksy_pk_ref';
@@ -92,7 +92,7 @@ async function flushQueue(): Promise<void> {
   const batch = queue.splice(0, 20);
   const sessionId = getSessionId();
   try {
-    await apiFetch<{ accepted: number }>(`${apiBase}/public/analytics/events`, {
+    await apiFetch<{ accepted: number }>('/public/analytics/events', {
       method: 'POST',
       body: JSON.stringify({
         events: batch.map((e) => ({
@@ -120,10 +120,13 @@ export function trackAnalyticsEvent(event: AnalyticsEventPayload): void {
   scheduleFlush();
 }
 
-export function trackPageView(pathname: string, lojaSlug?: string | null): void {
+export function trackPageView(pathname: string, hostTenantSlug?: string | null): void {
   const embedKey = captureEmbedRefFromUrl();
-  const page = pathnameToAnalyticsPage(pathname);
-  const slug = lojaSlug ?? lojaSlugFromPath(pathname);
+  let page = pathnameToAnalyticsPage(pathname);
+  const slug = hostTenantSlug ?? lojaSlugFromPath(pathname);
+  if (slug && (pathname === '/' || pathname === '')) {
+    page = 'SHOP';
+  }
 
   trackAnalyticsEvent({
     kind: 'PAGE_VIEW',

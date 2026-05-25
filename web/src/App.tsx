@@ -18,6 +18,8 @@ import { SuperDashboard } from './pages/super/SuperDashboard';
 import { SuperLojas } from './pages/super/SuperLojas';
 import { SuperUsers } from './pages/super/SuperUsers';
 import { NotFoundPage } from './pages/NotFoundPage';
+import { AnalyticsTracker } from './components/AnalyticsTracker';
+import { AdminIntegracao } from './pages/admin/AdminIntegracao';
 
 /** Raiz: loja no subdomínio ou página do domínio principal (sem loja no host). */
 function TenantOrApexHome() {
@@ -30,6 +32,7 @@ export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
+        <AnalyticsTracker />
         <Routes>
           <Route path="/super/entrar" element={<SuperLoginPage />} />
           <Route path="/super" element={<SuperLayout />}>
@@ -56,6 +59,7 @@ export default function App() {
             <Route path="dias" element={<AdminDays />} />
             <Route path="pedidos" element={<AdminOrders />} />
             <Route path="producao" element={<AdminProduction />} />
+            <Route path="integracao" element={<AdminIntegracao />} />
           </Route>
           <Route path="/admin/:slug" element={<AdminLayout />}>
             <Route index element={<AdminDashboard />} />
@@ -63,6 +67,7 @@ export default function App() {
             <Route path="dias" element={<AdminDays />} />
             <Route path="pedidos" element={<AdminOrders />} />
             <Route path="producao" element={<AdminProduction />} />
+            <Route path="integracao" element={<AdminIntegracao />} />
           </Route>
 
           <Route path="/" element={<TenantOrApexHome />} />

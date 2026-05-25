@@ -30,7 +30,7 @@ DECLARE
   vat_inter TEXT;
   vat_normal TEXT;
 BEGIN
-  FOR loja IN SELECT id FROM bakeries LOOP
+  FOR loja IN SELECT id FROM "bakeries" LOOP
     vat_reduced := gen_random_uuid()::text;
     vat_inter := gen_random_uuid()::text;
     vat_normal := gen_random_uuid()::text;

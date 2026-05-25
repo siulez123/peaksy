@@ -133,7 +133,7 @@ export async function superRoutes(fastify: FastifyInstance) {
     '/super/lojas',
     {
       schema: {
-        description: 'List all bakeries',
+        description: 'List all lojas',
         tags: ['super'],
         security: [{ bearerAuth: [] }],
         querystring: {

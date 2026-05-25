@@ -9,7 +9,7 @@ datasource db {
 
 enum UserRole {
   SUPER_ADMIN
-  LOJA_ADMIN @map("BAKERY_ADMIN")
+  LOJA_ADMIN
 }
 
 enum Plan {
@@ -86,7 +86,7 @@ model Loja {
   availableDayPickupDates   AvailableDayPickupDate[]
   analyticsEvents           AnalyticsEvent[]
 
-  @@map("bakeries")
+  @@map("lojas")
 }
 
 model AnalyticsEvent {
@@ -94,7 +94,7 @@ model AnalyticsEvent {
   kind      AnalyticsEventKind
   page      AnalyticsPage
   path      String               @db.VarChar(500)
-  lojaId    String?              @map("bakeryId")
+  lojaId    String?
   /// Variante do código HTML: link, button, iframe
   embedKey  String?              @db.VarChar(32)
   referrer  String?              @db.VarChar(500)
@@ -103,15 +103,15 @@ model AnalyticsEvent {
 
   loja Loja? @relation(fields: [lojaId], references: [id], onDelete: SetNull)
 
-  @@index([lojaId, createdAt], map: "analytics_events_bakeryId_createdAt_idx")
-  @@index([page, createdAt], map: "analytics_events_page_createdAt_idx")
-  @@index([embedKey, createdAt], map: "analytics_events_embedKey_createdAt_idx")
+  @@index([lojaId, createdAt])
+  @@index([page, createdAt])
+  @@index([embedKey, createdAt])
   @@map("analytics_events")
 }
 
 model User {
   id           String    @id @default(uuid())
-  lojaId       String?   @map("bakeryId")
+  lojaId       String?
   role         UserRole
   email        String    @unique
   passwordHash String
@@ -124,7 +124,7 @@ model User {
 
 model VatRate {
   id          String   @id @default(uuid())
-  lojaId      String   @map("bakeryId")
+  lojaId      String
   label       String
   ratePercent Decimal  @db.Decimal(5, 2)
   sortOrder   Int      @default(0)
@@ -139,7 +139,7 @@ model VatRate {
 
 model Product {
   id          String   @id @default(uuid())
-  lojaId      String   @map("bakeryId")
+  lojaId      String
   vatRateId   String
   name        String
   variant     String
@@ -159,7 +159,7 @@ model Product {
 
 model AvailableDay {
   id            String   @id @default(uuid())
-  lojaId        String   @map("bakeryId")
+  lojaId        String
   /// Primeiro dia de levantamento do período (cache = mínimo das regras)
   pickupDate    DateTime @db.Date
   /// Último dia de levantamento do período (cache = máximo das regras)
@@ -180,14 +180,14 @@ model AvailableDay {
   productCaps     AvailableDayProductCap[]
   pickupDateRules AvailableDayPickupDate[]
 
-  @@index([lojaId, pickupDate], map: "available_days_bakeryId_pickupDate_idx")
+  @@index([lojaId, pickupDate])
   @@map("available_days")
 }
 
 /// Uma data civil de levantamento com o respetivo limite de encomenda (antes do dia de levantamento).
 model AvailableDayPickupDate {
   id             String   @id @default(uuid())
-  lojaId         String   @map("bakeryId")
+  lojaId         String
   availableDayId String
   pickupDate     DateTime @db.Date
   orderDeadline  DateTime
@@ -196,13 +196,13 @@ model AvailableDayPickupDate {
   availableDay AvailableDay @relation(fields: [availableDayId], references: [id], onDelete: Cascade)
 
   @@unique([availableDayId, pickupDate])
-  @@index([lojaId, pickupDate], map: "available_day_pickup_dates_bakeryId_pickupDate_idx")
+  @@index([lojaId, pickupDate])
   @@map("available_day_pickup_dates")
 }
 
 model AvailableDayProductCap {
   id             String @id @default(uuid())
-  lojaId         String @map("bakeryId")
+  lojaId         String
   availableDayId String
   productId      String
   cap            Int
@@ -217,7 +217,7 @@ model AvailableDayProductCap {
 
 model Order {
   id              String      @id @default(uuid())
-  lojaId          String      @map("bakeryId")
+  lojaId          String
   availableDayId  String
   pickupDate      DateTime    @db.Date
   /// Hora de levantamento escolhida (HH:00 ou HH:30)

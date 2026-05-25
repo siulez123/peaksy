@@ -24,6 +24,26 @@ enum OrderStatus {
   PICKED_UP
 }
 
+enum AnalyticsEventKind {
+  PAGE_VIEW
+  EMBED_LAND
+}
+
+/// Páginas / integrações rastreadas (analytics).
+enum AnalyticsPage {
+  APEX_HOME
+  SHOP
+  SHOP_SUCCESS
+  SHOP_CANCEL
+  PICK_SLUG
+  ADMIN_LOGIN
+  ADMIN_DASHBOARD
+  SUPER_LOGIN
+  SUPER_DASHBOARD
+  NOT_FOUND
+  OTHER
+}
+
 model Loja {
   id        String   @id @default(uuid())
   name      String
@@ -45,8 +65,29 @@ model Loja {
   orders           Order[]
   productCaps               AvailableDayProductCap[]
   availableDayPickupDates   AvailableDayPickupDate[]
+  analyticsEvents           AnalyticsEvent[]
 
   @@map("bakeries")
+}
+
+model AnalyticsEvent {
+  id        String               @id @default(uuid())
+  kind      AnalyticsEventKind
+  page      AnalyticsPage
+  path      String               @db.VarChar(500)
+  lojaId    String?              @map("bakeryId")
+  /// Variante do código HTML: link, button, iframe
+  embedKey  String?              @db.VarChar(32)
+  referrer  String?              @db.VarChar(500)
+  sessionId String?              @db.VarChar(64)
+  createdAt DateTime             @default(now())
+
+  loja Loja? @relation(fields: [lojaId], references: [id], onDelete: SetNull)
+
+  @@index([lojaId, createdAt], map: "analytics_events_bakeryId_createdAt_idx")
+  @@index([page, createdAt], map: "analytics_events_page_createdAt_idx")
+  @@index([embedKey, createdAt], map: "analytics_events_embedKey_createdAt_idx")
+  @@map("analytics_events")
 }
 
 model User {

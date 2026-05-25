@@ -2,13 +2,14 @@ import { Link } from 'react-router-dom';
 import { Store } from 'lucide-react';
 import { Card } from '../components/ui';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
-import { useHostTenantSlug } from '../lib/tenantHost';
+import { platformHomeHref, useHostTenantSlug } from '../lib/tenantHost';
 import { useI18n } from '../i18n/context';
 
 /** Loja inexistente ou inativa (slug inválido). */
 export function LojaNotFoundPage({ slug }: { slug: string }) {
   const hostSlug = useHostTenantSlug();
   const { t } = useI18n();
+  const peaksyHomeHref = platformHomeHref();
 
   return (
     <div className="mx-auto max-w-lg px-4 py-16 sm:py-24">
@@ -23,12 +24,12 @@ export function LojaNotFoundPage({ slug }: { slug: string }) {
           <p className="mt-4 text-xs text-muted">{t('lojaNotFound.hostHint')}</p>
         ) : null}
         <div className="mt-8 flex flex-col gap-2 sm:flex-row sm:justify-center">
-          <Link
-            to="/"
+          <a
+            href={peaksyHomeHref}
             className="inline-flex min-h-[2.75rem] items-center justify-center rounded-xl bg-primary px-5 text-sm font-medium text-white shadow-[var(--shadow-primary)] transition-all hover:bg-primary-hover"
           >
             {t('lojaNotFound.peaksyHome')}
-          </Link>
+          </a>
           {!hostSlug && (
             <Link
               to="/loja"

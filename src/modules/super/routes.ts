@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import bcrypt from 'bcryptjs';
 import { NotFoundError, ValidationError, ConflictError } from '../../lib/errors';
+import { analyticsCreatedAtWhere } from '../../lib/analytics';
 
 const lojaCreateSchema = z.object({
   name: z.string().min(1).max(200),
@@ -623,6 +624,12 @@ export async function superRoutes(fastify: FastifyInstance) {
         recent30Revenue,
         orderCountsByLoja,
         paidStatsByLoja,
+        orderStatusByLoja,
+        activeProductsByLoja,
+        recent7OrdersByLoja,
+        recent7PaidByLoja,
+        recent30OrdersByLoja,
+        recent30PaidByLoja,
       ] = await Promise.all([
         fastify.prisma.loja.findMany({
           select: {
@@ -677,6 +684,38 @@ export async function superRoutes(fastify: FastifyInstance) {
           _count: { _all: true },
           _sum: { totalCents: true },
         }),
+        fastify.prisma.order.groupBy({
+          by: ['lojaId', 'status'],
+          where: orderWhere,
+          _count: { _all: true },
+        }),
+        fastify.prisma.product.groupBy({
+          by: ['lojaId'],
+          where: { active: true },
+          _count: { _all: true },
+        }),
+        fastify.prisma.order.groupBy({
+          by: ['lojaId'],
+          where: { createdAt: { gte: last7From } },
+          _count: { _all: true },
+        }),
+        fastify.prisma.order.groupBy({
+          by: ['lojaId'],
+          where: { paid: true, createdAt: { gte: last7From } },
+          _count: { _all: true },
+          _sum: { totalCents: true },
+        }),
+        fastify.prisma.order.groupBy({
+          by: ['lojaId'],
+          where: { createdAt: { gte: last30From } },
+          _count: { _all: true },
+        }),
+        fastify.prisma.order.groupBy({
+          by: ['lojaId'],
+          where: { paid: true, createdAt: { gte: last30From } },
+          _count: { _all: true },
+          _sum: { totalCents: true },
+        }),
       ]);
 
       const revenueCents = totalRevenue._sum.totalCents || 0;
@@ -706,12 +745,44 @@ export async function superRoutes(fastify: FastifyInstance) {
         ])
       );
 
+      const statusByLojaMap = new Map<string, { RECEIVED: number; READY: number; PICKED_UP: number }>();
+      for (const row of orderStatusByLoja) {
+        let entry = statusByLojaMap.get(row.lojaId);
+        if (!entry) {
+          entry = { RECEIVED: 0, READY: 0, PICKED_UP: 0 };
+          statusByLojaMap.set(row.lojaId, entry);
+        }
+        entry[row.status] = row._count._all;
+      }
+
+      const activeProductsMap = new Map(
+        activeProductsByLoja.map((row) => [row.lojaId, row._count._all])
+      );
+
+      const recent7OrdersMap = new Map(
+        recent7OrdersByLoja.map((row) => [row.lojaId, row._count._all])
+      );
+      const recent7RevenueMap = new Map(
+        recent7PaidByLoja.map((row) => [row.lojaId, row._sum.totalCents || 0])
+      );
+      const recent30OrdersMap = new Map(
+        recent30OrdersByLoja.map((row) => [row.lojaId, row._count._all])
+      );
+      const recent30RevenueMap = new Map(
+        recent30PaidByLoja.map((row) => [row.lojaId, row._sum.totalCents || 0])
+      );
+
       const lojaRanking = lojas
         .map((loja) => {
           const orders = orderCountMap.get(loja.id) || 0;
           const paid = paidStatsMap.get(loja.id);
           const paidOrdersCount = paid?.count || 0;
           const lojaRevenue = paid?.revenueCents || 0;
+          const byStatus = statusByLojaMap.get(loja.id) || {
+            RECEIVED: 0,
+            READY: 0,
+            PICKED_UP: 0,
+          };
           return {
             id: loja.id,
             name: loja.name,
@@ -720,10 +791,23 @@ export async function superRoutes(fastify: FastifyInstance) {
             active: loja.active,
             locality: loja.locality,
             products: loja._count.products,
+            activeProducts: activeProductsMap.get(loja.id) || 0,
             orders,
             paidOrders: paidOrdersCount,
+            unpaidOrders: orders - paidOrdersCount,
             revenueCents: lojaRevenue,
             averageTicketCents: averageTicketCents(lojaRevenue, paidOrdersCount),
+            byStatus,
+            recent: {
+              last7Days: {
+                orders: recent7OrdersMap.get(loja.id) || 0,
+                revenueCents: recent7RevenueMap.get(loja.id) || 0,
+              },
+              last30Days: {
+                orders: recent30OrdersMap.get(loja.id) || 0,
+                revenueCents: recent30RevenueMap.get(loja.id) || 0,
+              },
+            },
           };
         })
         .sort((a, b) => b.revenueCents - a.revenueCents || b.orders - a.orders);
@@ -811,6 +895,9 @@ export async function superRoutes(fastify: FastifyInstance) {
       const orderWhere = { lojaId: id, ...orderCreatedAtWhere(from, to) };
       const paidOrderWhere = { ...orderWhere, paid: true };
 
+      const last7From = daysAgoDate(7);
+      const last30From = daysAgoDate(30);
+
       const [
         totalProducts,
         activeProducts,
@@ -819,6 +906,10 @@ export async function superRoutes(fastify: FastifyInstance) {
         unpaidOrders,
         totalRevenue,
         ordersByStatus,
+        recent7Orders,
+        recent7Revenue,
+        recent30Orders,
+        recent30Revenue,
       ] = await Promise.all([
         fastify.prisma.product.count({ where: { lojaId: id } }),
         fastify.prisma.product.count({ where: { lojaId: id, active: true } }),
@@ -833,6 +924,20 @@ export async function superRoutes(fastify: FastifyInstance) {
           by: ['status'],
           where: orderWhere,
           _count: { _all: true },
+        }),
+        fastify.prisma.order.count({
+          where: { lojaId: id, createdAt: { gte: last7From } },
+        }),
+        fastify.prisma.order.aggregate({
+          where: { lojaId: id, paid: true, createdAt: { gte: last7From } },
+          _sum: { totalCents: true },
+        }),
+        fastify.prisma.order.count({
+          where: { lojaId: id, createdAt: { gte: last30From } },
+        }),
+        fastify.prisma.order.aggregate({
+          where: { lojaId: id, paid: true, createdAt: { gte: last30From } },
+          _sum: { totalCents: true },
         }),
       ]);
 
@@ -870,6 +975,173 @@ export async function superRoutes(fastify: FastifyInstance) {
         revenue: {
           totalCents: revenueCents,
         },
+        recent: {
+          last7Days: {
+            orders: recent7Orders,
+            revenueCents: recent7Revenue._sum.totalCents || 0,
+          },
+          last30Days: {
+            orders: recent30Orders,
+            revenueCents: recent30Revenue._sum.totalCents || 0,
+          },
+        },
+      };
+    }
+  );
+
+  // GET /super/analytics
+  fastify.get(
+    '/super/analytics',
+    {
+      schema: {
+        description: 'Analytics de páginas e códigos HTML (embeds)',
+        tags: ['super'],
+        security: [{ bearerAuth: [] }],
+        querystring: {
+          type: 'object',
+          properties: {
+            from: { type: 'string', format: 'date' },
+            to: { type: 'string', format: 'date' },
+          },
+        },
+      },
+      onRequest: [requireSuperAdmin],
+    },
+    async (request, reply) => {
+      const { from, to } = request.query as { from?: string; to?: string };
+      const where = analyticsCreatedAtWhere(from, to);
+
+      const [
+        totalEvents,
+        pageViewCount,
+        embedLandCount,
+        sessionsGrouped,
+        byPage,
+        byEmbed,
+        byLojaPage,
+        byLojaEmbed,
+      ] = await Promise.all([
+        fastify.prisma.analyticsEvent.count({ where }),
+        fastify.prisma.analyticsEvent.count({
+          where: { ...where, kind: 'PAGE_VIEW' },
+        }),
+        fastify.prisma.analyticsEvent.count({
+          where: { ...where, kind: 'EMBED_LAND' },
+        }),
+        fastify.prisma.analyticsEvent.groupBy({
+          by: ['sessionId'],
+          where: { ...where, sessionId: { not: null } },
+          _count: { _all: true },
+        }),
+        fastify.prisma.analyticsEvent.groupBy({
+          by: ['page'],
+          where: { ...where, kind: 'PAGE_VIEW' },
+          _count: { _all: true },
+        }),
+        fastify.prisma.analyticsEvent.groupBy({
+          by: ['embedKey', 'lojaId'],
+          where: { ...where, embedKey: { not: null } },
+          _count: { _all: true },
+        }),
+        fastify.prisma.analyticsEvent.groupBy({
+          by: ['lojaId', 'page'],
+          where: { ...where, kind: 'PAGE_VIEW', lojaId: { not: null } },
+          _count: { _all: true },
+        }),
+        fastify.prisma.analyticsEvent.groupBy({
+          by: ['lojaId', 'embedKey'],
+          where: { ...where, kind: 'EMBED_LAND', lojaId: { not: null } },
+          _count: { _all: true },
+        }),
+      ]);
+
+      const lojaIds = new Set<string>();
+      for (const row of byLojaPage) if (row.lojaId) lojaIds.add(row.lojaId);
+      for (const row of byLojaEmbed) if (row.lojaId) lojaIds.add(row.lojaId);
+      for (const row of byEmbed) if (row.lojaId) lojaIds.add(row.lojaId);
+
+      const lojas =
+        lojaIds.size > 0
+          ? await fastify.prisma.loja.findMany({
+              where: { id: { in: [...lojaIds] } },
+              select: { id: true, name: true, slug: true },
+            })
+          : [];
+      const lojaNameMap = new Map(lojas.map((l) => [l.id, l]));
+
+      const lojaStatsMap = new Map<
+        string,
+        {
+          lojaId: string;
+          name: string;
+          slug: string;
+          pageViews: number;
+          embedLands: number;
+          byPage: Record<string, number>;
+          byEmbed: Record<string, number>;
+        }
+      >();
+
+      for (const id of lojaIds) {
+        const loja = lojaNameMap.get(id);
+        lojaStatsMap.set(id, {
+          lojaId: id,
+          name: loja?.name ?? id,
+          slug: loja?.slug ?? '',
+          pageViews: 0,
+          embedLands: 0,
+          byPage: {},
+          byEmbed: {},
+        });
+      }
+
+      for (const row of byLojaPage) {
+        if (!row.lojaId) continue;
+        const entry = lojaStatsMap.get(row.lojaId);
+        if (!entry) continue;
+        entry.pageViews += row._count._all;
+        entry.byPage[row.page] = row._count._all;
+      }
+
+      for (const row of byLojaEmbed) {
+        if (!row.lojaId || !row.embedKey) continue;
+        const entry = lojaStatsMap.get(row.lojaId);
+        if (!entry) continue;
+        entry.embedLands += row._count._all;
+        entry.byEmbed[row.embedKey] = (entry.byEmbed[row.embedKey] || 0) + row._count._all;
+      }
+
+      const embedBreakdown = byEmbed
+        .filter((r) => r.embedKey)
+        .map((r) => {
+          const loja = r.lojaId ? lojaNameMap.get(r.lojaId) : null;
+          return {
+            embedKey: r.embedKey!,
+            lojaId: r.lojaId,
+            lojaName: loja?.name ?? null,
+            lojaSlug: loja?.slug ?? null,
+            events: r._count._all,
+          };
+        })
+        .sort((a, b) => b.events - a.events);
+
+      const lojaRanking = [...lojaStatsMap.values()].sort(
+        (a, b) => b.pageViews + b.embedLands - (a.pageViews + a.embedLands)
+      );
+
+      return {
+        period: { from: from ?? null, to: to ?? null },
+        totals: {
+          events: totalEvents,
+          pageViews: pageViewCount,
+          embedLands: embedLandCount,
+          sessions: sessionsGrouped.length,
+        },
+        byPage: byPage
+          .map((r) => ({ page: r.page, views: r._count._all }))
+          .sort((a, b) => b.views - a.views),
+        embedBreakdown,
+        lojaRanking,
       };
     }
   );

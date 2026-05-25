@@ -10,6 +10,91 @@ function daysAgoIso(days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+type LojaRow = SuperMetrics['lojaRanking'][number];
+
+function LojaMetricsPanel({ loja, t }: { loja: LojaRow; t: (key: string, vars?: Record<string, string>) => string }) {
+  const stats = [
+    {
+      label: t('superDashboard.products'),
+      value: loja.products,
+      sub: t('superDashboard.productsActive', {
+        active: String(loja.activeProducts),
+        total: String(loja.products),
+      }),
+    },
+    {
+      label: t('superDashboard.orders'),
+      value: loja.orders,
+      sub: t('superDashboard.ordersSub', {
+        paid: String(loja.paidOrders),
+        unpaid: String(loja.unpaidOrders),
+      }),
+    },
+    {
+      label: t('superDashboard.revenue'),
+      value: formatMoney(loja.revenueCents),
+      sub: t('superDashboard.avgTicket', { value: formatMoney(loja.averageTicketCents) }),
+    },
+  ];
+
+  return (
+    <div className="border-t border-border px-4 pb-4 pt-3">
+      <div className="grid gap-3 sm:grid-cols-3">
+        {stats.map((stat) => (
+          <div key={stat.label} className="rounded-lg bg-slate-50/80 px-3 py-2.5">
+            <p className="text-xs font-medium text-muted">{stat.label}</p>
+            <p className="mt-1 text-lg font-semibold tabular-nums text-ink">{stat.value}</p>
+            {stat.sub && <p className="mt-0.5 text-xs text-muted">{stat.sub}</p>}
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+        <div>
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">
+            {t('superDashboard.orderStatus')}
+          </h3>
+          <dl className="mt-2 space-y-1.5 text-sm">
+            {(
+              [
+                ['RECEIVED', t('superDashboard.statusReceived')],
+                ['READY', t('superDashboard.statusReady')],
+                ['PICKED_UP', t('superDashboard.statusPickedUp')],
+              ] as const
+            ).map(([key, label]) => (
+              <div key={key} className="flex justify-between gap-3">
+                <dt className="text-muted">{label}</dt>
+                <dd className="font-medium tabular-nums text-ink">{loja.byStatus[key]}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+        <div>
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">
+            {t('superDashboard.recentActivity')}
+          </h3>
+          <dl className="mt-2 space-y-1.5 text-sm">
+            <div className="flex justify-between gap-3">
+              <dt className="text-muted">{t('superDashboard.last7Days')}</dt>
+              <dd className="text-right tabular-nums text-ink">
+                {loja.recent.last7Days.orders} {t('superDashboard.ordersShort')} ·{' '}
+                {formatMoney(loja.recent.last7Days.revenueCents)}
+              </dd>
+            </div>
+            <div className="flex justify-between gap-3">
+              <dt className="text-muted">{t('superDashboard.last30Days')}</dt>
+              <dd className="text-right tabular-nums text-ink">
+                {loja.recent.last30Days.orders} {t('superDashboard.ordersShort')} ·{' '}
+                {formatMoney(loja.recent.last30Days.revenueCents)}
+              </dd>
+            </div>
+          </dl>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function BarChart({
   items,
   emptyLabel,
@@ -138,7 +223,12 @@ export function SuperDashboard() {
       {loading && !m && <p className="text-sm text-muted">{t('common.loading')}</p>}
 
       {m && (
-        <div className="space-y-6">
+        <div className="space-y-8">
+          <div>
+            <h2 className="text-sm font-semibold text-ink">{t('superDashboard.globalView')}</h2>
+            <p className="mt-0.5 text-xs text-muted">{periodLabel}</p>
+          </div>
+
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {[
               {
@@ -260,6 +350,8 @@ export function SuperDashboard() {
                       <th className="pb-2 pr-3 font-medium">{t('superDashboard.colPlan')}</th>
                       <th className="pb-2 pr-3 text-right font-medium">{t('superDashboard.colProducts')}</th>
                       <th className="pb-2 pr-3 text-right font-medium">{t('superDashboard.colOrders')}</th>
+                      <th className="pb-2 pr-3 text-right font-medium">{t('superDashboard.colPaid')}</th>
+                      <th className="pb-2 pr-3 text-right font-medium">{t('superDashboard.colUnpaid')}</th>
                       <th className="pb-2 pr-3 text-right font-medium">{t('superDashboard.colRevenue')}</th>
                       <th className="pb-2 text-right font-medium">{t('superDashboard.colAvgTicket')}</th>
                     </tr>
@@ -278,6 +370,8 @@ export function SuperDashboard() {
                         <td className="py-2.5 pr-3 text-muted">{loja.plan}</td>
                         <td className="py-2.5 pr-3 text-right tabular-nums">{loja.products}</td>
                         <td className="py-2.5 pr-3 text-right tabular-nums">{loja.orders}</td>
+                        <td className="py-2.5 pr-3 text-right tabular-nums text-emerald-700">{loja.paidOrders}</td>
+                        <td className="py-2.5 pr-3 text-right tabular-nums text-amber-700">{loja.unpaidOrders}</td>
                         <td className="py-2.5 pr-3 text-right tabular-nums font-medium">
                           {formatMoney(loja.revenueCents)}
                         </td>
@@ -291,6 +385,42 @@ export function SuperDashboard() {
               </div>
             </Card>
           </div>
+
+          <section>
+            <h2 className="text-sm font-semibold text-ink">{t('superDashboard.perLojaTitle')}</h2>
+            <p className="mt-1 text-xs text-muted">{t('superDashboard.perLojaDesc')}</p>
+            <div className="mt-4 space-y-2">
+              {m.lojaRanking.map((loja) => (
+                <details
+                  key={loja.id}
+                  className="group overflow-hidden rounded-xl border border-border bg-white shadow-sm"
+                >
+                  <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3 marker:content-none [&::-webkit-details-marker]:hidden">
+                    <span className="flex min-w-0 flex-1 flex-col gap-0.5 sm:flex-row sm:items-center sm:gap-4">
+                      <span className="min-w-0">
+                        <span className="font-medium text-ink">{loja.name}</span>
+                        <span className="mt-0.5 block text-xs text-muted sm:mt-0 sm:inline sm:before:content-['·_']">
+                          {loja.slug}
+                          {!loja.active && ` · ${t('superDashboard.inactive')}`}
+                          {loja.locality && ` · ${loja.locality}`}
+                        </span>
+                      </span>
+                      <span className="flex shrink-0 flex-wrap gap-x-4 gap-y-1 text-xs tabular-nums text-muted sm:ml-auto">
+                        <span>
+                          {loja.orders} {t('superDashboard.ordersShort')} · {formatMoney(loja.revenueCents)}
+                        </span>
+                        <span className="rounded bg-slate-100 px-1.5 py-0.5 font-medium text-ink">{loja.plan}</span>
+                      </span>
+                    </span>
+                    <span className="shrink-0 text-xs font-medium text-primary group-open:hidden">
+                      {t('superDashboard.expandLoja')}
+                    </span>
+                  </summary>
+                  <LojaMetricsPanel loja={loja} t={t} />
+                </details>
+              ))}
+            </div>
+          </section>
         </div>
       )}
     </div>

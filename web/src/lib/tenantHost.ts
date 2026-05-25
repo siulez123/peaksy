@@ -60,6 +60,19 @@ export function tenantSlugFromHostname(hostname: string): string | null {
   return slugFromGenericSubdomain(h);
 }
 
+/** URL da homepage da plataforma (apex). Em subdomínio de loja → https://peaksy.pro/ */
+export function platformHomeHref(): string {
+  if (typeof window === 'undefined') return '/';
+
+  const hostSlug = tenantSlugFromHostname(window.location.hostname);
+  if (hostSlug) {
+    const protocol = window.location.protocol || 'https:';
+    return `${protocol}//${CONFIGURED_APP_DOMAIN}/`;
+  }
+
+  return '/';
+}
+
 /** Slug derivado apenas do host (subdomínio). */
 export function useHostTenantSlug(): string | null {
   return useMemo(() => {

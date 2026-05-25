@@ -423,9 +423,41 @@ export type SuperMetrics = {
     active: boolean;
     locality: string;
     products: number;
+    activeProducts: number;
     orders: number;
     paidOrders: number;
+    unpaidOrders: number;
     revenueCents: number;
     averageTicketCents: number;
+    byStatus: { RECEIVED: number; READY: number; PICKED_UP: number };
+    recent: {
+      last7Days: { orders: number; revenueCents: number };
+      last30Days: { orders: number; revenueCents: number };
+    };
   }>;
+};
+
+export type SuperLojaMetrics = {
+  period: { from: string | null; to: string | null };
+  loja: {
+    id: string;
+    name: string;
+    slug: string;
+    plan: string;
+    active: boolean;
+    locality: string;
+  };
+  products: { total: number; active: number };
+  orders: {
+    total: number;
+    paid: number;
+    unpaid: number;
+    averageTicketCents: number;
+    byStatus: { RECEIVED: number; READY: number; PICKED_UP: number };
+  };
+  revenue: { totalCents: number };
+  recent: {
+    last7Days: { orders: number; revenueCents: number };
+    last30Days: { orders: number; revenueCents: number };
+  };
 };

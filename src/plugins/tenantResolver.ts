@@ -39,7 +39,8 @@ async function tenantResolverPluginFn(
       request.url.startsWith('/super/') ||
       request.url.startsWith('/docs') ||
       request.url.startsWith('/auth/') ||
-      request.url.startsWith('/health')
+      request.url.startsWith('/health') ||
+      pathOnly.startsWith('/public/analytics/')
     ) {
       return;
     }
@@ -89,7 +90,11 @@ async function tenantResolverPluginFn(
         hostWithoutPort === '127.0.0.1')
     ) {
       // Only allow super admin endpoints
-      if (!request.url.startsWith('/super/') && !request.url.startsWith('/auth/')) {
+      if (
+        !request.url.startsWith('/super/') &&
+        !request.url.startsWith('/auth/') &&
+        !pathOnly.startsWith('/public/analytics/')
+      ) {
         throw new ForbiddenError('Tenant required for this endpoint. Use X-Tenant-Slug header in development.');
       }
       return;

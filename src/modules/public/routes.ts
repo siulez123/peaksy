@@ -10,6 +10,7 @@ import {
 import { isValidInternationalPhone } from '../../lib/phone';
 import { notifyOrderPaid } from '../../lib/orderNotifications';
 import { isTimeWithinWindow, isValidHhHalfHour } from '../../lib/timeOfDay';
+import { publicAnalyticsRoutes } from './analyticsRoutes';
 
 /** Só instanciar com chave real — `new Stripe('')` rebenta ao carregar o módulo (ex.: Railway sem Stripe). */
 let stripeSingleton: Stripe | null = null;
@@ -613,5 +614,7 @@ export async function publicRoutes(fastify: FastifyInstance) {
       return { received: true };
     }
   );
+
+  await fastify.register(publicAnalyticsRoutes);
 }
 

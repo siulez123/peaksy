@@ -186,10 +186,20 @@ export const pt = {
       'Podes usar o indicativo do país (ex.: +351 ou 0033). Entre 8 e 15 dígitos no total.',
   },
   shopMessages: {
-    successTitle: 'Pagamento recebido',
-    successBody:
-      'O teu pedido foi registado. Enviámos uma mensagem SMS com o resumo; se indicaste email, também recebes a confirmação no correio.',
-    session: 'Sessão:',
+    successTitle: 'Encomenda confirmada',
+    successHint:
+      'Enviámos um SMS com o resumo. Se indicaste email, também recebes a confirmação.',
+    successFallback:
+      'A tua encomenda foi registada. Se recebeste SMS ou email, aí encontras o resumo.',
+    loadingDetails: 'A carregar detalhes…',
+    orderRef: 'Referência',
+    pickup: 'Levantamento',
+    items: 'Artigos',
+    notes: 'Notas',
+    payment: 'Pagamento',
+    payOnlineDone: 'Pago online',
+    payOnlinePending: 'Pagamento online em confirmação',
+    payInStoreOnPickup: 'A pagar na loja no levantamento',
     cancelTitle: 'Pagamento cancelado',
     cancelBody: 'Podes voltar a tentar quando quiseres.',
     backToShop: 'Voltar à loja',

@@ -184,10 +184,20 @@ export const en = {
       'You may use the country code (e.g. +351 or 0033). 8 to 15 digits in total.',
   },
   shopMessages: {
-    successTitle: 'Payment received',
-    successBody:
-      'Your order was registered. We sent an SMS summary; if you provided an email, you will also receive confirmation.',
-    session: 'Session:',
+    successTitle: 'Order confirmed',
+    successHint:
+      'We sent an SMS with your summary. If you provided an email, you will also receive confirmation.',
+    successFallback:
+      'Your order was registered. Check your SMS or email for the summary.',
+    loadingDetails: 'Loading details…',
+    orderRef: 'Reference',
+    pickup: 'Pickup',
+    items: 'Items',
+    notes: 'Notes',
+    payment: 'Payment',
+    payOnlineDone: 'Paid online',
+    payOnlinePending: 'Online payment confirming',
+    payInStoreOnPickup: 'Pay in store on pickup',
     cancelTitle: 'Payment cancelled',
     cancelBody: 'You can try again whenever you like.',
     backToShop: 'Back to shop',

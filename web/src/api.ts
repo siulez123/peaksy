@@ -72,6 +72,24 @@ export type CheckoutResult = {
   successUrl?: string;
 };
 
+export type OrderConfirmation = {
+  orderRef: string;
+  lojaName: string;
+  customerName: string;
+  pickupDate: string;
+  pickupTime: string;
+  totalCents: number;
+  paymentMethod: CheckoutPaymentMethod;
+  paid: boolean;
+  notes: string | null;
+  items: Array<{
+    productName: string;
+    variant: string;
+    quantity: number;
+    lineCents: number;
+  }>;
+};
+
 export interface LoginResponse {
   token: string;
   user: AuthUser;
@@ -178,6 +196,18 @@ export const publicApi = {
       tenantSlug: slug,
       body: JSON.stringify(body),
     }),
+  orderConfirmation: (
+    slug: string,
+    q: { orderId?: string | null; sessionId?: string | null }
+  ) => {
+    const p = new URLSearchParams();
+    if (q.orderId) p.set('order_id', q.orderId);
+    if (q.sessionId) p.set('session_id', q.sessionId);
+    const s = p.toString();
+    return apiFetch<OrderConfirmation>(`/public/order-confirmation${s ? `?${s}` : ''}`, {
+      tenantSlug: slug,
+    });
+  },
 };
 
 export const adminApi = {

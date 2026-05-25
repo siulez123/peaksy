@@ -580,7 +580,7 @@ export async function publicRoutes(fastify: FastifyInstance) {
             quantity: item.quantity,
           })),
           mode: 'payment',
-          success_url: `${baseUrl}${successRel}?session_id={CHECKOUT_SESSION_ID}`,
+          success_url: `${baseUrl}${successRel}?session_id={CHECKOUT_SESSION_ID}&order_id=${order.id}`,
           cancel_url: `${baseUrl}${cancelRel}`,
           metadata: {
             orderId: order.id,
@@ -668,6 +668,74 @@ export async function publicRoutes(fastify: FastifyInstance) {
       }
 
       return { received: true };
+    }
+  );
+
+  // GET /public/order-confirmation — resumo da encomenda na página de sucesso
+  fastify.get(
+    '/public/order-confirmation',
+    {
+      schema: {
+        description: 'Detalhes públicos da encomenda (página de sucesso)',
+        tags: ['public'],
+        querystring: {
+          type: 'object',
+          properties: {
+            order_id: { type: 'string', format: 'uuid' },
+            session_id: { type: 'string' },
+          },
+        },
+      },
+      onRequest: [requireTenant],
+    },
+    async (request, reply) => {
+      const tenant = request.tenant!;
+      const q = request.query as { order_id?: string; session_id?: string };
+      const orderId = q.order_id?.trim();
+      const sessionId = q.session_id?.trim();
+
+      if (!orderId && !sessionId) {
+        throw new ValidationError('Indica order_id ou session_id.');
+      }
+
+      const order = await fastify.prisma.order.findFirst({
+        where: {
+          lojaId: tenant.lojaId,
+          ...(orderId && sessionId
+            ? {
+                OR: [{ id: orderId }, { stripeSessionId: sessionId }],
+              }
+            : orderId
+              ? { id: orderId }
+              : { stripeSessionId: sessionId! }),
+        },
+        include: {
+          items: { orderBy: { productNameSnapshot: 'asc' } },
+          loja: { select: { name: true } },
+        },
+      });
+
+      if (!order) {
+        throw new NotFoundError('Encomenda não encontrada');
+      }
+
+      return {
+        orderRef: order.id.slice(0, 8).toUpperCase(),
+        lojaName: order.loja.name,
+        customerName: order.customerName,
+        pickupDate: formatDateForDB(order.pickupDate),
+        pickupTime: order.pickupTime,
+        totalCents: order.totalCents,
+        paymentMethod: order.paymentMethod,
+        paid: order.paid,
+        notes: order.notes,
+        items: order.items.map((it) => ({
+          productName: it.productNameSnapshot,
+          variant: it.variantSnapshot,
+          quantity: it.quantity,
+          lineCents: it.unitPriceCentsSnapshot * it.quantity,
+        })),
+      };
     }
   );
 

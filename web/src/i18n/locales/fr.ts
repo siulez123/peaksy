@@ -186,10 +186,20 @@ export const fr = {
       'Vous pouvez utiliser l’indicatif pays (ex. +351 ou 0033). 8 à 15 chiffres au total.',
   },
   shopMessages: {
-    successTitle: 'Paiement reçu',
-    successBody:
-      'Votre commande a été enregistrée. Nous avons envoyé un SMS récapitulatif ; si vous avez indiqué un e-mail, vous recevrez aussi une confirmation.',
-    session: 'Session :',
+    successTitle: 'Commande confirmée',
+    successHint:
+      'Nous avons envoyé un SMS récapitulatif. Si vous avez indiqué un e-mail, vous recevrez aussi une confirmation.',
+    successFallback:
+      'Votre commande a été enregistrée. Consultez votre SMS ou e-mail pour le récapitulatif.',
+    loadingDetails: 'Chargement des détails…',
+    orderRef: 'Référence',
+    pickup: 'Retrait',
+    items: 'Articles',
+    notes: 'Notes',
+    payment: 'Paiement',
+    payOnlineDone: 'Payé en ligne',
+    payOnlinePending: 'Paiement en ligne en cours de confirmation',
+    payInStoreOnPickup: 'À payer en boutique au retrait',
     cancelTitle: 'Paiement annulé',
     cancelBody: 'Vous pouvez réessayer quand vous le souhaitez.',
     backToShop: 'Retour à la boutique',

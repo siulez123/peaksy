@@ -75,6 +75,17 @@ export type CheckoutResult = {
   successUrl?: string;
 };
 
+export type OrderConfirmationItem = {
+  productName: string;
+  variant: string;
+  quantity: number;
+  unitPriceCents: number;
+  lineCents: number;
+  vatRatePercent?: number;
+  vatRateLabel?: string;
+  lineVatCents?: number;
+};
+
 export type OrderConfirmation = {
   orderRef: string;
   lojaName: string;
@@ -82,15 +93,27 @@ export type OrderConfirmation = {
   pickupDate: string;
   pickupTime: string;
   totalCents: number;
+  totalVatCents?: number;
+  vatSummary?: Array<{
+    label: string;
+    ratePercent: number;
+    grossCents: number;
+    vatCents: number;
+  }>;
   paymentMethod: CheckoutPaymentMethod;
   paid: boolean;
   notes: string | null;
-  items: Array<{
-    productName: string;
-    variant: string;
-    quantity: number;
-    lineCents: number;
-  }>;
+  items: OrderConfirmationItem[];
+};
+
+export type PublicProduct = {
+  id: string;
+  name: string;
+  variant: string;
+  priceCents: number;
+  vatRatePercent: number;
+  vatRateLabel: string;
+  imageUrl: string | null;
 };
 
 export interface LoginResponse {
@@ -174,9 +197,7 @@ export const publicApi = {
     >('/public/available-days', { tenantSlug: slug }),
   products: (slug: string, pickupDate?: string) => {
     const q = pickupDate ? `?pickupDate=${encodeURIComponent(pickupDate)}` : '';
-    return apiFetch<
-      Array<{ id: string; name: string; variant: string; priceCents: number; imageUrl: string | null }>
-    >(`/public/products${q}`, { tenantSlug: slug });
+    return apiFetch<PublicProduct[]>(`/public/products${q}`, { tenantSlug: slug });
   },
   checkout: (
     slug: string,

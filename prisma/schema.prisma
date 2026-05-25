@@ -247,6 +247,8 @@ model OrderItem {
   productNameSnapshot     String
   variantSnapshot         String
   unitPriceCentsSnapshot  Int
+  vatRatePercentSnapshot  Decimal @db.Decimal(5, 2)
+  vatRateLabelSnapshot    String
   quantity                Int
   ready                   Boolean @default(false)
 

@@ -180,6 +180,12 @@ export const en = {
     choosePickupTime: 'Choose a time between {{min}} and {{max}}.',
     phoneHint:
       'You may use the country code (e.g. +351 or 0033). 8 to 15 digits in total.',
+    vatIncluded: 'VAT {{rate}}% incl.',
+    vatRateLabel: '{{label}} ({{rate}}%)',
+    vatLineDetail: 'incl. {{vat}} VAT ({{rate}}%)',
+    totalVat: 'Total VAT',
+    vatBreakdown: '{{label}} {{rate}}%: {{vat}}',
+    pricesIncludeVat: 'Prices include VAT.',
   },
   shopMessages: {
     successTitle: 'Order confirmed',

@@ -11,6 +11,7 @@ import { isValidInternationalPhone } from '../../lib/phone';
 import { notifyOrderInStore, notifyOrderPaid } from '../../lib/orderNotifications';
 import { isTimeWithinWindow, isValidHhHalfHour } from '../../lib/timeOfDay';
 import { publicAnalyticsRoutes } from './analyticsRoutes';
+import { vatCentsFromGrossCents, summarizeVatByRate } from '../../lib/vatAmounts';
 
 /** Só instanciar com chave real — `new Stripe('')` rebenta ao carregar o módulo (ex.: Railway sem Stripe). */
 let stripeSingleton: Stripe | null = null;
@@ -246,6 +247,8 @@ export async function publicRoutes(fastify: FastifyInstance) {
                 name: { type: 'string' },
                 variant: { type: 'string' },
                 priceCents: { type: 'number' },
+                vatRatePercent: { type: 'number' },
+                vatRateLabel: { type: 'string' },
                 imageUrl: { type: 'string', nullable: true },
               },
             },
@@ -258,7 +261,10 @@ export async function publicRoutes(fastify: FastifyInstance) {
       const tenant = request.tenant!;
       const { pickupDate } = request.query as { pickupDate?: string };
 
-      const where: any = {
+      const where: {
+        lojaId: string;
+        active: boolean;
+      } = {
         lojaId: tenant.lojaId,
         active: true,
       };
@@ -283,6 +289,7 @@ export async function publicRoutes(fastify: FastifyInstance) {
 
       const products = await fastify.prisma.product.findMany({
         where,
+        include: { vatRate: true },
         orderBy: [
           { name: 'asc' },
           { variant: 'asc' },
@@ -294,6 +301,8 @@ export async function publicRoutes(fastify: FastifyInstance) {
         name: p.name,
         variant: p.variant,
         priceCents: p.priceCents,
+        vatRatePercent: Number(p.vatRate.ratePercent),
+        vatRateLabel: p.vatRate.label,
         imageUrl: p.imageUrl,
       }));
     }
@@ -432,6 +441,7 @@ export async function publicRoutes(fastify: FastifyInstance) {
           lojaId: tenant.lojaId,
           active: true,
         },
+        include: { vatRate: true },
       });
 
       if (products.length !== productIds.length) {
@@ -444,6 +454,8 @@ export async function publicRoutes(fastify: FastifyInstance) {
         productNameSnapshot: string;
         variantSnapshot: string;
         unitPriceCentsSnapshot: number;
+        vatRatePercentSnapshot: number;
+        vatRateLabelSnapshot: string;
         quantity: number;
       }> = [];
 
@@ -489,6 +501,8 @@ export async function publicRoutes(fastify: FastifyInstance) {
           productNameSnapshot: product.name,
           variantSnapshot: product.variant,
           unitPriceCentsSnapshot: product.priceCents,
+          vatRatePercentSnapshot: Number(product.vatRate.ratePercent),
+          vatRateLabelSnapshot: product.vatRate.label,
           quantity: item.qty,
         });
       }
@@ -724,6 +738,29 @@ export async function publicRoutes(fastify: FastifyInstance) {
         throw new NotFoundError('Encomenda não encontrada');
       }
 
+      const itemRows = order.items.map((it) => {
+        const lineCents = it.unitPriceCentsSnapshot * it.quantity;
+        const ratePercent = Number(it.vatRatePercentSnapshot);
+        return {
+          productName: it.productNameSnapshot,
+          variant: it.variantSnapshot,
+          quantity: it.quantity,
+          unitPriceCents: it.unitPriceCentsSnapshot,
+          lineCents,
+          vatRatePercent: ratePercent,
+          vatRateLabel: it.vatRateLabelSnapshot,
+          lineVatCents: vatCentsFromGrossCents(lineCents, ratePercent),
+        };
+      });
+
+      const vatSummary = summarizeVatByRate(
+        itemRows.map((it) => ({
+          grossCents: it.lineCents,
+          ratePercent: it.vatRatePercent,
+          label: it.vatRateLabel,
+        }))
+      );
+
       return {
         orderRef: order.id.slice(0, 8).toUpperCase(),
         lojaName: order.loja.name,
@@ -731,15 +768,17 @@ export async function publicRoutes(fastify: FastifyInstance) {
         pickupDate: formatDateForDB(order.pickupDate),
         pickupTime: order.pickupTime,
         totalCents: order.totalCents,
+        totalVatCents: itemRows.reduce((s, it) => s + it.lineVatCents, 0),
+        vatSummary: vatSummary.map((r) => ({
+          label: r.label,
+          ratePercent: r.ratePercent,
+          grossCents: r.grossCents,
+          vatCents: r.vatCents,
+        })),
         paymentMethod: order.paymentMethod,
         paid: order.paid,
         notes: order.notes,
-        items: order.items.map((it) => ({
-          productName: it.productNameSnapshot,
-          variant: it.variantSnapshot,
-          quantity: it.quantity,
-          lineCents: it.unitPriceCentsSnapshot * it.quantity,
-        })),
+        items: itemRows,
       };
     }
   );

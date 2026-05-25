@@ -7,6 +7,7 @@ import {
   type CheckoutPaymentMethod,
   type LojaPublic,
   type OrderConfirmation,
+  type PublicProduct,
 } from '../../api';
 import { isValidInternationalPhone } from '../../lib/phone';
 import { formatPickupHourLabel, pickupHalfHourSlotsBetween } from '../../lib/timeOfDay';
@@ -20,6 +21,9 @@ import { platformHomeHref, useHostTenantSlug, useResolvedTenantSlug } from '../.
 import { shopHomePath, shopSuccessReturnPath } from '../../lib/shopPaths';
 import { OrderSuccessModal } from '../../components/OrderSuccessModal';
 import { ShopProductGrid } from '../../components/shop/ShopProductGrid';
+import { VatHint } from '../../components/shop/VatPrice';
+import { VatTotalsSummary } from '../../components/shop/VatTotalsSummary';
+import type { VatLine } from '../../lib/vatDisplay';
 
 const NOTES_MAX_LENGTH = 40;
 
@@ -33,7 +37,15 @@ type ShopDayRow = {
   canOrder: boolean;
 };
 
-type Line = { productId: string; name: string; variant: string; priceCents: number; qty: number };
+type Line = {
+  productId: string;
+  name: string;
+  variant: string;
+  priceCents: number;
+  vatRatePercent: number;
+  vatRateLabel: string;
+  qty: number;
+};
 
 type CartPanelProps = {
   lines: Line[];
@@ -97,9 +109,17 @@ function CartPanel({
               <div className="min-w-0">
                 <p className="break-words font-medium leading-snug text-ink">{l.name}</p>
                 <p className="mt-1 break-words text-xs leading-snug text-muted">{l.variant}</p>
-                <p className="mt-1 text-xs tabular-nums text-muted">
-                  {formatMoney(l.priceCents)} <span className="text-muted">{t('common.perUnit')}</span>
+                <p className="mt-1 text-xs tabular-nums text-ink">
+                  {formatMoney(l.priceCents)}{' '}
+                  <span className="text-muted">{t('common.perUnit')}</span>
                 </p>
+                <VatHint
+                  grossCents={l.priceCents}
+                  ratePercent={l.vatRatePercent}
+                  label={l.vatRateLabel}
+                  showAmount
+                  className="mt-0.5"
+                />
               </div>
               <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-border/80 pt-3">
                 <div className="flex items-center gap-1.5">
@@ -124,9 +144,17 @@ function CartPanel({
                   </button>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-right text-base font-semibold tabular-nums text-ink">
-                    {formatMoney(l.priceCents * l.qty)}
-                  </span>
+                  <div className="flex flex-col items-end gap-0.5">
+                    <span className="text-right text-base font-semibold tabular-nums text-ink">
+                      {formatMoney(l.priceCents * l.qty)}
+                    </span>
+                    <VatHint
+                      grossCents={l.priceCents * l.qty}
+                      ratePercent={l.vatRatePercent}
+                      showAmount
+                      className="text-right"
+                    />
+                  </div>
                   <button
                     type="button"
                     className="rounded-lg p-1.5 text-muted transition hover:bg-red-50 hover:text-red-700"
@@ -139,9 +167,11 @@ function CartPanel({
               </div>
             </li>
           ))}
-          <li className="flex justify-between border-t border-border pt-2 font-semibold">
-            <span>{t('common.total')}</span>
-            <span>{formatMoney(totalCents)}</span>
+          <li className="border-t border-border pt-3">
+            <VatTotalsSummary
+              lines={lines as VatLine[]}
+              totalGrossCents={totalCents}
+            />
           </li>
         </ul>
       )}
@@ -174,6 +204,7 @@ type CheckoutModalProps = {
   selectedDay: ShopDayRow | undefined;
   pickupTimeOk: boolean;
   totalCents: number;
+  vatLines: VatLine[];
   customerName: string;
   setCustomerName: (v: string) => void;
   customerPhone: string;
@@ -207,6 +238,7 @@ function CheckoutModal({
   selectedDay,
   pickupTimeOk,
   totalCents,
+  vatLines,
   customerName,
   setCustomerName,
   customerPhone,
@@ -256,12 +288,17 @@ function CheckoutModal({
           </button>
         </div>
         <div className="space-y-4 px-4 py-4 sm:px-6">
-          <p className="text-sm text-muted">
-            <span className="font-medium text-ink">{lojaLabel}</span>
-            {' · '}
-            {t('shop.checkoutTotal')}{' '}
-            <span className="font-semibold text-primary">{formatMoney(totalCents)}</span>
-          </p>
+          <div className="text-sm text-muted">
+            <p>
+              <span className="font-medium text-ink">{lojaLabel}</span>
+            </p>
+            <div className="mt-3 rounded-xl border border-border bg-canvas/80 p-3">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">
+                {t('shop.checkoutTotal')}
+              </p>
+              <VatTotalsSummary lines={vatLines} totalGrossCents={totalCents} />
+            </div>
+          </div>
           {(allowOnlinePayment || allowInStorePayment) && (
             <div className="rounded-xl border border-border bg-canvas/80 p-3">
               <h3 className="mb-2 text-sm font-semibold text-ink">{t('shop.paymentMethod')}</h3>
@@ -471,9 +508,7 @@ export function ShopPage() {
   const [days, setDays] = useState<ShopDayRow[]>([]);
   const [pickupDate, setPickupDate] = useState<string>('');
   const [pickupTime, setPickupTime] = useState('');
-  const [products, setProducts] = useState<
-    Array<{ id: string; name: string; variant: string; priceCents: number; imageUrl: string | null }>
-  >([]);
+  const [products, setProducts] = useState<PublicProduct[]>([]);
   const [productsLoading, setProductsLoading] = useState(false);
   const [cart, setCart] = useState<Record<string, Line>>({});
   const [loading, setLoading] = useState(true);
@@ -634,13 +669,27 @@ export function ShopPage() {
   /** Ao mudar o dia, mantém no carrinho só artigos que existem no catálogo desse dia (evita apagar tudo). */
   useEffect(() => {
     if (products.length === 0) return;
-    const validIds = new Set(products.map((p) => p.id));
     setCart((c) => {
       let changed = false;
       const next = { ...c };
       for (const id of Object.keys(next)) {
-        if (!validIds.has(id)) {
+        const p = products.find((x) => x.id === id);
+        if (!p) {
           delete next[id];
+          changed = true;
+          continue;
+        }
+        if (
+          next[id].vatRatePercent !== p.vatRatePercent ||
+          next[id].vatRateLabel !== p.vatRateLabel ||
+          next[id].priceCents !== p.priceCents
+        ) {
+          next[id] = {
+            ...next[id],
+            priceCents: p.priceCents,
+            vatRatePercent: p.vatRatePercent,
+            vatRateLabel: p.vatRateLabel,
+          };
           changed = true;
         }
       }
@@ -662,11 +711,22 @@ export function ShopPage() {
     setPickupTime((prev) => (prev && slots.includes(prev) ? prev : slots[0]));
   }, [pickupDate, days]);
 
-  const add = (p: { id: string; name: string; variant: string; priceCents: number }) => {
+  const add = (p: PublicProduct) => {
     setCart((c) => {
       const cur = c[p.id];
       const qty = (cur?.qty || 0) + 1;
-      return { ...c, [p.id]: { productId: p.id, name: p.name, variant: p.variant, priceCents: p.priceCents, qty } };
+      return {
+        ...c,
+        [p.id]: {
+          productId: p.id,
+          name: p.name,
+          variant: p.variant,
+          priceCents: p.priceCents,
+          vatRatePercent: p.vatRatePercent,
+          vatRateLabel: p.vatRateLabel,
+          qty,
+        },
+      };
     });
   };
 
@@ -680,6 +740,12 @@ export function ShopPage() {
   };
 
   const lines = Object.values(cart);
+  const vatLines: VatLine[] = lines.map((l) => ({
+    priceCents: l.priceCents,
+    qty: l.qty,
+    vatRatePercent: l.vatRatePercent,
+    vatRateLabel: l.vatRateLabel,
+  }));
   const totalCents = lines.reduce((s, l) => s + l.priceCents * l.qty, 0);
   const itemCount = lines.reduce((s, l) => s + l.qty, 0);
 
@@ -986,6 +1052,7 @@ export function ShopPage() {
         selectedDay={selectedDay}
         pickupTimeOk={pickupTimeOk}
         totalCents={totalCents}
+        vatLines={vatLines}
         customerName={customerName}
         setCustomerName={setCustomerName}
         customerPhone={customerPhone}

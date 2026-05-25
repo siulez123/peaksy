@@ -1,11 +1,14 @@
 import { ImageIcon, Minus, Plus } from 'lucide-react';
-import { formatMoney, productImageUrl } from '../../api';
+import { productImageUrl } from '../../api';
 import { Button } from '../ui';
+import { PriceWithVat } from './VatPrice';
 export type ShopProduct = {
   id: string;
   name: string;
   variant: string;
   priceCents: number;
+  vatRatePercent: number;
+  vatRateLabel: string;
   imageUrl: string | null;
 };
 
@@ -152,7 +155,12 @@ export function ShopProductGrid({ layout, products, cart, t, onAdd, onSetQty }: 
             <div className="min-w-0 flex-1">
               <p className="font-semibold text-ink leading-snug">{p.name}</p>
               <p className="text-sm text-muted">{p.variant}</p>
-              <p className="mt-1 text-base font-semibold text-primary">{formatMoney(p.priceCents)}</p>
+              <PriceWithVat
+                grossCents={p.priceCents}
+                ratePercent={p.vatRatePercent}
+                label={p.vatRateLabel}
+                size="sm"
+              />
             </div>
             <AddOrQty product={p} cart={cart} t={t} onAdd={onAdd} onSetQty={onSetQty} />
           </li>
@@ -176,7 +184,12 @@ export function ShopProductGrid({ layout, products, cart, t, onAdd, onSetQty }: 
               <div>
                 <p className="text-sm font-semibold leading-snug text-ink">{p.name}</p>
                 <p className="text-xs text-muted">{p.variant}</p>
-                <p className="mt-1 text-base font-semibold text-primary">{formatMoney(p.priceCents)}</p>
+                <PriceWithVat
+                grossCents={p.priceCents}
+                ratePercent={p.vatRatePercent}
+                label={p.vatRateLabel}
+                size="sm"
+              />
               </div>
               <div className="mt-auto">
                 <AddOrQty product={p} cart={cart} t={t} onAdd={onAdd} onSetQty={onSetQty} />
@@ -202,7 +215,12 @@ export function ShopProductGrid({ layout, products, cart, t, onAdd, onSetQty }: 
             <div>
               <p className="text-base font-semibold leading-snug text-ink">{p.name}</p>
               <p className="mt-0.5 text-sm text-muted">{p.variant}</p>
-              <p className="mt-2 text-lg font-semibold text-primary">{formatMoney(p.priceCents)}</p>
+              <PriceWithVat
+                grossCents={p.priceCents}
+                ratePercent={p.vatRatePercent}
+                label={p.vatRateLabel}
+                size="lg"
+              />
             </div>
             <div className="mt-auto flex w-full items-center justify-center gap-3 pt-1">
               <AddOrQty

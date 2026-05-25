@@ -183,6 +183,12 @@ export const fr = {
     choosePickupTime: 'Choisissez une heure entre {{min}} et {{max}}.',
     phoneHint:
       'Vous pouvez utiliser l’indicatif pays (ex. +351 ou 0033). 8 à 15 chiffres au total.',
+    vatIncluded: 'TVA {{rate}} % incl.',
+    vatRateLabel: '{{label}} ({{rate}} %)',
+    vatLineDetail: 'dont {{vat}} de TVA ({{rate}} %)',
+    totalVat: 'Total TVA',
+    vatBreakdown: '{{label}} {{rate}} % : {{vat}}',
+    pricesIncludeVat: 'Prix TTC (TVA incluse).',
   },
   shopMessages: {
     successTitle: 'Commande confirmée',

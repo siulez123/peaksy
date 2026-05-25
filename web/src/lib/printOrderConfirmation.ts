@@ -1,5 +1,7 @@
 import { formatMoney, type OrderConfirmation } from '../api';
 import { formatPickupHourLabel } from './timeOfDay';
+import { formatVatRatePercent } from './vatDisplay';
+import { vatCentsFromGrossCents } from './vatMath';
 
 export type OrderPrintLabels = {
   title: string;
@@ -10,6 +12,7 @@ export type OrderPrintLabels = {
   notes: string;
   payment: string;
   total: string;
+  totalVat: string;
   paymentStatus: string;
 };
 
@@ -21,27 +24,47 @@ function escapeHtml(text: string): string {
     .replace(/"/g, '&quot;');
 }
 
-function buildPrintHtml(
+/** Abre janela de impressão com o resumo completo (evita folha em branco do modal). */
+export function printOrderConfirmation(
   order: OrderConfirmation,
   labels: OrderPrintLabels,
   localeTag: string
-): string {
+): void {
   const fmtHour = (slot: string) => formatPickupHourLabel(slot, localeTag);
   const itemRows = order.items
-    .map(
-      (it) => `
+    .map((it) => {
+      const rate = it.vatRatePercent ?? 0;
+      const lineVat =
+        it.lineVatCents ?? (rate > 0 ? vatCentsFromGrossCents(it.lineCents, rate) : 0);
+      const vatNote =
+        rate > 0
+          ? ` <span class="muted">(${escapeHtml(formatMoney(lineVat))} IVA ${escapeHtml(formatVatRatePercent(rate, localeTag))}%)</span>`
+          : '';
+      return `
       <tr>
-        <td>${escapeHtml(it.productName)} <span class="muted">${escapeHtml(it.variant)}</span> × ${it.quantity}</td>
+        <td>${escapeHtml(it.productName)} <span class="muted">${escapeHtml(it.variant)}</span> × ${it.quantity}${vatNote}</td>
         <td class="num">${escapeHtml(formatMoney(it.lineCents))}</td>
-      </tr>`
-    )
+      </tr>`;
+    })
     .join('');
+
+  const totalVatCents =
+    order.totalVatCents ??
+    order.items.reduce((s, it) => {
+      const rate = it.vatRatePercent ?? 0;
+      return s + (it.lineVatCents ?? vatCentsFromGrossCents(it.lineCents, rate));
+    }, 0);
+
+  const vatBlock =
+    totalVatCents > 0
+      ? `<p class="vat-total">${escapeHtml(labels.totalVat)}: ${escapeHtml(formatMoney(totalVatCents))}</p>`
+      : '';
 
   const notesBlock = order.notes
     ? `<p><span class="label">${escapeHtml(labels.notes)}</span> ${escapeHtml(order.notes)}</p>`
     : '';
 
-  return `<!DOCTYPE html>
+  const html = `<!DOCTYPE html>
 <html lang="${localeTag.slice(0, 2)}">
 <head>
   <meta charset="utf-8" />
@@ -58,7 +81,8 @@ function buildPrintHtml(
     th, td { padding: 8px 0; border-bottom: 1px solid #e2e8f0; text-align: left; vertical-align: top; }
     th { font-size: 11px; text-transform: uppercase; color: #64748b; }
     td.num, th.num { text-align: right; }
-    .total { font-size: 16px; font-weight: 700; margin-top: 12px; text-align: right; }
+    .vat-total { font-size: 13px; color: #64748b; text-align: right; margin: 4px 0 0; }
+    .total { font-size: 16px; font-weight: 700; margin-top: 8px; text-align: right; }
   </style>
 </head>
 <body>
@@ -90,51 +114,24 @@ function buildPrintHtml(
     <span class="label">${escapeHtml(labels.payment)}</span>
     ${escapeHtml(labels.paymentStatus)}
   </div>
+  ${vatBlock}
   <p class="total">${escapeHtml(labels.total)}: ${escapeHtml(formatMoney(order.totalCents))}</p>
 </body>
 </html>`;
-}
 
-/** Imprime o resumo da encomenda (iframe oculto — evita about:blank com noopener). */
-export function printOrderConfirmation(
-  order: OrderConfirmation,
-  labels: OrderPrintLabels,
-  localeTag: string
-): void {
-  const html = buildPrintHtml(order, labels, localeTag);
-
-  const iframe = document.createElement('iframe');
-  iframe.setAttribute('title', labels.title);
-  iframe.setAttribute('aria-hidden', 'true');
-  iframe.style.cssText = 'position:fixed;left:0;top:0;width:0;height:0;border:0;opacity:0;pointer-events:none';
-  document.body.appendChild(iframe);
-
-  const win = iframe.contentWindow;
-  const doc = iframe.contentDocument ?? win?.document;
-  if (!win || !doc) {
-    iframe.remove();
-    return;
-  }
-
-  doc.open();
-  doc.write(html);
-  doc.close();
-
-  let done = false;
-  const runPrint = () => {
-    if (done) return;
-    done = true;
-    win.focus();
+  const win = window.open('', '_blank', 'noopener,noreferrer');
+  if (!win) return;
+  win.document.open();
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  const doPrint = () => {
     win.print();
-    const remove = () => {
-      if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
-    };
-    win.addEventListener('afterprint', remove, { once: true });
-    setTimeout(remove, 2000);
+    win.addEventListener('afterprint', () => win.close());
   };
-
-  win.onload = () => runPrint();
-  requestAnimationFrame(() => {
-    setTimeout(runPrint, 150);
-  });
+  if (win.document.readyState === 'complete') {
+    setTimeout(doPrint, 100);
+  } else {
+    win.onload = () => setTimeout(doPrint, 100);
+  }
 }

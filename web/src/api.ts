@@ -392,3 +392,40 @@ export const superApi = {
 export function formatMoney(cents: number): string {
   return new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(cents / 100);
 }
+
+export type SuperMetrics = {
+  period: { from: string | null; to: string | null };
+  lojas: {
+    total: number;
+    active: number;
+    inactive: number;
+    byPlan: { STARTER: number; PRO: number; PREMIUM: number };
+  };
+  users: { total: number; lojaAdmins: number };
+  products: { total: number; active: number };
+  orders: {
+    total: number;
+    paid: number;
+    unpaid: number;
+    averageTicketCents: number;
+    byStatus: { RECEIVED: number; READY: number; PICKED_UP: number };
+  };
+  revenue: { totalCents: number };
+  recent: {
+    last7Days: { orders: number; revenueCents: number };
+    last30Days: { orders: number; revenueCents: number };
+  };
+  lojaRanking: Array<{
+    id: string;
+    name: string;
+    slug: string;
+    plan: string;
+    active: boolean;
+    locality: string;
+    products: number;
+    orders: number;
+    paidOrders: number;
+    revenueCents: number;
+    averageTicketCents: number;
+  }>;
+};

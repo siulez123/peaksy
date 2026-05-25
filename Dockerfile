@@ -15,6 +15,9 @@ RUN cd web && npm ci
 
 COPY . .
 
+ARG VITE_APP_DOMAIN=peaksy.pro
+ENV VITE_APP_DOMAIN=${VITE_APP_DOMAIN}
+
 RUN npm run prisma:generate
 RUN cd web && npm run build
 RUN npm run build

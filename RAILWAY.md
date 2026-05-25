@@ -127,7 +127,8 @@ Depois do seed bem sucedido, `/loja/lojademo` e o login do super admin com as cr
 
 | Variável | Descrição |
 |----------|-----------|
-| `FRONTEND_URL` | URL pública do teu serviço (ex.: `https://xxx.up.railway.app`). Usada no Stripe para redirecionamentos após pagamento. Deve coincidir com o domínio onde os clientes abrem a loja. |
+| `FRONTEND_URL` | URL pública do teu serviço (ex.: `https://peaksy.pro`). Usada no Stripe para redirecionamentos após pagamento. Deve coincidir com o domínio onde os clientes abrem a loja. |
+| `APP_DOMAIN` | Domínio apex da plataforma **sem** subdomínio (ex.: `peaksy.pro`). A API resolve lojas em `{slug}.<APP_DOMAIN>`. Predefinido: `peaksy.com`. |
 | `STRIPE_SECRET_KEY` | Chave secreta Stripe. **Podes deixar em branco** para testar só o site e a API; o checkout de pagamento só funciona com chave definida. |
 | `STRIPE_WEBHOOK_SECRET` | Segredo do webhook Stripe; endpoint `https://<teu-dominio>/public/webhooks/stripe`. Opcional até configurares pagamentos. |
 
@@ -142,16 +143,59 @@ Depois do seed bem sucedido, `/loja/lojademo` e o login do super admin com as cr
 
 ## Domínio e URLs da loja
 
+### Path no domínio principal (sem DNS extra)
+
 No URL por defeito da Railway (`https://<serviço>.up.railway.app`) **não há subdomínio por loja**. O host é só da plataforma; o resolver **não** exige tenant nesse caso.
 
 | O que queres | URL (exemplo) |
 |----------------|---------------|
-| Página inicial da plataforma (super admin, texto genérico) | `https://peaksy.up.railway.app/` |
-| Loja demo `lojademo` (slug na path) | `https://peaksy.up.railway.app/loja/lojademo` |
-| Login admin da loja demo | `https://peaksy.up.railway.app/admin/lojademo/entrar` |
-| Super admin | `https://peaksy.up.railway.app/super/entrar` |
+| Página inicial da plataforma (super admin, texto genérico) | `https://peaksy.pro/` |
+| Loja demo `lojademo` (slug na path) | `https://peaksy.pro/loja/lojademo` |
+| Login admin da loja demo | `https://peaksy.pro/admin/lojademo/entrar` |
+| Super admin | `https://peaksy.pro/super/entrar` |
 
-Com **domínio próprio** no formato `lojademo.peaksy.com` (DNS a apontar para o Railway), o tenant pode ser resolvido pelo `Host` sem `/loja/...` — vê `src/plugins/tenantResolver.ts` e `VITE_APP_DOMAIN` no frontend.
+### Subdomínio por loja (`{slug}.peaksy.pro`)
+
+Para URLs como `https://pastelaria-sintra.peaksy.pro/` (loja na raiz, admin em `/admin`), são necessários **três passos**:
+
+#### 1. DNS (registador do domínio)
+
+| Tipo | Nome | Valor |
+|------|------|--------|
+| **CNAME** | `*` (wildcard) | hostname que a Railway indica (ex.: `xxxx.up.railway.app`) |
+| **CNAME** ou **A** | `@` (apex) | `peaksy.pro` → Railway (já deves ter para o site principal) |
+
+O wildcard `*.peaksy.pro` é o que falta na maioria dos casos — sem ele, `pastelaria-sintra.peaksy.pro` **não resolve** no DNS.
+
+#### 2. Railway → Networking
+
+No serviço da app:
+
+1. **Custom Domain** → adiciona `*.peaksy.pro` (wildcard)
+2. Confirma que `peaksy.pro` também está listado
+3. Espera SSL **Active** para ambos
+
+#### 3. Variáveis e rebuild
+
+| Variável | Onde | Valor |
+|----------|------|--------|
+| `APP_DOMAIN` | Runtime (serviço app) | `peaksy.pro` |
+| `VITE_APP_DOMAIN` | **Build** Docker | `peaksy.pro` |
+
+O frontend lê `VITE_APP_DOMAIN` **no build** (`web/src/lib/tenantHost.ts`). O backend lê `APP_DOMAIN` em runtime (`src/plugins/tenantResolver.ts`).
+
+No Dockerfile já existe `ARG VITE_APP_DOMAIN=peaksy.pro`. Para outro domínio, define na Railway **Build → Docker build args** ou variável de build.
+
+Depois de DNS + domínio wildcard + redeploy, a loja com slug `pastelaria-sintra` fica em:
+
+- Loja: `https://pastelaria-sintra.peaksy.pro/`
+- Admin: `https://pastelaria-sintra.peaksy.pro/admin/entrar`
+
+O slug do subdomínio tem de **coincidir** com o campo `slug` da loja na base de dados (ex.: seed `pastelaria-sintra`).
+
+### Domínio totalmente customizado (futuro)
+
+Campo `domain` na loja (ex.: `pastelaria.exemplo.pt`) — a API resolve pelo `Host` sem subdomínio Peaksy. Requer DNS desse domínio a apontar para o Railway e SSL próprio.
 
 Em desenvolvimento usa-se muitas vezes o header `X-Tenant-Slug`; o browser envia-o nas chamadas à API quando estás numa rota com slug.
 

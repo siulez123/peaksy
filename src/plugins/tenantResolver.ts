@@ -95,16 +95,25 @@ async function tenantResolverPluginFn(
       return;
     }
 
-    // Extract slug from subdomain pattern: {slug}.peaksy.com or {slug}.peaksy.local
+    // Extract slug from subdomain: {slug}.<APP_DOMAIN> (ex.: lojademo.peaksy.pro)
+    const appDomain = (process.env.APP_DOMAIN || 'peaksy.pro').toLowerCase();
     let slug: string | null = null;
 
-    request.log.info({ hostWithoutPort }, 'Extracting slug from host');
+    request.log.info({ hostWithoutPort, appDomain }, 'Extracting slug from host');
 
-    if (hostWithoutPort.endsWith('.peaksy.com')) {
-      slug = hostWithoutPort.replace('.peaksy.com', '');
+    if (hostWithoutPort.endsWith(`.${appDomain}`)) {
+      slug = hostWithoutPort.slice(0, -`.${appDomain}`.length);
     } else if (hostWithoutPort.endsWith('.peaksy.local')) {
       slug = hostWithoutPort.replace('.peaksy.local', '');
-    } else {
+    } else if (!hostWithoutPort.endsWith('.railway.app')) {
+      const parts = hostWithoutPort.split('.');
+      if (parts.length >= 3) {
+        const candidate = parts.slice(0, -2).join('.');
+        if (candidate && !candidate.includes('.')) slug = candidate;
+      }
+    }
+
+    if (!slug) {
       // Future: check custom domain
       const loja = await fastify.prisma.loja.findUnique({
         where: { domain: hostWithoutPort },
@@ -118,6 +127,10 @@ async function tenantResolverPluginFn(
         };
         return;
       }
+    }
+
+    if (!slug || slug.includes('.') || slug === 'www' || slug === 'super') {
+      slug = null;
     }
 
     request.log.info({ slug, hostWithoutPort }, 'Extracted slug');

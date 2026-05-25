@@ -1,10 +1,34 @@
 import { useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 
-const APP_DOMAIN = import.meta.env.VITE_APP_DOMAIN || 'peaksy.com';
+const CONFIGURED_APP_DOMAIN = (import.meta.env.VITE_APP_DOMAIN || 'peaksy.pro').trim().toLowerCase();
+
+const RESERVED_SUBDOMAINS = new Set(['www', 'super']);
+
+function isReservedSubdomain(sub: string): boolean {
+  return RESERVED_SUBDOMAINS.has(sub);
+}
 
 /**
- * Resolve o slug da loja a partir do hostname (ex.: lojademo.peaksy.com → lojademo).
+ * Fallback: `{slug}.peaksy.pro` → slug, mesmo sem VITE_APP_DOMAIN no build.
+ * Ignora hosts Railway (*.up.railway.app) e subdomínios reservados.
+ */
+function slugFromGenericSubdomain(hostname: string): string | null {
+  const parts = hostname.split('.');
+  if (parts.length < 3) return null;
+
+  const apex = parts.slice(-2).join('.');
+  if (apex === 'railway.app') return null;
+
+  const sub = parts.slice(0, -2).join('.');
+  if (!sub || sub.includes('.') || isReservedSubdomain(sub)) return null;
+  if (hostname === apex || hostname === `www.${apex}` || hostname === `super.${apex}`) return null;
+
+  return sub;
+}
+
+/**
+ * Resolve o slug da loja a partir do hostname (ex.: lojademo.peaksy.pro → lojademo).
  * Em localhost: usa VITE_DEV_TENANT_SLUG se definido; caso contrário null.
  * Reservado: super.<domínio>, www, apex.
  */
@@ -22,18 +46,18 @@ export function tenantSlugFromHostname(hostname: string): string | null {
     return null;
   }
 
-  if (h === APP_DOMAIN || h === `www.${APP_DOMAIN}`) return null;
+  if (CONFIGURED_APP_DOMAIN) {
+    if (h === CONFIGURED_APP_DOMAIN || h === `www.${CONFIGURED_APP_DOMAIN}`) return null;
+    if (h === `super.${CONFIGURED_APP_DOMAIN}`) return null;
 
-  if (h === `super.${APP_DOMAIN}`) return null;
-
-  if (h.endsWith(`.${APP_DOMAIN}`)) {
-    const sub = h.slice(0, -`.${APP_DOMAIN}`.length);
-    if (!sub || sub.includes('.')) return null;
-    if (sub === 'www' || sub === 'super') return null;
-    return sub;
+    if (h.endsWith(`.${CONFIGURED_APP_DOMAIN}`)) {
+      const sub = h.slice(0, -`.${CONFIGURED_APP_DOMAIN}`.length);
+      if (!sub || sub.includes('.') || isReservedSubdomain(sub)) return null;
+      return sub;
+    }
   }
 
-  return null;
+  return slugFromGenericSubdomain(h);
 }
 
 /** Slug derivado apenas do host (subdomínio). */

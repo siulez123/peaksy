@@ -4,35 +4,24 @@ import {
   ArrowRight,
   BarChart3,
   Calendar,
-  CheckCircle2,
+  CalendarDays,
   Clock,
+  CreditCard,
   LayoutGrid,
+  Link2,
   Package,
   Play,
-  ShoppingBag,
-  Sparkles,
-  Store,
-  Zap,
+  TrendingUp,
+  Users,
 } from 'lucide-react';
+import { BrandIcon } from '../components/BrandIcon';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
+import { PeaksyLogo } from '../components/PeaksyLogo';
 import { PoweredByLine } from '../components/PoweredByLine';
 import { useI18n } from '../i18n/context';
 import { CONTACT_EMAIL } from '../lib/company';
 
 const DEMO_EXAMPLE = 'lojademo.peaksy.com';
-
-function PeaksyLogo({ light = false }: { light?: boolean }) {
-  return (
-    <Link to="/" className="flex items-center gap-2.5 transition-opacity hover:opacity-90">
-      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-sm font-bold text-white shadow-[var(--shadow-primary)]">
-        P
-      </div>
-      <span className={`text-lg font-semibold tracking-tight ${light ? 'text-white' : 'text-ink'}`}>
-        Peaksy
-      </span>
-    </Link>
-  );
-}
 
 function NavLink({ href, children }: { href: string; children: ReactNode }) {
   return (
@@ -114,17 +103,17 @@ export function ApexHomePage() {
   const year = new Date().getFullYear();
 
   const highlights = [
-    { icon: Zap, title: t('apex.highlight1Title'), desc: t('apex.highlight1Desc') },
-    { icon: Sparkles, title: t('apex.highlight2Title'), desc: t('apex.highlight2Desc') },
-    { icon: BarChart3, title: t('apex.highlight3Title'), desc: t('apex.highlight3Desc') },
+    { icon: TrendingUp, title: t('apex.highlight1Title'), desc: t('apex.highlight1Desc') },
+    { icon: Users, title: t('apex.highlight2Title'), desc: t('apex.highlight2Desc') },
+    { icon: Clock, title: t('apex.highlight3Title'), desc: t('apex.highlight3Desc') },
   ];
 
   const features = [
-    { icon: Calendar, title: t('apex.feature1Title'), desc: t('apex.feature1Desc') },
-    { icon: ShoppingBag, title: t('apex.feature2Title'), desc: t('apex.feature2Desc') },
+    { icon: CalendarDays, title: t('apex.feature1Title'), desc: t('apex.feature1Desc') },
+    { icon: CreditCard, title: t('apex.feature2Title'), desc: t('apex.feature2Desc') },
     { icon: LayoutGrid, title: t('apex.feature3Title'), desc: t('apex.feature3Desc') },
     { icon: Package, title: t('apex.feature4Title'), desc: t('apex.feature4Desc') },
-    { icon: Store, title: t('apex.feature5Title'), desc: t('apex.feature5Desc') },
+    { icon: Link2, title: t('apex.feature5Title'), desc: t('apex.feature5Desc') },
     { icon: BarChart3, title: t('apex.feature6Title'), desc: t('apex.feature6Desc') },
   ];
 
@@ -135,10 +124,10 @@ export function ApexHomePage() {
   ];
 
   const strip = [
-    { icon: Zap, title: t('apex.strip1Title'), desc: t('apex.strip1Desc') },
+    { icon: TrendingUp, title: t('apex.strip1Title'), desc: t('apex.strip1Desc') },
     { icon: Clock, title: t('apex.strip2Title'), desc: t('apex.strip2Desc') },
-    { icon: CheckCircle2, title: t('apex.strip3Title'), desc: t('apex.strip3Desc') },
-    { icon: Sparkles, title: t('apex.strip4Title'), desc: t('apex.strip4Desc') },
+    { icon: Calendar, title: t('apex.strip3Title'), desc: t('apex.strip3Desc') },
+    { icon: Users, title: t('apex.strip4Title'), desc: t('apex.strip4Desc') },
   ];
 
   return (
@@ -163,8 +152,8 @@ export function ApexHomePage() {
 
         <div className="relative z-10 mx-auto grid max-w-6xl gap-12 px-4 pb-20 pt-6 sm:px-6 lg:grid-cols-2 lg:items-center lg:gap-16 lg:pb-28 lg:pt-10">
           <div>
-            <p className="inline-flex items-center gap-1.5 rounded-full border border-indigo-400/30 bg-indigo-500/10 px-3 py-1 text-xs font-medium text-indigo-200">
-              <Zap className="h-3.5 w-3.5 text-amber-400" aria-hidden />
+            <p className="inline-flex items-center gap-2 rounded-full border border-indigo-400/30 bg-indigo-500/10 py-1 pl-1 pr-3 text-xs font-medium text-indigo-200">
+              <BrandIcon icon={TrendingUp} size="xs" className="shadow-none" />
               {t('apex.heroBadge')}
             </p>
             <h1 className="mt-6 text-4xl font-semibold leading-[1.1] tracking-tight text-white sm:text-5xl lg:text-[3.25rem]">
@@ -197,11 +186,9 @@ export function ApexHomePage() {
 
         <div className="relative z-10 border-t border-white/5 bg-slate-950/50">
           <div className="mx-auto grid max-w-6xl gap-8 px-4 py-12 sm:grid-cols-3 sm:px-6 sm:py-14">
-            {highlights.map(({ icon: Icon, title, desc }) => (
+            {highlights.map(({ icon, title, desc }) => (
               <div key={title} className="text-center sm:text-left">
-                <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-500/15 text-indigo-300 sm:mx-0">
-                  <Icon className="h-5 w-5" />
-                </div>
+                <BrandIcon icon={icon} size="sm" className="mx-auto mb-3 sm:mx-0" />
                 <h3 className="font-semibold text-white">{title}</h3>
                 <p className="mt-1.5 text-sm leading-relaxed text-slate-400">{desc}</p>
               </div>
@@ -220,14 +207,12 @@ export function ApexHomePage() {
             <p className="mt-4 text-base leading-relaxed text-muted">{t('apex.featuresSubtitle')}</p>
           </div>
           <ul className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {features.map(({ icon: Icon, title, desc }) => (
+            {features.map(({ icon, title, desc }) => (
               <li
                 key={title}
                 className="rounded-2xl border border-border bg-canvas p-6 shadow-[var(--shadow-card)] transition-shadow duration-200 hover:shadow-[var(--shadow-card-hover)]"
               >
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary-soft text-primary">
-                  <Icon className="h-5 w-5" />
-                </div>
+                <BrandIcon icon={icon} />
                 <h3 className="mt-4 text-lg font-semibold text-ink">{title}</h3>
                 <p className="mt-2 text-sm leading-relaxed text-muted">{desc}</p>
               </li>
@@ -262,11 +247,9 @@ export function ApexHomePage() {
       {/* Strip */}
       <section className="border-y border-border bg-slate-50 py-12">
         <div className="mx-auto grid max-w-6xl gap-8 px-4 sm:grid-cols-2 sm:px-6 lg:grid-cols-4">
-          {strip.map(({ icon: Icon, title, desc }) => (
+          {strip.map(({ icon, title, desc }) => (
             <div key={title} className="flex gap-4">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-primary">
-                <Icon className="h-5 w-5" />
-              </div>
+              <BrandIcon icon={icon} size="sm" />
               <div>
                 <h3 className="text-sm font-semibold text-ink">{title}</h3>
                 <p className="mt-1 text-xs leading-relaxed text-muted">{desc}</p>

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useI18n } from '../../i18n/context';
 import { LanguageSwitcher } from '../../components/LanguageSwitcher';
+import { PeaksyLogoMark } from '../../components/PeaksyLogoMark';
 
 const navClass = ({ isActive }: { isActive: boolean }) =>
   `flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 ${
@@ -42,9 +43,7 @@ export function SuperLayout() {
       <header className="sticky top-0 z-20 border-b border-border bg-surface/80 backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3.5 sm:px-6">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-900 text-sm font-bold text-white">
-              P
-            </div>
+            <PeaksyLogoMark size={36} className="shrink-0" />
             <p className="font-semibold text-ink">Peaksy · Super</p>
           </div>
           <button

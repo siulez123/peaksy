@@ -1,4 +1,5 @@
 import { ExternalLink, MapPin, Phone, Store } from 'lucide-react';
+import { BrandIcon } from './BrandIcon';
 import type { LojaPublic } from '../api';
 import { googleMapsSearchUrl, telHref } from '../lib/lojaContact';
 import { useI18n } from '../i18n/context';
@@ -19,9 +20,7 @@ export function ShopPublicInfoCenter({ loja, reason }: Props) {
 
   return (
     <section className="mx-auto flex max-w-xl flex-col items-center px-4 py-12 text-center sm:py-16 md:py-20">
-      <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary-soft text-primary shadow-sm">
-        <Store className="h-8 w-8" strokeWidth={1.5} />
-      </div>
+      <BrandIcon icon={Store} size="lg" className="mb-6" />
       <h2 className="mt-6 text-3xl font-semibold tracking-tight text-ink sm:text-4xl">{loja.name}</h2>
       <p className="mt-2 text-sm font-medium uppercase tracking-wider text-muted">{t('shop.preOrders')}</p>
 

@@ -13,6 +13,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useAdminPathBase, useHostTenantSlug, useResolvedTenantSlug } from '../../lib/tenantHost';
 import { useI18n } from '../../i18n/context';
 import { LanguageSwitcher } from '../../components/LanguageSwitcher';
+import { PeaksyLogoMark } from '../../components/PeaksyLogoMark';
 
 function adminNavLinks(base: string, t: (key: string) => string) {
   return [
@@ -67,9 +68,7 @@ export function AdminLayout() {
       <header className="sticky top-0 z-20 border-b border-border bg-surface/80 backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3.5 sm:px-6">
           <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-sm font-bold text-white shadow-sm">
-              P
-            </div>
+            <PeaksyLogoMark size={36} className="shrink-0" />
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-ink">Peaksy</p>
               <p className="truncate text-xs text-muted">{loja?.name ?? slug}</p>

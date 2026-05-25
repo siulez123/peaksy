@@ -347,11 +347,40 @@ export type SuperLoja = {
   _count: { users: number; products: number; orders: number };
 };
 
+export type SuperListResult<T> = {
+  items: T[];
+  total: number;
+  limit: number;
+  offset: number;
+};
+
+export type SuperLojasListQuery = {
+  active?: boolean;
+  plan?: string;
+  q?: string;
+  limit?: number;
+  offset?: number;
+};
+
+export type SuperUsersListQuery = {
+  role?: string;
+  lojaId?: string;
+  q?: string;
+  limit?: number;
+  offset?: number;
+};
+
 export const superApi = {
   lojas: {
-    list: (token: string, active?: boolean) => {
-      const q = active !== undefined ? `?active=${active}` : '';
-      return apiFetch<Array<SuperLoja>>(`/super/lojas${q}`, { token });
+    list: (token: string, query?: SuperLojasListQuery) => {
+      const p = new URLSearchParams();
+      if (query?.active !== undefined) p.set('active', String(query.active));
+      if (query?.plan) p.set('plan', query.plan);
+      if (query?.q) p.set('q', query.q);
+      if (query?.limit != null) p.set('limit', String(query.limit));
+      if (query?.offset != null) p.set('offset', String(query.offset));
+      const s = p.toString();
+      return apiFetch<SuperListResult<SuperLoja>>(`/super/lojas${s ? `?${s}` : ''}`, { token });
     },
     create: (token: string, body: Record<string, unknown>) =>
       apiFetch('/super/lojas', { method: 'POST', token, body: JSON.stringify(body) }),
@@ -367,12 +396,15 @@ export const superApi = {
     },
   },
   users: {
-    list: (token: string, q?: { role?: string; lojaId?: string }) => {
+    list: (token: string, query?: SuperUsersListQuery) => {
       const p = new URLSearchParams();
-      if (q?.role) p.set('role', q.role);
-      if (q?.lojaId) p.set('lojaId', q.lojaId);
+      if (query?.role) p.set('role', query.role);
+      if (query?.lojaId) p.set('lojaId', query.lojaId);
+      if (query?.q) p.set('q', query.q);
+      if (query?.limit != null) p.set('limit', String(query.limit));
+      if (query?.offset != null) p.set('offset', String(query.offset));
       const s = p.toString();
-      return apiFetch<Array<SuperUser>>(`/super/users${s ? `?${s}` : ''}`, { token });
+      return apiFetch<SuperListResult<SuperUser>>(`/super/users${s ? `?${s}` : ''}`, { token });
     },
     create: (token: string, body: Record<string, unknown>) =>
       apiFetch('/super/users', { method: 'POST', token, body: JSON.stringify(body) }),

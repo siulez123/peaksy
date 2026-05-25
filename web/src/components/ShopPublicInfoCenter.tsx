@@ -1,5 +1,4 @@
-import { ExternalLink, MapPin, Phone, Store } from 'lucide-react';
-import { BrandIcon } from './BrandIcon';
+import { ExternalLink, MapPin, Phone } from 'lucide-react';
 import type { LojaPublic } from '../api';
 import { googleMapsSearchUrl, telHref } from '../lib/lojaContact';
 import { useI18n } from '../i18n/context';
@@ -19,17 +18,13 @@ export function ShopPublicInfoCenter({ loja, reason }: Props) {
   const hasPhone = loja.phone.trim();
 
   return (
-    <section className="mx-auto flex max-w-xl flex-col items-center px-4 py-12 text-center sm:py-16 md:py-20">
-      <BrandIcon icon={Store} size="lg" className="mb-6" />
-      <h2 className="mt-6 text-3xl font-semibold tracking-tight text-ink sm:text-4xl">{loja.name}</h2>
-      <p className="mt-2 text-sm font-medium uppercase tracking-wider text-muted">{t('shop.preOrders')}</p>
-
-      <p className="mt-6 text-base leading-relaxed text-muted">
+    <section className="mx-auto flex max-w-xl flex-col items-center px-4 py-6 text-center sm:py-8">
+      <p className="text-base leading-relaxed text-muted">
         {reason === 'closed' ? t('shop.infoClosedDesc') : t('shop.infoNoProductsDesc')}
       </p>
 
       {(hasAddress || hasPhone) && (
-        <div className="mt-10 w-full rounded-2xl border border-border bg-surface p-6 text-left shadow-[var(--shadow-card)] sm:p-8">
+        <div className="mt-8 w-full rounded-2xl border border-border bg-surface p-6 text-left shadow-[var(--shadow-card)] sm:mt-10 sm:p-8">
           <h3 className="text-center text-xs font-bold uppercase tracking-wider text-muted">
             {t('footer.contact')}
           </h3>

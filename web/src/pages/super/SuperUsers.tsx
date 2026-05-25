@@ -1,9 +1,17 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { X } from 'lucide-react';
-import { superApi, type SuperLoja, type SuperUser, type UserRole } from '../../api';
+import { superApi, type SuperUser, type UserRole } from '../../api';
 import { useAuth } from '../../context/AuthContext';
+import {
+  SuperFilterSelect,
+  SuperListFilters,
+  SuperListPagination,
+} from '../../components/SuperListFilters';
 import { Button, Card, Input, Label, SheetDialog } from '../../components/ui';
 import { useI18n } from '../../i18n/context';
+import { useDebouncedValue } from '../../lib/useDebouncedValue';
+
+const PAGE_SIZE = 50;
 
 type EditForm = {
   email: string;
@@ -25,7 +33,16 @@ export function SuperUsers() {
   const { t } = useI18n();
   const { token } = useAuth();
   const [items, setItems] = useState<SuperUser[]>([]);
+  const [total, setTotal] = useState(0);
+  const [offset, setOffset] = useState(0);
+  const [listLoading, setListLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [roleFilter, setRoleFilter] = useState('');
+  const [lojaFilter, setLojaFilter] = useState('');
+  const debouncedSearch = useDebouncedValue(search, 350);
   const [lojas, setLojas] = useState<Array<{ id: string; name: string; slug: string }>>([]);
+  const [lojaPickerSearch, setLojaPickerSearch] = useState('');
+  const debouncedLojaPicker = useDebouncedValue(lojaPickerSearch, 300);
   const [form, setForm] = useState({
     email: '',
     password: '',
@@ -39,21 +56,84 @@ export function SuperUsers() {
   const [editForm, setEditForm] = useState<EditForm | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     if (!token) return;
+    setListLoading(true);
     try {
-      const [users, b] = await Promise.all([superApi.users.list(token), superApi.lojas.list(token)]);
-      setItems(users);
-      setLojas(b.map((x: SuperLoja) => ({ id: x.id, name: x.name, slug: x.slug })));
+      const res = await superApi.users.list(token, {
+        q: debouncedSearch || undefined,
+        role: roleFilter || undefined,
+        lojaId: lojaFilter || undefined,
+        limit: PAGE_SIZE,
+        offset,
+      });
+      setItems(res.items);
+      setTotal(res.total);
       setErr(null);
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Erro');
+      setItems([]);
+      setTotal(0);
+    } finally {
+      setListLoading(false);
     }
-  };
+  }, [token, debouncedSearch, roleFilter, lojaFilter, offset]);
 
   useEffect(() => {
     void load();
+  }, [load]);
+
+  useEffect(() => {
+    setOffset(0);
+  }, [debouncedSearch, roleFilter, lojaFilter]);
+
+  const loadLojaOptions = useCallback(async () => {
+    if (!token) return;
+    try {
+      const res = await superApi.lojas.list(token, {
+        q: debouncedLojaPicker || undefined,
+        limit: 30,
+        offset: 0,
+      });
+      setLojas(res.items.map((x) => ({ id: x.id, name: x.name, slug: x.slug })));
+    } catch {
+      setLojas([]);
+    }
+  }, [token, debouncedLojaPicker]);
+
+  useEffect(() => {
+    void loadLojaOptions();
+  }, [loadLojaOptions]);
+
+  const loadLojasForFilter = useCallback(async (): Promise<
+    Array<{ id: string; name: string; slug: string }>
+  > => {
+    if (!token) return [];
+    try {
+      const res = await superApi.lojas.list(token, { limit: 100, offset: 0 });
+      return res.items.map((x) => ({ id: x.id, name: x.name, slug: x.slug }));
+    } catch {
+      return [];
+    }
   }, [token]);
+
+  const [lojasFilterOptions, setLojasFilterOptions] = useState<
+    Array<{ id: string; name: string; slug: string }>
+  >([]);
+
+  useEffect(() => {
+    void (async () => {
+      const opts = await loadLojasForFilter();
+      setLojasFilterOptions(opts ?? []);
+    })();
+  }, [loadLojasForFilter]);
+
+  const showingLabel = useMemo(() => {
+    if (total === 0) return t('superList.showing', { from: '0', to: '0', total: '0' });
+    const from = offset + 1;
+    const to = Math.min(offset + PAGE_SIZE, total);
+    return t('superList.showing', { from: String(from), to: String(to), total: String(total) });
+  }, [offset, total, t]);
 
   useEffect(() => {
     if (!editing) return;
@@ -76,7 +156,14 @@ export function SuperUsers() {
   const openEdit = (u: SuperUser) => {
     setEditing(u);
     setEditForm(userToForm(u));
+    setLojaPickerSearch('');
     setErr(null);
+    if (u.loja) {
+      setLojas((prev) => {
+        if (prev.some((x) => x.id === u.loja!.id)) return prev;
+        return [...prev, { id: u.loja!.id, name: u.loja!.name, slug: u.loja!.slug }];
+      });
+    }
   };
 
   const saveEdit = async (e: React.FormEvent) => {
@@ -136,7 +223,7 @@ export function SuperUsers() {
   };
 
   const remove = async (id: string) => {
-    if (!token || !confirm('Apagar utilizador?')) return;
+    if (!token || !confirm(t('superUsers.confirmDelete'))) return;
     try {
       await superApi.users.remove(token, id);
       await load();
@@ -148,19 +235,56 @@ export function SuperUsers() {
   return (
     <div>
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-2xl font-semibold text-ink">Utilizadores</h1>
+        <h1 className="text-2xl font-semibold text-ink">{t('superNav.users')}</h1>
         <Button
           type="button"
           onClick={() => {
             setErr(null);
             setForm({ email: '', password: '', role: 'LOJA_ADMIN', lojaId: '' });
+            setLojaPickerSearch('');
             setCreateOpen(true);
           }}
         >
-          Adicionar utilizador
+          {t('superUsers.add')}
         </Button>
       </div>
       {err && <p className="mb-4 text-sm text-red-600">{err}</p>}
+
+      <SuperListFilters
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder={t('superList.searchUsers')}
+        showingLabel={showingLabel}
+      >
+        <SuperFilterSelect
+          label={t('superList.filterRole')}
+          value={roleFilter}
+          onChange={setRoleFilter}
+          options={[
+            { value: '', label: t('superList.roleAll') },
+            { value: 'LOJA_ADMIN', label: t('superUsers.roleLoja') },
+            { value: 'SUPER_ADMIN', label: t('superUsers.roleSuper') },
+          ]}
+        />
+        <SuperFilterSelect
+          label={t('superList.filterLoja')}
+          value={lojaFilter}
+          onChange={setLojaFilter}
+          options={[
+            { value: '', label: t('superList.lojaAll') },
+            ...lojasFilterOptions.map((b) => ({
+              value: b.id,
+              label: `${b.name} (${b.slug})`,
+            })),
+          ]}
+          className="min-w-[10rem] sm:min-w-[12rem]"
+        />
+      </SuperListFilters>
+
+      {listLoading && <p className="text-sm text-muted">{t('common.loading')}</p>}
+      {!listLoading && items.length === 0 && (
+        <p className="text-sm text-muted">{t('superList.noResults')}</p>
+      )}
       <div className="space-y-3">
         {items.map((u) => (
           <Card key={u.id}>
@@ -188,10 +312,17 @@ export function SuperUsers() {
         ))}
       </div>
 
+      <SuperListPagination
+        offset={offset}
+        limit={PAGE_SIZE}
+        total={total}
+        onPageChange={setOffset}
+      />
+
       <SheetDialog
         open={createOpen}
         onClose={() => !creating && setCreateOpen(false)}
-        title="Novo utilizador"
+        title={t('superUsers.newUser')}
         titleId="super-create-user-title"
         maxWidthClassName="max-w-lg"
         closeDisabled={creating}
@@ -228,13 +359,21 @@ export function SuperUsers() {
             </select>
           </div>
           {form.role === 'LOJA_ADMIN' && (
-            <div>
-              <Label>Loja</Label>
+            <div className="sm:col-span-2">
+              <Label>{t('superList.filterLoja')}</Label>
+              <Input
+                type="search"
+                value={lojaPickerSearch}
+                onChange={(e) => setLojaPickerSearch(e.target.value)}
+                placeholder={t('superUsers.pickLojaSearch')}
+                className="mt-1"
+              />
               <select
-                className="w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-sm text-ink focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary-200"
+                className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-sm text-ink focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary-200"
                 value={form.lojaId}
                 onChange={(e) => setForm((f) => ({ ...f, lojaId: e.target.value }))}
                 required
+                size={Math.min(6, Math.max(3, lojas.length + 1))}
               >
                 <option value="">—</option>
                 {lojas.map((b) => (
@@ -275,7 +414,7 @@ export function SuperUsers() {
           >
             <div className="sticky top-0 flex items-center justify-between border-b border-border bg-surface px-4 py-3 sm:px-6">
               <h2 id="super-edit-user-title" className="text-lg font-semibold text-ink">
-                Editar utilizador
+                {t('superUsers.editUser')}
               </h2>
               <button
                 type="button"
@@ -325,12 +464,20 @@ export function SuperUsers() {
               </div>
               {editForm.role === 'LOJA_ADMIN' && (
                 <div>
-                  <Label>Loja</Label>
+                  <Label>{t('superList.filterLoja')}</Label>
+                  <Input
+                    type="search"
+                    value={lojaPickerSearch}
+                    onChange={(e) => setLojaPickerSearch(e.target.value)}
+                    placeholder={t('superUsers.pickLojaSearch')}
+                    className="mt-1"
+                  />
                   <select
-                    className="w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-ink focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary-200"
+                    className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-ink focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary-200"
                     value={editForm.lojaId}
                     onChange={(e) => setEditForm((f) => (f ? { ...f, lojaId: e.target.value } : f))}
                     required
+                    size={Math.min(6, Math.max(3, lojas.length + 1))}
                   >
                     <option value="">—</option>
                     {lojas.map((b) => (

@@ -4,18 +4,72 @@ import bcrypt from 'bcryptjs';
 import { NotFoundError, ValidationError, ConflictError } from '../../lib/errors';
 import { analyticsCreatedAtWhere } from '../../lib/analytics';
 
-const lojaCreateSchema = z.object({
-  name: z.string().min(1).max(200),
-  slug: z.string().min(1).max(100).regex(/^[a-z0-9-]+$/),
-  domain: z.string().max(255).optional(),
-  timezone: z.string().default('Europe/Lisbon'),
-  active: z.boolean().default(true),
-  plan: z.enum(['STARTER', 'PRO', 'PREMIUM']).default('STARTER'),
-  addressLine: z.string().min(1).max(500),
-  postalCode: z.string().min(1).max(20),
-  locality: z.string().min(1).max(120),
-  phone: z.string().min(6).max(50),
-});
+const lojaCreateSchema = z
+  .object({
+    name: z.string().min(1).max(200),
+    slug: z.string().min(1).max(100).regex(/^[a-z0-9-]+$/),
+    domain: z.string().max(255).optional(),
+    timezone: z.string().default('Europe/Lisbon'),
+    active: z.boolean().default(true),
+    plan: z.enum(['STARTER', 'PRO', 'PREMIUM']).default('STARTER'),
+    addressLine: z.string().min(1).max(500),
+    postalCode: z.string().min(1).max(20),
+    locality: z.string().min(1).max(120),
+    phone: z.string().min(6).max(50),
+    createLojaAdmin: z.boolean().optional().default(false),
+    adminEmail: z.string().email().optional(),
+    adminPassword: z.string().min(8).optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (!data.createLojaAdmin) return;
+    if (!data.adminEmail?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Email do admin é obrigatório quando criar admin da loja',
+        path: ['adminEmail'],
+      });
+    }
+    if (!data.adminPassword) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Palavra-passe do admin é obrigatória quando criar admin da loja',
+        path: ['adminPassword'],
+      });
+    }
+  });
+
+function parseListPagination(query: { limit?: string | number; offset?: string | number }) {
+  const limit = Math.min(Math.max(Number(query.limit) || 50, 1), 100);
+  const offset = Math.max(Number(query.offset) || 0, 0);
+  return { limit, offset };
+}
+
+function lojaSearchWhere(q?: string) {
+  const term = q?.trim();
+  if (!term) return {};
+  return {
+    OR: [
+      { name: { contains: term, mode: 'insensitive' as const } },
+      { slug: { contains: term, mode: 'insensitive' as const } },
+      { domain: { contains: term, mode: 'insensitive' as const } },
+      { locality: { contains: term, mode: 'insensitive' as const } },
+      { postalCode: { contains: term, mode: 'insensitive' as const } },
+      { phone: { contains: term, mode: 'insensitive' as const } },
+    ],
+  };
+}
+
+function userSearchWhere(q?: string) {
+  const term = q?.trim();
+  if (!term) return {};
+  return {
+    OR: [
+      { email: { contains: term, mode: 'insensitive' as const } },
+      { loja: { name: { contains: term, mode: 'insensitive' as const } } },
+      { loja: { slug: { contains: term, mode: 'insensitive' as const } } },
+    ],
+  };
+}
 
 /** PATCH: todos os campos opcionais; `domain` pode ser `null` para limpar. */
 const lojaUpdateSchema = z.object({
@@ -85,34 +139,55 @@ export async function superRoutes(fastify: FastifyInstance) {
           type: 'object',
           properties: {
             active: { type: 'boolean' },
+            plan: { type: 'string', enum: ['STARTER', 'PRO', 'PREMIUM'] },
+            q: { type: 'string' },
+            limit: { type: 'integer', minimum: 1, maximum: 100 },
+            offset: { type: 'integer', minimum: 0 },
           },
         },
       },
       onRequest: [requireSuperAdmin],
     },
     async (request, reply) => {
-      const { active } = request.query as { active?: boolean };
+      const query = request.query as {
+        active?: boolean;
+        plan?: 'STARTER' | 'PRO' | 'PREMIUM';
+        q?: string;
+        limit?: number;
+        offset?: number;
+      };
+      const { limit, offset } = parseListPagination(query);
 
-      const where: any = {};
-      if (active !== undefined) {
-        where.active = active;
+      const where: Record<string, unknown> = {
+        ...lojaSearchWhere(query.q),
+      };
+      if (query.active !== undefined) {
+        where.active = query.active;
+      }
+      if (query.plan) {
+        where.plan = query.plan;
       }
 
-      const bakeries = await fastify.prisma.loja.findMany({
-        where,
-        orderBy: { createdAt: 'desc' },
-        include: {
-          _count: {
-            select: {
-              users: true,
-              products: true,
-              orders: true,
+      const [items, total] = await Promise.all([
+        fastify.prisma.loja.findMany({
+          where,
+          orderBy: { name: 'asc' },
+          take: limit,
+          skip: offset,
+          include: {
+            _count: {
+              select: {
+                users: true,
+                products: true,
+                orders: true,
+              },
             },
           },
-        },
-      });
+        }),
+        fastify.prisma.loja.count({ where }),
+      ]);
 
-      return bakeries;
+      return { items, total, limit, offset };
     }
   );
 
@@ -138,17 +213,26 @@ export async function superRoutes(fastify: FastifyInstance) {
             postalCode: { type: 'string' },
             locality: { type: 'string' },
             phone: { type: 'string' },
+            createLojaAdmin: { type: 'boolean' },
+            adminEmail: { type: 'string', format: 'email' },
+            adminPassword: { type: 'string' },
           },
         },
       },
       onRequest: [requireSuperAdmin],
     },
     async (request, reply) => {
-      const data = lojaCreateSchema.parse(request.body);
+      const parsed = lojaCreateSchema.parse(request.body);
+      const {
+        createLojaAdmin,
+        adminEmail,
+        adminPassword,
+        ...lojaFields
+      } = parsed;
 
       // Check slug uniqueness
       const existing = await fastify.prisma.loja.findUnique({
-        where: { slug: data.slug },
+        where: { slug: lojaFields.slug },
       });
 
       if (existing) {
@@ -156,9 +240,9 @@ export async function superRoutes(fastify: FastifyInstance) {
       }
 
       // Check domain uniqueness if provided
-      if (data.domain) {
+      if (lojaFields.domain) {
         const existingDomain = await fastify.prisma.loja.findUnique({
-          where: { domain: data.domain },
+          where: { domain: lojaFields.domain },
         });
 
         if (existingDomain) {
@@ -166,8 +250,35 @@ export async function superRoutes(fastify: FastifyInstance) {
         }
       }
 
-      const loja = await fastify.prisma.loja.create({
-        data,
+      if (createLojaAdmin && adminEmail) {
+        const existingUser = await fastify.prisma.user.findUnique({
+          where: { email: adminEmail },
+        });
+        if (existingUser) {
+          throw new ConflictError('Email already exists');
+        }
+      }
+
+      const passwordHash =
+        createLojaAdmin && adminPassword
+          ? await bcrypt.hash(adminPassword, 10)
+          : null;
+
+      const loja = await fastify.prisma.$transaction(async (tx) => {
+        const created = await tx.loja.create({
+          data: lojaFields,
+        });
+        if (createLojaAdmin && adminEmail && passwordHash) {
+          await tx.user.create({
+            data: {
+              email: adminEmail,
+              passwordHash,
+              role: 'LOJA_ADMIN',
+              lojaId: created.id,
+            },
+          });
+        }
+        return created;
       });
 
       return reply.status(201).send(loja);
@@ -315,34 +426,48 @@ export async function superRoutes(fastify: FastifyInstance) {
           properties: {
             role: { type: 'string', enum: ['SUPER_ADMIN', 'LOJA_ADMIN'] },
             lojaId: { type: 'string' },
+            q: { type: 'string' },
+            limit: { type: 'integer', minimum: 1, maximum: 100 },
+            offset: { type: 'integer', minimum: 0 },
           },
         },
       },
       onRequest: [requireSuperAdmin],
     },
     async (request, reply) => {
-      const { role, lojaId } = request.query as {
+      const query = request.query as {
         role?: string;
         lojaId?: string;
+        q?: string;
+        limit?: number;
+        offset?: number;
       };
+      const { limit, offset } = parseListPagination(query);
 
-      const where: any = {};
-      if (role) {
-        where.role = role;
+      const where: Record<string, unknown> = {
+        ...userSearchWhere(query.q),
+      };
+      if (query.role) {
+        where.role = query.role;
       }
-      if (lojaId) {
-        where.lojaId = lojaId;
+      if (query.lojaId) {
+        where.lojaId = query.lojaId;
       }
 
-      const users = await fastify.prisma.user.findMany({
-        where,
-        include: {
-          loja: true,
-        },
-        orderBy: { createdAt: 'desc' },
-      });
+      const [users, total] = await Promise.all([
+        fastify.prisma.user.findMany({
+          where,
+          include: {
+            loja: true,
+          },
+          orderBy: { email: 'asc' },
+          take: limit,
+          skip: offset,
+        }),
+        fastify.prisma.user.count({ where }),
+      ]);
 
-      return users.map((user) => ({
+      const items = users.map((user) => ({
         id: user.id,
         email: user.email,
         role: user.role,
@@ -356,6 +481,8 @@ export async function superRoutes(fastify: FastifyInstance) {
           : null,
         createdAt: user.createdAt,
       }));
+
+      return { items, total, limit, offset };
     }
   );
 

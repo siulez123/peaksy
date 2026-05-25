@@ -1,9 +1,18 @@
-import { useEffect, useState } from 'react';
-import { X } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ExternalLink, X } from 'lucide-react';
 import { superApi, type SuperLoja } from '../../api';
 import { useAuth } from '../../context/AuthContext';
+import {
+  SuperFilterSelect,
+  SuperListFilters,
+  SuperListPagination,
+} from '../../components/SuperListFilters';
 import { Button, Card, Input, Label, SheetDialog } from '../../components/ui';
 import { useI18n } from '../../i18n/context';
+import { useDebouncedValue } from '../../lib/useDebouncedValue';
+import { publicShopUrl } from '../../lib/embedCodes';
+
+const PAGE_SIZE = 50;
 
 type EditForm = {
   name: string;
@@ -37,6 +46,13 @@ export function SuperLojas() {
   const { t } = useI18n();
   const { token } = useAuth();
   const [items, setItems] = useState<SuperLoja[]>([]);
+  const [total, setTotal] = useState(0);
+  const [offset, setOffset] = useState(0);
+  const [listLoading, setListLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [activeFilter, setActiveFilter] = useState('');
+  const [planFilter, setPlanFilter] = useState('');
+  const debouncedSearch = useDebouncedValue(search, 350);
   const [form, setForm] = useState({
     name: '',
     slug: '',
@@ -44,6 +60,9 @@ export function SuperLojas() {
     postalCode: '',
     locality: '',
     phone: '',
+    createLojaAdmin: true,
+    adminEmail: '',
+    adminPassword: '',
   });
   const [err, setErr] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
@@ -52,20 +71,43 @@ export function SuperLojas() {
   const [editForm, setEditForm] = useState<EditForm | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     if (!token) return;
+    setListLoading(true);
     try {
-      const list = await superApi.lojas.list(token);
-      setItems(list);
+      const res = await superApi.lojas.list(token, {
+        q: debouncedSearch || undefined,
+        active: activeFilter === '' ? undefined : activeFilter === 'true',
+        plan: planFilter || undefined,
+        limit: PAGE_SIZE,
+        offset,
+      });
+      setItems(res.items);
+      setTotal(res.total);
       setErr(null);
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Erro');
+      setItems([]);
+      setTotal(0);
+    } finally {
+      setListLoading(false);
     }
-  };
+  }, [token, debouncedSearch, activeFilter, planFilter, offset]);
 
   useEffect(() => {
     void load();
-  }, [token]);
+  }, [load]);
+
+  useEffect(() => {
+    setOffset(0);
+  }, [debouncedSearch, activeFilter, planFilter]);
+
+  const showingLabel = useMemo(() => {
+    if (total === 0) return t('superList.showing', { from: '0', to: '0', total: '0' });
+    const from = offset + 1;
+    const to = Math.min(offset + PAGE_SIZE, total);
+    return t('superList.showing', { from: String(from), to: String(to), total: String(total) });
+  }, [offset, total, t]);
 
   useEffect(() => {
     if (!editing) return;
@@ -125,13 +167,21 @@ export function SuperLojas() {
     setCreating(true);
     setErr(null);
     try {
+      const slug = form.slug.trim().toLowerCase().replace(/\s+/g, '-');
       await superApi.lojas.create(token, {
         name: form.name.trim(),
-        slug: form.slug.trim().toLowerCase().replace(/\s+/g, '-'),
+        slug,
         addressLine: form.addressLine.trim(),
         postalCode: form.postalCode.trim(),
         locality: form.locality.trim(),
         phone: form.phone.trim(),
+        ...(form.createLojaAdmin
+          ? {
+              createLojaAdmin: true,
+              adminEmail: form.adminEmail.trim(),
+              adminPassword: form.adminPassword,
+            }
+          : {}),
       });
       setForm({
         name: '',
@@ -140,6 +190,9 @@ export function SuperLojas() {
         postalCode: '',
         locality: '',
         phone: '',
+        createLojaAdmin: true,
+        adminEmail: '',
+        adminPassword: '',
       });
       setCreateOpen(false);
       await load();
@@ -185,6 +238,9 @@ export function SuperLojas() {
               postalCode: '',
               locality: '',
               phone: '',
+              createLojaAdmin: true,
+              adminEmail: '',
+              adminPassword: '',
             });
             setCreateOpen(true);
           }}
@@ -193,17 +249,63 @@ export function SuperLojas() {
         </Button>
       </div>
       {err && <p className="mb-4 text-sm text-red-600">{err}</p>}
+
+      <SuperListFilters
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder={t('superList.searchLojas')}
+        showingLabel={showingLabel}
+      >
+        <SuperFilterSelect
+          label={t('superList.filterActive')}
+          value={activeFilter}
+          onChange={setActiveFilter}
+          options={[
+            { value: '', label: t('superList.activeAll') },
+            { value: 'true', label: t('superList.activeYes') },
+            { value: 'false', label: t('superList.activeNo') },
+          ]}
+        />
+        <SuperFilterSelect
+          label={t('superList.filterPlan')}
+          value={planFilter}
+          onChange={setPlanFilter}
+          options={[
+            { value: '', label: t('superList.planAll') },
+            { value: 'STARTER', label: 'STARTER' },
+            { value: 'PRO', label: 'PRO' },
+            { value: 'PREMIUM', label: 'PREMIUM' },
+          ]}
+        />
+      </SuperListFilters>
+
+      {listLoading && <p className="text-sm text-muted">{t('common.loading')}</p>}
+      {!listLoading && items.length === 0 && (
+        <p className="text-sm text-muted">{t('superList.noResults')}</p>
+      )}
       <div className="space-y-3">
         {items.map((b) => (
           <Card key={b.id}>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
+              <div className="flex min-w-0 items-start gap-2">
+                <a
+                  href={publicShopUrl(b.slug, b.domain)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={t('superLojas.openShop')}
+                  aria-label={t('superLojas.openShop')}
+                  className="mt-0.5 shrink-0 rounded-lg border border-border p-2 text-primary transition-colors hover:border-primary/30 hover:bg-primary-soft"
+                >
+                  <ExternalLink className="h-4 w-4" aria-hidden />
+                </a>
+                <div className="min-w-0">
                 <p className="font-semibold text-ink">{b.name}</p>
                 <p className="text-sm text-muted">
                   {b.slug} · {b.plan} · utilizadores {b._count.users} · produtos {b._count.products} · pedidos{' '}
                   {b._count.orders}
                 </p>
                 {!b.active && <span className="text-xs text-warning">Inativa</span>}
+                </div>
               </div>
               <div className="flex flex-wrap gap-2">
                 <Button type="button" variant="secondary" className="text-sm" onClick={() => openEdit(b)}>
@@ -220,6 +322,13 @@ export function SuperLojas() {
           </Card>
         ))}
       </div>
+
+      <SuperListPagination
+        offset={offset}
+        limit={PAGE_SIZE}
+        total={total}
+        onPageChange={setOffset}
+      />
 
       <SheetDialog
         open={createOpen}
@@ -242,6 +351,47 @@ export function SuperLojas() {
               placeholder="minha-loja"
               required
             />
+          </div>
+          <div className="sm:col-span-2 rounded-xl border border-border bg-slate-50/80 p-3">
+            <div className="flex items-start gap-2">
+              <input
+                id="create-loja-admin"
+                type="checkbox"
+                className="mt-1 h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary-400"
+                checked={form.createLojaAdmin}
+                onChange={(e) => setForm((f) => ({ ...f, createLojaAdmin: e.target.checked }))}
+              />
+              <div>
+                <label htmlFor="create-loja-admin" className="text-sm font-medium text-ink">
+                  {t('superLojas.createAdmin')}
+                </label>
+                <p className="mt-0.5 text-xs text-muted">{t('superLojas.createAdminHint')}</p>
+              </div>
+            </div>
+            {form.createLojaAdmin && (
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <div className="sm:col-span-2">
+                  <Label>{t('superLojas.adminEmail')}</Label>
+                  <Input
+                    type="email"
+                    value={form.adminEmail}
+                    onChange={(e) => setForm((f) => ({ ...f, adminEmail: e.target.value }))}
+                    required
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <Label>{t('superLojas.adminPassword')}</Label>
+                  <Input
+                    type="password"
+                    value={form.adminPassword}
+                    onChange={(e) => setForm((f) => ({ ...f, adminPassword: e.target.value }))}
+                    minLength={8}
+                    required
+                    autoComplete="new-password"
+                  />
+                </div>
+              </div>
+            )}
           </div>
           <div className="sm:col-span-2">
             <Label>Morada</Label>

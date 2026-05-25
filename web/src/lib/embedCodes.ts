@@ -2,6 +2,22 @@ const APP_DOMAIN = (import.meta.env.VITE_APP_DOMAIN || 'peaksy.pro').trim().toLo
 
 export type EmbedVariant = 'link' | 'button' | 'iframe';
 
+/** URL pública da loja (cliente), para abrir em nova aba. */
+export function publicShopUrl(slug: string, domain?: string | null): string {
+  const custom = domain?.trim();
+  if (custom) {
+    const host = custom.replace(/^https?:\/\//i, '').replace(/\/$/, '');
+    const protocol =
+      typeof window !== 'undefined' && window.location.protocol
+        ? window.location.protocol
+        : 'https:';
+    return `${protocol}//${host}/`;
+  }
+  const base = shopOrigin(slug);
+  const path = import.meta.env.DEV ? `/loja/${slug}` : '/';
+  return `${base}${path}`;
+}
+
 function shopOrigin(slug: string): string {
   if (typeof window !== 'undefined') {
     const hostSlug = window.location.hostname.split('.')[0];

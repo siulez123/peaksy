@@ -99,7 +99,15 @@ export async function validateCheckoutRequest(
 ): Promise<ValidatedCheckout> {
   const lojaPayments = await prisma.loja.findUnique({
     where: { id: tenant.lojaId },
-    select: { allowOnlinePayment: true, allowInStorePayment: true },
+    select: {
+      allowOnlinePayment: true,
+      allowInStorePayment: true,
+      smtpHost: true,
+      emailFrom: true,
+      twilioAccountSid: true,
+      twilioAuthToken: true,
+      twilioFromNumber: true,
+    },
   });
   if (!lojaPayments) {
     throw new NotFoundError('Loja not found');
@@ -110,8 +118,22 @@ export async function validateCheckoutRequest(
   if (data.paymentMethod === 'ONLINE' && !lojaPayments.allowOnlinePayment) {
     throw new ValidationError('Pagamento online não está disponível nesta loja.');
   }
-  if (data.paymentMethod === 'IN_STORE' && !lojaPayments.allowInStorePayment) {
-    throw new ValidationError('Pagamento na loja não está disponível nesta loja.');
+  const inStoreSmsOk =
+    Boolean(lojaPayments.twilioAccountSid?.trim()) &&
+    Boolean(lojaPayments.twilioAuthToken?.trim()) &&
+    Boolean(lojaPayments.twilioFromNumber?.trim());
+  if (data.paymentMethod === 'IN_STORE') {
+    if (!lojaPayments.allowInStorePayment) {
+      throw new ValidationError('Pagamento na loja não está disponível nesta loja.');
+    }
+    if (!inStoreSmsOk) {
+      throw new ValidationError('Confirmação por SMS não está configurada nesta loja.');
+    }
+  }
+
+  const smtpOk = Boolean(lojaPayments.smtpHost?.trim() && lojaPayments.emailFrom?.trim());
+  if (data.customerEmail?.trim() && !smtpOk) {
+    throw new ValidationError('Confirmação por email não está disponível nesta loja.');
   }
 
   const phoneE164 = normalizePhoneE164(data.customerPhone);

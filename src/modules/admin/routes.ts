@@ -1745,6 +1745,137 @@ export async function adminRoutes(fastify: FastifyInstance) {
     }
   );
 
+  const notificationSettingsPatchSchema = z.object({
+    smtpHost: z.string().max(255).nullable().optional(),
+    smtpPort: z.coerce.number().int().min(1).max(65535).optional(),
+    smtpSecure: z.boolean().optional(),
+    smtpUser: z.string().max(255).nullable().optional(),
+    smtpPassword: z.string().max(500).optional(),
+    emailFrom: z.union([z.string().email(), z.literal('')]).nullable().optional(),
+    twilioAccountSid: z.string().max(64).nullable().optional(),
+    twilioAuthToken: z.string().max(128).optional(),
+    twilioFromNumber: z.string().max(32).nullable().optional(),
+  });
+
+  const lojaNotificationAdminSelect = {
+    smtpHost: true,
+    smtpPort: true,
+    smtpSecure: true,
+    smtpUser: true,
+    smtpPassword: true,
+    emailFrom: true,
+    twilioAccountSid: true,
+    twilioAuthToken: true,
+    twilioFromNumber: true,
+  } as const;
+
+  function formatNotificationSettings(
+    loja: {
+      smtpHost: string | null;
+      smtpPort: number;
+      smtpSecure: boolean;
+      smtpUser: string | null;
+      smtpPassword: string | null;
+      emailFrom: string | null;
+      twilioAccountSid: string | null;
+      twilioAuthToken: string | null;
+      twilioFromNumber: string | null;
+    }
+  ) {
+    return {
+      smtp: {
+        host: loja.smtpHost,
+        port: loja.smtpPort,
+        secure: loja.smtpSecure,
+        user: loja.smtpUser,
+        emailFrom: loja.emailFrom,
+        passwordConfigured: Boolean(loja.smtpPassword?.trim()),
+      },
+      twilio: {
+        accountSid: loja.twilioAccountSid,
+        fromNumber: loja.twilioFromNumber,
+        authTokenConfigured: Boolean(loja.twilioAuthToken?.trim()),
+      },
+    };
+  }
+
+  // GET /admin/notification-settings
+  fastify.get(
+    '/admin/notification-settings',
+    {
+      schema: {
+        description: 'Configuração de email (SMTP) e SMS (Twilio) da loja',
+        tags: ['admin'],
+        security: [{ bearerAuth: [] }],
+      },
+      onRequest: [requireLojaAdmin, requireTenant],
+    },
+    async (request, reply) => {
+      const tenant = request.tenant!;
+      const user = request.user!;
+      if (user.lojaId !== tenant.lojaId) {
+        throw new ForbiddenError('Access denied');
+      }
+
+      const loja = await fastify.prisma.loja.findUnique({
+        where: { id: tenant.lojaId },
+        select: lojaNotificationAdminSelect,
+      });
+      if (!loja) {
+        throw new NotFoundError('Loja not found');
+      }
+
+      return formatNotificationSettings(loja);
+    }
+  );
+
+  // PATCH /admin/notification-settings
+  fastify.patch(
+    '/admin/notification-settings',
+    {
+      schema: {
+        description: 'Atualizar email e SMS da loja',
+        tags: ['admin'],
+        security: [{ bearerAuth: [] }],
+      },
+      onRequest: [requireLojaAdmin, requireTenant],
+    },
+    async (request, reply) => {
+      const tenant = request.tenant!;
+      const user = request.user!;
+      if (user.lojaId !== tenant.lojaId) {
+        throw new ForbiddenError('Access denied');
+      }
+
+      const data = notificationSettingsPatchSchema.parse(request.body);
+      const update: Record<string, unknown> = {};
+
+      if (data.smtpHost !== undefined) update.smtpHost = data.smtpHost;
+      if (data.smtpPort !== undefined) update.smtpPort = data.smtpPort;
+      if (data.smtpSecure !== undefined) update.smtpSecure = data.smtpSecure;
+      if (data.smtpUser !== undefined) update.smtpUser = data.smtpUser;
+      if (data.emailFrom !== undefined) {
+        update.emailFrom = data.emailFrom === '' ? null : data.emailFrom;
+      }
+      if (data.smtpPassword !== undefined && data.smtpPassword !== '') {
+        update.smtpPassword = data.smtpPassword;
+      }
+      if (data.twilioAccountSid !== undefined) update.twilioAccountSid = data.twilioAccountSid;
+      if (data.twilioFromNumber !== undefined) update.twilioFromNumber = data.twilioFromNumber;
+      if (data.twilioAuthToken !== undefined && data.twilioAuthToken !== '') {
+        update.twilioAuthToken = data.twilioAuthToken;
+      }
+
+      const loja = await fastify.prisma.loja.update({
+        where: { id: tenant.lojaId },
+        data: update,
+        select: lojaNotificationAdminSelect,
+      });
+
+      return formatNotificationSettings(loja);
+    }
+  );
+
   // GET /admin/vat-rates
   fastify.get(
     '/admin/vat-rates',

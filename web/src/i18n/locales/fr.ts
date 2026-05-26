@@ -295,7 +295,7 @@ export const fr = {
   },
   adminShop: {
     title: 'Paramètres boutique',
-    subtitle: 'Taux de TVA et présentation des produits sur la boutique publique.',
+    subtitle: 'TVA, présentation et notifications email/SMS par boutique.',
     vatTitle: 'Taux de TVA',
     vatDesc:
       'Chaque produit doit être associé à un taux. Le prix saisi est le prix TTC.',
@@ -329,6 +329,23 @@ export const fr = {
       ROSE: 'Rose',
       AMBER: 'Ambre',
     },
+    notificationsTitle: 'E-mail et SMS',
+    notificationsDesc:
+      'Chaque boutique a son SMTP et Twilio. Sans configuration, aucun envoi ; le champ e-mail au checkout n’apparaît qu’avec un SMTP complet.',
+    smtpTitle: 'E-mail (SMTP)',
+    smtpHost: 'Serveur SMTP',
+    smtpPort: 'Port',
+    smtpSecure: 'Connexion sécurisée (TLS/SSL)',
+    smtpUser: 'Utilisateur SMTP',
+    smtpPassword: 'Mot de passe SMTP',
+    smtpPasswordPlaceholder: 'Laisser vide pour conserver l’actuel',
+    emailFrom: 'Expéditeur (From)',
+    twilioTitle: 'SMS (Twilio)',
+    twilioAccountSid: 'Account SID',
+    twilioAuthToken: 'Auth token',
+    twilioAuthTokenPlaceholder: 'Laisser vide pour conserver l’actuel',
+    twilioFromNumber: 'Numéro d’envoi (E.164)',
+    notificationsSaved: 'Notifications enregistrées.',
   },
   adminPayment: {
     title: 'Modes de paiement',
@@ -337,6 +354,8 @@ export const fr = {
     onlineDesc: 'Redirection vers Stripe (carte, MB WAY, etc.).',
     inStoreTitle: 'Payer en boutique',
     inStoreDesc: 'Le client confirme la commande et paie au retrait.',
+    inStoreSmsHint:
+      'Le paiement en boutique n’apparaît sur la boutique publique qu’après configuration de Twilio dans Paramètres boutique → E-mail et SMS.',
     atLeastOne: 'Activez au moins un mode de paiement.',
     saved: 'Paramètres enregistrés.',
   },

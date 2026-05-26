@@ -85,6 +85,17 @@ model Loja {
   productDisplayLayout ProductDisplayLayout @default(LARGE)
   /// Paleta de cores (loja pública)
   colorPalette       ShopColorPalette       @default(INDIGO)
+  /// SMTP por loja (email de confirmação)
+  smtpHost           String?
+  smtpPort           Int                    @default(587)
+  smtpSecure         Boolean                @default(false)
+  smtpUser           String?
+  smtpPassword       String?
+  emailFrom          String?
+  /// Twilio por loja (SMS / OTP)
+  twilioAccountSid   String?
+  twilioAuthToken    String?
+  twilioFromNumber   String?
   createdAt DateTime @default(now())
 
   users            User[]

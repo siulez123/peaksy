@@ -213,6 +213,7 @@ type CheckoutModalProps = {
   onPay: () => void;
   allowOnlinePayment: boolean;
   allowInStorePayment: boolean;
+  collectCustomerEmail: boolean;
   paymentMethod: CheckoutPaymentMethod;
   setPaymentMethod: (v: CheckoutPaymentMethod) => void;
   otpStep: 'checkout' | 'otp';
@@ -253,6 +254,7 @@ function CheckoutModal({
   onPay,
   allowOnlinePayment,
   allowInStorePayment,
+  collectCustomerEmail,
   paymentMethod,
   setPaymentMethod,
   otpStep,
@@ -515,14 +517,16 @@ function CheckoutModal({
             <p className="mt-1 text-xs text-muted">{t('shop.phoneHint')}</p>
             {phoneError && <p className="mt-1 text-xs text-red-600">{phoneError}</p>}
           </div>
-          <div>
-            <Label>{t('shop.emailOptional')}</Label>
-            <Input
-              type="email"
-              value={customerEmail}
-              onChange={(e) => setCustomerEmail(e.target.value)}
-            />
-          </div>
+          {collectCustomerEmail && (
+            <div>
+              <Label>{t('shop.emailOptional')}</Label>
+              <Input
+                type="email"
+                value={customerEmail}
+                onChange={(e) => setCustomerEmail(e.target.value)}
+              />
+            </div>
+          )}
           <div>
             <Label>{t('shop.notesOptional')}</Label>
             <Input
@@ -644,6 +648,7 @@ export function ShopPage() {
   const lojaPublic = lojaHead !== 'loading' && lojaHead !== 'fail' ? lojaHead : null;
   const allowOnlinePayment = lojaPublic?.allowOnlinePayment ?? true;
   const allowInStorePayment = lojaPublic?.allowInStorePayment ?? false;
+  const collectCustomerEmail = lojaPublic?.collectCustomerEmail ?? false;
 
   useEffect(() => {
     if (!lojaPublic) return;
@@ -926,7 +931,7 @@ export function ShopPage() {
       items: lines.map((l) => ({ productId: l.productId, qty: l.qty })),
       customerName,
       customerPhone,
-      customerEmail: customerEmail || undefined,
+      ...(collectCustomerEmail ? { customerEmail: customerEmail || undefined } : {}),
       notes: notes || undefined,
       successPath: shopSuccessReturnPath(slug, hostSlug),
       cancelPath: hostSlug ? '/cancelar' : `/loja/${slug}/cancelar`,
@@ -938,6 +943,7 @@ export function ShopPage() {
     customerName,
     customerPhone,
     customerEmail,
+    collectCustomerEmail,
     notes,
     slug,
     hostSlug,
@@ -1213,6 +1219,7 @@ export function ShopPage() {
         onPay={checkout}
         allowOnlinePayment={allowOnlinePayment}
         allowInStorePayment={allowInStorePayment}
+        collectCustomerEmail={collectCustomerEmail}
         paymentMethod={paymentMethod}
         setPaymentMethod={setPaymentMethod}
         otpStep={otpStep}

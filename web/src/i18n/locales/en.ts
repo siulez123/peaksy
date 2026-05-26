@@ -292,7 +292,7 @@ export const en = {
   },
   adminShop: {
     title: 'Shop settings',
-    subtitle: 'VAT rates and how products appear on the public shop.',
+    subtitle: 'VAT rates, layout, and per-shop email/SMS notifications.',
     vatTitle: 'VAT rates',
     vatDesc:
       'Each product must use a VAT rate. Product prices are final prices including VAT.',
@@ -326,6 +326,23 @@ export const en = {
       ROSE: 'Rose',
       AMBER: 'Amber',
     },
+    notificationsTitle: 'Email & SMS',
+    notificationsDesc:
+      'Each shop uses its own SMTP and Twilio. Without configuration nothing is sent; the checkout email field only appears when SMTP is complete.',
+    smtpTitle: 'Email (SMTP)',
+    smtpHost: 'SMTP host',
+    smtpPort: 'Port',
+    smtpSecure: 'Secure connection (TLS/SSL)',
+    smtpUser: 'SMTP user',
+    smtpPassword: 'SMTP password',
+    smtpPasswordPlaceholder: 'Leave blank to keep the current password',
+    emailFrom: 'From address',
+    twilioTitle: 'SMS (Twilio)',
+    twilioAccountSid: 'Account SID',
+    twilioAuthToken: 'Auth token',
+    twilioAuthTokenPlaceholder: 'Leave blank to keep the current token',
+    twilioFromNumber: 'Sender number (E.164)',
+    notificationsSaved: 'Notification settings saved.',
   },
   adminPayment: {
     title: 'Payment methods',
@@ -334,6 +351,8 @@ export const en = {
     onlineDesc: 'Redirect to Stripe (card, MB WAY, etc.).',
     inStoreTitle: 'Pay in store',
     inStoreDesc: 'Customer confirms the order and pays on pickup.',
+    inStoreSmsHint:
+      'Pay in store only appears on the public shop after you configure Twilio under Shop settings → Email & SMS.',
     atLeastOne: 'Enable at least one payment method.',
     saved: 'Settings saved.',
   },

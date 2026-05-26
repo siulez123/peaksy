@@ -17,7 +17,8 @@ import {
 } from '../../lib/checkoutOtp';
 import { NotFoundError, UnauthorizedError, ValidationError, TooManyRequestsError } from '../../lib/errors';
 import { notifyOrderInStore } from '../../lib/orderNotifications';
-import { isSmsConfigured, sendSms } from '../../lib/sms';
+import { lojaHasSms, lojaNotificationSelect, lojaSmsCredentials } from '../../lib/lojaNotificationConfig';
+import { sendSms } from '../../lib/sms';
 
 const inStoreCheckoutSchema = checkoutSchema.extend({
   paymentMethod: z.literal('IN_STORE'),
@@ -132,20 +133,23 @@ export async function phoneCheckoutRoutes(fastify: FastifyInstance) {
       const code = generateOtpCode();
       const loja = await fastify.prisma.loja.findUnique({
         where: { id: tenant.lojaId },
-        select: { name: true },
+        select: { name: true, ...lojaNotificationSelect },
       });
+      if (!loja || !lojaHasSms(loja)) {
+        throw new ValidationError('Confirmação por SMS não está configurada nesta loja.');
+      }
 
-      const smsBody = `${loja?.name ?? 'Loja'}: o teu código de confirmação é ${code}. Válido 10 minutos.`;
-      if (!isSmsConfigured() && process.env.NODE_ENV === 'development') {
-        request.log.info({ code, phone: validated.phoneE164 }, 'OTP SMS (dev, Twilio não configurado)');
-      } else {
-        try {
-          await sendSms(validated.phoneE164, smsBody, request.log, { required: true });
-        } catch (e) {
-          throw new ValidationError(
-            e instanceof Error ? e.message : 'Não foi possível enviar o SMS.'
-          );
-        }
+      const smsBody = `${loja.name}: o teu código de confirmação é ${code}. Válido 10 minutos.`;
+      const smsCreds = lojaSmsCredentials(loja)!;
+      try {
+        await sendSms(validated.phoneE164, smsBody, request.log, {
+          required: true,
+          credentials: smsCreds,
+        });
+      } catch (e) {
+        throw new ValidationError(
+          e instanceof Error ? e.message : 'Não foi possível enviar o SMS.'
+        );
       }
 
       const verification = await fastify.prisma.checkoutVerification.create({

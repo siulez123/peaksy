@@ -1,6 +1,14 @@
 import nodemailer from 'nodemailer';
 import type { PrismaClient } from '@prisma/client';
 import type { FastifyBaseLogger } from 'fastify/types/logger';
+import {
+  lojaHasSms,
+  lojaHasSmtp,
+  lojaNotificationSelect,
+  lojaSmsCredentials,
+  lojaSmtpCredentials,
+  type SmtpCredentials,
+} from './lojaNotificationConfig';
 import { normalizePhoneE164 } from './phoneE164';
 import { sendSms } from './sms';
 
@@ -16,25 +24,24 @@ function escapeHtml(s: string): string {
     .replace(/"/g, '&quot;');
 }
 
-async function sendEmail(to: string, subject: string, html: string, log: FastifyBaseLogger): Promise<void> {
-  const host = process.env.SMTP_HOST;
-  if (!host) {
-    log.warn('Email não enviado: define SMTP_HOST (e credenciais se necessário)');
-    return;
-  }
-
-  const from = process.env.EMAIL_FROM || process.env.SMTP_USER || 'noreply@localhost';
+async function sendEmailWithSmtp(
+  smtp: SmtpCredentials,
+  to: string,
+  subject: string,
+  html: string,
+  log: FastifyBaseLogger
+): Promise<void> {
   const transporter = nodemailer.createTransport({
-    host,
-    port: Number(process.env.SMTP_PORT || 587),
-    secure: process.env.SMTP_SECURE === 'true',
+    host: smtp.host,
+    port: smtp.port,
+    secure: smtp.secure,
     auth:
-      process.env.SMTP_USER && process.env.SMTP_PASS !== undefined
-        ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
+      smtp.user && smtp.password !== null && smtp.password !== ''
+        ? { user: smtp.user, pass: smtp.password }
         : undefined,
   });
 
-  await transporter.sendMail({ from, to, subject, html });
+  await transporter.sendMail({ from: smtp.from, to, subject, html });
 }
 
 async function notifyOrderCore(
@@ -47,7 +54,7 @@ async function notifyOrderCore(
     where: { id: orderId },
     include: {
       items: true,
-      loja: { select: { name: true } },
+      loja: { select: { name: true, ...lojaNotificationSelect } },
     },
   });
 
@@ -65,11 +72,21 @@ async function notifyOrderCore(
     1500
   );
 
-  const smsTo = normalizePhoneE164(order.customerPhone) ?? order.customerPhone.trim();
-  await sendSms(smsTo, smsBody, log);
+  if (lojaHasSms(order.loja)) {
+    const smsTo = normalizePhoneE164(order.customerPhone) ?? order.customerPhone.trim();
+    const smsCreds = lojaSmsCredentials(order.loja);
+    try {
+      await sendSms(smsTo, smsBody, log, { credentials: smsCreds });
+    } catch (e) {
+      log.error({ err: e }, 'Falha ao enviar SMS de confirmação');
+    }
+  }
 
   const email = order.customerEmail?.trim();
-  if (email) {
+  if (email && lojaHasSmtp(order.loja)) {
+    const smtp = lojaSmtpCredentials(order.loja);
+    if (!smtp) return;
+
     const subject = `Encomenda confirmada — ${order.loja.name}`;
     const itemsHtml = order.items
       .map(
@@ -93,7 +110,7 @@ async function notifyOrderCore(
     `;
 
     try {
-      await sendEmail(email, subject, html, log);
+      await sendEmailWithSmtp(smtp, email, subject, html, log);
     } catch (e) {
       log.error({ err: e }, 'Falha ao enviar email de confirmação');
     }

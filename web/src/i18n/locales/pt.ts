@@ -295,7 +295,7 @@ export const pt = {
   },
   adminShop: {
     title: 'Definições da loja',
-    subtitle: 'Escalões de IVA e apresentação dos produtos na loja pública.',
+    subtitle: 'Escalões de IVA, apresentação e notificações (email/SMS) da loja pública.',
     vatTitle: 'Escalões de IVA',
     vatDesc:
       'Cada produto tem de estar associado a um escalão. O preço que defines nos produtos é o preço final com IVA incluído.',
@@ -329,6 +329,23 @@ export const pt = {
       ROSE: 'Rosa',
       AMBER: 'Âmbar',
     },
+    notificationsTitle: 'Email e SMS',
+    notificationsDesc:
+      'Cada loja usa o seu SMTP e Twilio. Sem configuração não são enviadas mensagens; o campo de email no checkout só aparece com SMTP completo.',
+    smtpTitle: 'Email (SMTP)',
+    smtpHost: 'Servidor SMTP',
+    smtpPort: 'Porta',
+    smtpSecure: 'Ligação segura (TLS/SSL)',
+    smtpUser: 'Utilizador SMTP',
+    smtpPassword: 'Palavra-passe SMTP',
+    smtpPasswordPlaceholder: 'Deixa em branco para manter a atual',
+    emailFrom: 'Remetente (From)',
+    twilioTitle: 'SMS (Twilio)',
+    twilioAccountSid: 'Account SID',
+    twilioAuthToken: 'Auth token',
+    twilioAuthTokenPlaceholder: 'Deixa em branco para manter o atual',
+    twilioFromNumber: 'Número de envio (E.164)',
+    notificationsSaved: 'Notificações guardadas.',
   },
   adminPayment: {
     title: 'Formas de pagamento',
@@ -337,6 +354,8 @@ export const pt = {
     onlineDesc: 'Redirecionamento para Stripe (cartão, MB WAY, etc.).',
     inStoreTitle: 'Pagar na loja',
     inStoreDesc: 'O cliente confirma a encomenda e paga no levantamento.',
+    inStoreSmsHint:
+      'O pagamento na loja só fica visível na loja pública depois de configurares o Twilio em Definições da loja → Email e SMS.',
     atLeastOne: 'Ativa pelo menos uma forma de pagamento.',
     saved: 'Definições guardadas.',
   },

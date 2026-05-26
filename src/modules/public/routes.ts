@@ -7,6 +7,7 @@ import {
   getTodayInTimezone,
   isDateTodayOrAfter,
 } from '../../lib/dates';
+import { lojaHasSms, lojaHasSmtp, lojaNotificationSelect } from '../../lib/lojaNotificationConfig';
 import { notifyOrderPaid } from '../../lib/orderNotifications';
 import { publicAnalyticsRoutes } from './analyticsRoutes';
 import { phoneCheckoutRoutes } from './phoneCheckoutRoutes';
@@ -56,6 +57,7 @@ export async function publicRoutes(fastify: FastifyInstance) {
               phone: { type: 'string' },
               allowOnlinePayment: { type: 'boolean' },
               allowInStorePayment: { type: 'boolean' },
+              collectCustomerEmail: { type: 'boolean' },
               productDisplayLayout: { type: 'string', enum: ['LARGE', 'MEDIUM', 'SMALL'] },
               colorPalette: { type: 'string', enum: ['INDIGO', 'TEAL', 'ROSE', 'AMBER'] },
             },
@@ -79,12 +81,25 @@ export async function publicRoutes(fastify: FastifyInstance) {
           allowInStorePayment: true,
           productDisplayLayout: true,
           colorPalette: true,
+          ...lojaNotificationSelect,
         },
       });
       if (!loja) {
         throw new NotFoundError('Loja not found');
       }
-      return loja;
+      return {
+        name: loja.name,
+        slug: loja.slug,
+        addressLine: loja.addressLine,
+        postalCode: loja.postalCode,
+        locality: loja.locality,
+        phone: loja.phone,
+        allowOnlinePayment: loja.allowOnlinePayment,
+        allowInStorePayment: loja.allowInStorePayment && lojaHasSms(loja),
+        collectCustomerEmail: lojaHasSmtp(loja),
+        productDisplayLayout: loja.productDisplayLayout,
+        colorPalette: loja.colorPalette,
+      };
     }
   );
 

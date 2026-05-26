@@ -65,9 +65,26 @@ export interface LojaPublic {
   phone: string;
   allowOnlinePayment: boolean;
   allowInStorePayment: boolean;
+  collectCustomerEmail: boolean;
   productDisplayLayout: ProductDisplayLayout;
   colorPalette: ShopColorPalette;
 }
+
+export type LojaNotificationSettings = {
+  smtp: {
+    host: string | null;
+    port: number;
+    secure: boolean;
+    user: string | null;
+    emailFrom: string | null;
+    passwordConfigured: boolean;
+  };
+  twilio: {
+    accountSid: string | null;
+    fromNumber: string | null;
+    authTokenConfigured: boolean;
+  };
+};
 
 export type CheckoutPaymentMethod = 'ONLINE' | 'IN_STORE';
 
@@ -456,6 +473,20 @@ export const adminApi = {
         '/admin/payment-settings',
         { method: 'PATCH', token, tenantSlug: slug, body: JSON.stringify(body) }
       ),
+  },
+  notificationSettings: {
+    get: (token: string, slug: string) =>
+      apiFetch<LojaNotificationSettings>('/admin/notification-settings', {
+        token,
+        tenantSlug: slug,
+      }),
+    update: (token: string, slug: string, body: Record<string, unknown>) =>
+      apiFetch<LojaNotificationSettings>('/admin/notification-settings', {
+        method: 'PATCH',
+        token,
+        tenantSlug: slug,
+        body: JSON.stringify(body),
+      }),
   },
   vatRates: {
     list: (token: string, slug: string) =>

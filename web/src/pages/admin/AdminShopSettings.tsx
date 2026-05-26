@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
-import { adminApi, type ProductDisplayLayout, type ShopColorPalette } from '../../api';
+import {
+  adminApi,
+  type LojaNotificationSettings,
+  type ProductDisplayLayout,
+  type ShopColorPalette,
+} from '../../api';
 import { SHOP_COLOR_PALETTES, SHOP_PALETTE_TOKENS } from '../../lib/shopColorPalettes';
 import { vatShortLabel } from '../../lib/vatLabel';
 import { useAuth } from '../../context/AuthContext';
@@ -30,6 +35,18 @@ export function AdminShopSettings() {
   const [vatSaving, setVatSaving] = useState(false);
   const [displaySaving, setDisplaySaving] = useState(false);
   const [displaySaved, setDisplaySaved] = useState(false);
+  const [notifications, setNotifications] = useState<LojaNotificationSettings | null>(null);
+  const [smtpHost, setSmtpHost] = useState('');
+  const [smtpPort, setSmtpPort] = useState('587');
+  const [smtpSecure, setSmtpSecure] = useState(false);
+  const [smtpUser, setSmtpUser] = useState('');
+  const [smtpPassword, setSmtpPassword] = useState('');
+  const [emailFrom, setEmailFrom] = useState('');
+  const [twilioAccountSid, setTwilioAccountSid] = useState('');
+  const [twilioAuthToken, setTwilioAuthToken] = useState('');
+  const [twilioFromNumber, setTwilioFromNumber] = useState('');
+  const [notifSaving, setNotifSaving] = useState(false);
+  const [notifSaved, setNotifSaved] = useState(false);
   const [newLabel, setNewLabel] = useState('');
   const [newRate, setNewRate] = useState('');
 
@@ -37,13 +54,24 @@ export function AdminShopSettings() {
     if (!token || !slug) return;
     setLoading(true);
     try {
-      const [vatList, display] = await Promise.all([
+      const [vatList, display, notif] = await Promise.all([
         adminApi.vatRates.list(token, slug),
         adminApi.shopDisplay.get(token, slug),
+        adminApi.notificationSettings.get(token, slug),
       ]);
       setRates(vatList);
       setLayout(display.productDisplayLayout);
       setPalette(display.colorPalette);
+      setNotifications(notif);
+      setSmtpHost(notif.smtp.host ?? '');
+      setSmtpPort(String(notif.smtp.port || 587));
+      setSmtpSecure(notif.smtp.secure);
+      setSmtpUser(notif.smtp.user ?? '');
+      setSmtpPassword('');
+      setEmailFrom(notif.smtp.emailFrom ?? '');
+      setTwilioAccountSid(notif.twilio.accountSid ?? '');
+      setTwilioAuthToken('');
+      setTwilioFromNumber(notif.twilio.fromNumber ?? '');
       setErr(null);
     } catch (e) {
       setErr(e instanceof Error ? e.message : t('common.genericError'));
@@ -114,6 +142,41 @@ export function AdminShopSettings() {
   };
 
   const layoutLabel = (l: ProductDisplayLayout) => t(`adminShop.layout.${l}`);
+
+  const saveNotifications = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token || !slug) return;
+    const port = parseInt(smtpPort, 10);
+    if (!Number.isFinite(port) || port < 1 || port > 65535) {
+      setErr(t('common.genericError'));
+      return;
+    }
+    setNotifSaving(true);
+    setErr(null);
+    setNotifSaved(false);
+    try {
+      const body: Record<string, unknown> = {
+        smtpHost: smtpHost.trim() || null,
+        smtpPort: port,
+        smtpSecure,
+        smtpUser: smtpUser.trim() || null,
+        emailFrom: emailFrom.trim() || null,
+        twilioAccountSid: twilioAccountSid.trim() || null,
+        twilioFromNumber: twilioFromNumber.trim() || null,
+      };
+      if (smtpPassword.trim()) body.smtpPassword = smtpPassword;
+      if (twilioAuthToken.trim()) body.twilioAuthToken = twilioAuthToken;
+      const data = await adminApi.notificationSettings.update(token, slug, body);
+      setNotifications(data);
+      setSmtpPassword('');
+      setTwilioAuthToken('');
+      setNotifSaved(true);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : t('common.genericError'));
+    } finally {
+      setNotifSaving(false);
+    }
+  };
 
   return (
     <div className="space-y-8">
@@ -261,6 +324,113 @@ export function AdminShopSettings() {
                 </div>
                 <Button type="submit" disabled={displaySaving}>
                   {displaySaving ? t('common.saving') : t('common.saveChanges')}
+                </Button>
+              </form>
+            </Card>
+          </section>
+
+          <section>
+            <h2 className="mb-1 text-lg font-semibold text-ink">{t('adminShop.notificationsTitle')}</h2>
+            <p className="mb-4 text-sm text-muted">{t('adminShop.notificationsDesc')}</p>
+            <Card>
+              <form onSubmit={saveNotifications} className="space-y-8">
+                <div className="space-y-4">
+                  <h3 className="text-sm font-semibold text-ink">{t('adminShop.smtpTitle')}</h3>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <Label>{t('adminShop.smtpHost')}</Label>
+                      <Input value={smtpHost} onChange={(e) => setSmtpHost(e.target.value)} />
+                    </div>
+                    <div>
+                      <Label>{t('adminShop.smtpPort')}</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={65535}
+                        value={smtpPort}
+                        onChange={(e) => setSmtpPort(e.target.value)}
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="flex cursor-pointer items-center gap-2 text-sm text-ink">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary-400"
+                          checked={smtpSecure}
+                          onChange={(e) => setSmtpSecure(e.target.checked)}
+                        />
+                        {t('adminShop.smtpSecure')}
+                      </label>
+                    </div>
+                    <div>
+                      <Label>{t('adminShop.smtpUser')}</Label>
+                      <Input value={smtpUser} onChange={(e) => setSmtpUser(e.target.value)} />
+                    </div>
+                    <div>
+                      <Label>{t('adminShop.smtpPassword')}</Label>
+                      <Input
+                        type="password"
+                        autoComplete="new-password"
+                        value={smtpPassword}
+                        placeholder={
+                          notifications?.smtp.passwordConfigured
+                            ? t('adminShop.smtpPasswordPlaceholder')
+                            : undefined
+                        }
+                        onChange={(e) => setSmtpPassword(e.target.value)}
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <Label>{t('adminShop.emailFrom')}</Label>
+                      <Input
+                        type="email"
+                        value={emailFrom}
+                        onChange={(e) => setEmailFrom(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4 border-t border-border pt-6">
+                  <h3 className="text-sm font-semibold text-ink">{t('adminShop.twilioTitle')}</h3>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <Label>{t('adminShop.twilioAccountSid')}</Label>
+                      <Input
+                        value={twilioAccountSid}
+                        onChange={(e) => setTwilioAccountSid(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <Label>{t('adminShop.twilioFromNumber')}</Label>
+                      <Input
+                        value={twilioFromNumber}
+                        onChange={(e) => setTwilioFromNumber(e.target.value)}
+                        placeholder="+351912345678"
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <Label>{t('adminShop.twilioAuthToken')}</Label>
+                      <Input
+                        type="password"
+                        autoComplete="new-password"
+                        value={twilioAuthToken}
+                        placeholder={
+                          notifications?.twilio.authTokenConfigured
+                            ? t('adminShop.twilioAuthTokenPlaceholder')
+                            : undefined
+                        }
+                        onChange={(e) => setTwilioAuthToken(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {notifSaved && (
+                  <p className="text-sm text-emerald-700">{t('adminShop.notificationsSaved')}</p>
+                )}
+                <Button type="submit" disabled={notifSaving}>
+                  {notifSaving ? t('common.saving') : t('common.saveChanges')}
                 </Button>
               </form>
             </Card>

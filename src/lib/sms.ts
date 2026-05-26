@@ -1,26 +1,17 @@
 import type { FastifyBaseLogger } from 'fastify/types/logger';
-
-export function isSmsConfigured(): boolean {
-  return Boolean(
-    process.env.TWILIO_ACCOUNT_SID?.trim() &&
-      process.env.TWILIO_AUTH_TOKEN?.trim() &&
-      process.env.TWILIO_FROM_NUMBER?.trim()
-  );
-}
+import type { SmsCredentials } from './lojaNotificationConfig';
 
 /** Envia SMS via Twilio. Se `required`, falha com erro legível quando não configurado ou Twilio rejeita. */
 export async function sendSms(
   to: string,
   body: string,
   log: FastifyBaseLogger,
-  opts?: { required?: boolean }
+  opts?: { required?: boolean; credentials: SmsCredentials | null }
 ): Promise<void> {
-  const sid = process.env.TWILIO_ACCOUNT_SID?.trim();
-  const token = process.env.TWILIO_AUTH_TOKEN?.trim();
-  const from = process.env.TWILIO_FROM_NUMBER?.trim();
+  const creds = opts?.credentials ?? null;
 
-  if (!sid || !token || !from) {
-    const msg = 'SMS não configurado (TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM_NUMBER).';
+  if (!creds) {
+    const msg = 'SMS não configurado para esta loja.';
     if (opts?.required) {
       throw new Error(msg);
     }
@@ -28,6 +19,7 @@ export async function sendSms(
     return;
   }
 
+  const { accountSid: sid, authToken: token, fromNumber: from } = creds;
   const url = `https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`;
   const params = new URLSearchParams({ To: to.trim(), From: from, Body: body });
   const res = await fetch(url, {

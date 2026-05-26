@@ -10,6 +10,16 @@ type Settings = {
   allowInStorePayment: boolean;
 };
 
+function smsConfigured(notif: {
+  twilio: { accountSid: string | null; fromNumber: string | null; authTokenConfigured: boolean };
+}): boolean {
+  return Boolean(
+    notif.twilio.accountSid?.trim() &&
+      notif.twilio.fromNumber?.trim() &&
+      notif.twilio.authTokenConfigured
+  );
+}
+
 export function AdminPayment() {
   const { t } = useI18n();
   const slug = useResolvedTenantSlug();
@@ -18,12 +28,17 @@ export function AdminPayment() {
   const [err, setErr] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [inStoreSmsOk, setInStoreSmsOk] = useState(false);
 
   const load = useCallback(async () => {
     if (!token || !slug) return;
     try {
-      const data = await adminApi.paymentSettings.get(token, slug);
+      const [data, notif] = await Promise.all([
+        adminApi.paymentSettings.get(token, slug),
+        adminApi.notificationSettings.get(token, slug),
+      ]);
       setSettings(data);
+      setInStoreSmsOk(smsConfigured(notif));
       setErr(null);
     } catch (e) {
       setErr(e instanceof Error ? e.message : t('common.genericError'));
@@ -113,6 +128,12 @@ export function AdminPayment() {
                 </span>
               </span>
             </label>
+
+            {settings.allowInStorePayment && !inStoreSmsOk && (
+              <p className="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                {t('adminPayment.inStoreSmsHint')}
+              </p>
+            )}
 
             <Button type="submit" disabled={saving}>
               {saving ? t('common.saving') : t('common.saveChanges')}

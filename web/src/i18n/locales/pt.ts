@@ -183,11 +183,8 @@ export const pt = {
     choosePickupTime: 'Escolhe uma hora entre {{min}} e {{max}}.',
     phoneHint:
       'Podes usar o indicativo do país (ex.: +351 ou 0033). Entre 8 e 15 dígitos no total.',
-    vatIncluded: 'IVA {{rate}}% incl.',
-    vatRateLabel: '{{label}} ({{rate}}%)',
-    vatLineDetail: 'incl. {{vat}} de IVA ({{rate}}%)',
-    totalVat: 'Total IVA',
-    vatBreakdown: '{{label}} {{rate}}%: {{vat}}',
+    vatShort: 'IVA {{rate}}%',
+    vatReduced: 'IVA reduzido {{rate}}%',
     pricesIncludeVat: 'Preços com IVA incluído.',
   },
   shopMessages: {
@@ -316,6 +313,14 @@ export const pt = {
       LARGE: 'Imagens grandes em grelha (predefinido).',
       MEDIUM: 'Imagens mais pequenas, mais produtos por linha.',
       SMALL: 'Lista compacta com miniatura.',
+    },
+    paletteTitle: 'Paleta de cores',
+    paletteDesc: 'Cores dos botões e destaques na loja pública.',
+    palette: {
+      INDIGO: 'Índigo',
+      TEAL: 'Verde-água',
+      ROSE: 'Rosa',
+      AMBER: 'Âmbar',
     },
   },
   adminPayment: {

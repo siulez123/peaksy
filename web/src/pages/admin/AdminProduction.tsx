@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { adminApi } from '../../api';
 import { useAuth } from '../../context/AuthContext';
 import { Button, Card, Input, Label } from '../../components/ui';
@@ -113,31 +113,52 @@ export function AdminProduction() {
     filterTime || (dateTo && dateTo !== dateFrom) || selectedProductIds.length > 0
   );
 
-  const load = useCallback(async () => {
-    if (!token || !dateFrom) {
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    setErr(null);
-    try {
-      const r = await adminApi.orders.productionBreakdown(token, slug, {
-        pickupDate: dateFrom,
-        pickupDateTo: dateTo && dateTo >= dateFrom ? dateTo : undefined,
-        pickupTime: filterTime || undefined,
-        productIds: productIdsKey ? productIdsKey : undefined,
-      });
-      setData(r);
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : t('common.genericError'));
-      setData(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [token, slug, dateFrom, dateTo, filterTime, productIdsKey]);
+  const scrollYRef = useRef(0);
+  const hasLoadedOnce = useRef(false);
+
+  const load = useCallback(
+    async (opts?: { preserveScroll?: boolean }) => {
+      if (!token || !dateFrom) {
+        setLoading(false);
+        return;
+      }
+      if (opts?.preserveScroll) {
+        scrollYRef.current = window.scrollY;
+      }
+      const background = hasLoadedOnce.current;
+      if (!background) {
+        setLoading(true);
+      }
+      setErr(null);
+      try {
+        const r = await adminApi.orders.productionBreakdown(token, slug, {
+          pickupDate: dateFrom,
+          pickupDateTo: dateTo && dateTo >= dateFrom ? dateTo : undefined,
+          pickupTime: filterTime || undefined,
+          productIds: productIdsKey ? productIdsKey : undefined,
+        });
+        setData(r);
+        hasLoadedOnce.current = true;
+      } catch (e) {
+        setErr(e instanceof Error ? e.message : t('common.genericError'));
+        if (!background) {
+          setData(null);
+        }
+      } finally {
+        setLoading(false);
+        if (opts?.preserveScroll) {
+          const y = scrollYRef.current;
+          requestAnimationFrame(() => {
+            window.scrollTo(0, y);
+          });
+        }
+      }
+    },
+    [token, slug, dateFrom, dateTo, filterTime, productIdsKey, t]
+  );
 
   useEffect(() => {
-    void load();
+    void load({ preserveScroll: hasLoadedOnce.current });
   }, [load]);
 
   const chartItems = useMemo(() => {
@@ -261,6 +282,7 @@ export function AdminProduction() {
                           className="mt-1 size-4 shrink-0 rounded border-slate-300 text-primary focus:ring-primary-500"
                           checked={checked}
                           onChange={() => toggleProduct(p.id)}
+                          onClick={(e) => e.stopPropagation()}
                         />
                         <span className="text-sm leading-snug text-ink">
                           <span className="font-medium">{p.name}</span>{' '}
@@ -286,8 +308,8 @@ export function AdminProduction() {
 
       {loading && !data && <p className="text-muted">{t('common.loading')}</p>}
 
-      {data && !loading && (
-        <div className="space-y-6">
+      {data && (
+        <div className={`space-y-6 ${loading ? 'pointer-events-none opacity-60' : ''}`}>
           <Card>
             <p className="text-sm text-muted">
               {t('adminProduction.paidOrdersInPeriod', { count: data.totalOrders })}

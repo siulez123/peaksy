@@ -36,6 +36,14 @@ enum ProductDisplayLayout {
   SMALL
 }
 
+/// Paleta de cores da loja pública.
+enum ShopColorPalette {
+  INDIGO
+  TEAL
+  ROSE
+  AMBER
+}
+
 enum AnalyticsEventKind {
   PAGE_VIEW
   EMBED_LAND
@@ -75,6 +83,8 @@ model Loja {
   allowInStorePayment Boolean @default(false)
   /// Grelha de produtos na loja pública (grande = predefinido)
   productDisplayLayout ProductDisplayLayout @default(LARGE)
+  /// Paleta de cores (loja pública)
+  colorPalette       ShopColorPalette       @default(INDIGO)
   createdAt DateTime @default(now())
 
   users            User[]

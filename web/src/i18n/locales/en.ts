@@ -180,11 +180,8 @@ export const en = {
     choosePickupTime: 'Choose a time between {{min}} and {{max}}.',
     phoneHint:
       'You may use the country code (e.g. +351 or 0033). 8 to 15 digits in total.',
-    vatIncluded: 'VAT {{rate}}% incl.',
-    vatRateLabel: '{{label}} ({{rate}}%)',
-    vatLineDetail: 'incl. {{vat}} VAT ({{rate}}%)',
-    totalVat: 'Total VAT',
-    vatBreakdown: '{{label}} {{rate}}%: {{vat}}',
+    vatShort: 'VAT {{rate}}%',
+    vatReduced: 'Reduced VAT {{rate}}%',
     pricesIncludeVat: 'Prices include VAT.',
   },
   shopMessages: {
@@ -312,6 +309,14 @@ export const en = {
       LARGE: 'Large images in a grid (default).',
       MEDIUM: 'Smaller images, more products per row.',
       SMALL: 'Compact list with thumbnails.',
+    },
+    paletteTitle: 'Color palette',
+    paletteDesc: 'Button and accent colors on the public shop.',
+    palette: {
+      INDIGO: 'Indigo',
+      TEAL: 'Teal',
+      ROSE: 'Rose',
+      AMBER: 'Amber',
     },
   },
   adminPayment: {

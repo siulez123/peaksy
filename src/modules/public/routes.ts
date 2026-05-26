@@ -115,6 +115,7 @@ export async function publicRoutes(fastify: FastifyInstance) {
               allowOnlinePayment: { type: 'boolean' },
               allowInStorePayment: { type: 'boolean' },
               productDisplayLayout: { type: 'string', enum: ['LARGE', 'MEDIUM', 'SMALL'] },
+              colorPalette: { type: 'string', enum: ['INDIGO', 'TEAL', 'ROSE', 'AMBER'] },
             },
           },
         },
@@ -135,6 +136,7 @@ export async function publicRoutes(fastify: FastifyInstance) {
           allowOnlinePayment: true,
           allowInStorePayment: true,
           productDisplayLayout: true,
+          colorPalette: true,
         },
       });
       if (!loja) {

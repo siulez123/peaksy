@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
-import { adminApi, type ProductDisplayLayout } from '../../api';
+import { adminApi, type ProductDisplayLayout, type ShopColorPalette } from '../../api';
+import { SHOP_COLOR_PALETTES, SHOP_PALETTE_TOKENS } from '../../lib/shopColorPalettes';
+import { vatShortLabel } from '../../lib/vatLabel';
 import { useAuth } from '../../context/AuthContext';
 import { Button, Card, Input, Label, SectionTitle } from '../../components/ui';
 import { useResolvedTenantSlug } from '../../lib/tenantHost';
@@ -17,11 +19,12 @@ type VatRateRow = {
 const LAYOUTS: ProductDisplayLayout[] = ['LARGE', 'MEDIUM', 'SMALL'];
 
 export function AdminShopSettings() {
-  const { t } = useI18n();
+  const { t, localeTag } = useI18n();
   const slug = useResolvedTenantSlug();
   const { token } = useAuth();
   const [rates, setRates] = useState<VatRateRow[]>([]);
   const [layout, setLayout] = useState<ProductDisplayLayout>('LARGE');
+  const [palette, setPalette] = useState<ShopColorPalette>('INDIGO');
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [vatSaving, setVatSaving] = useState(false);
@@ -40,6 +43,7 @@ export function AdminShopSettings() {
       ]);
       setRates(vatList);
       setLayout(display.productDisplayLayout);
+      setPalette(display.colorPalette);
       setErr(null);
     } catch (e) {
       setErr(e instanceof Error ? e.message : t('common.genericError'));
@@ -95,8 +99,12 @@ export function AdminShopSettings() {
     setErr(null);
     setDisplaySaved(false);
     try {
-      const data = await adminApi.shopDisplay.update(token, slug, { productDisplayLayout: layout });
+      const data = await adminApi.shopDisplay.update(token, slug, {
+        productDisplayLayout: layout,
+        colorPalette: palette,
+      });
       setLayout(data.productDisplayLayout);
+      setPalette(data.colorPalette);
       setDisplaySaved(true);
     } catch (e) {
       setErr(e instanceof Error ? e.message : t('common.genericError'));
@@ -125,12 +133,13 @@ export function AdminShopSettings() {
                 {rates.map((r) => (
                   <li key={r.id} className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
                     <div>
-                      <p className="font-medium text-ink">{r.label}</p>
+                      <p className="font-medium text-ink">
+                        {vatShortLabel(r.ratePercent, r.label, localeTag, t)}
+                      </p>
                       <p className="text-sm text-muted">
-                        {t('adminShop.vatPercent', { rate: r.ratePercent })}
                         {r.productCount > 0
-                          ? ` · ${t('adminShop.vatProductCount', { count: r.productCount })}`
-                          : ''}
+                          ? t('adminShop.vatProductCount', { count: r.productCount })
+                          : t('adminShop.vatPercent', { rate: r.ratePercent })}
                       </p>
                     </div>
                     <Button
@@ -209,6 +218,46 @@ export function AdminShopSettings() {
                       </span>
                     </label>
                   ))}
+                </div>
+                <div>
+                  <p className="mb-2 text-sm font-medium text-ink">{t('adminShop.paletteTitle')}</p>
+                  <p className="mb-3 text-xs text-muted">{t('adminShop.paletteDesc')}</p>
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    {SHOP_COLOR_PALETTES.map((p) => {
+                      const tokens = SHOP_PALETTE_TOKENS[p];
+                      return (
+                        <label
+                          key={p}
+                          className={`flex cursor-pointer flex-col rounded-xl border p-3 transition-colors ${
+                            palette === p
+                              ? 'border-primary bg-primary-soft/40 ring-1 ring-primary/30'
+                              : 'border-border hover:bg-slate-50/80'
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="colorPalette"
+                            className="sr-only"
+                            checked={palette === p}
+                            onChange={() => setPalette(p)}
+                          />
+                          <span className="flex gap-1.5">
+                            <span
+                              className="h-8 w-8 rounded-lg border border-border shadow-sm"
+                              style={{ backgroundColor: tokens.primary }}
+                            />
+                            <span
+                              className="h-8 flex-1 rounded-lg border border-border"
+                              style={{ backgroundColor: tokens.primarySoft }}
+                            />
+                          </span>
+                          <span className="mt-2 text-sm font-semibold text-ink">
+                            {t(`adminShop.palette.${p}`)}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
                 </div>
                 <Button type="submit" disabled={displaySaving}>
                   {displaySaving ? t('common.saving') : t('common.saveChanges')}

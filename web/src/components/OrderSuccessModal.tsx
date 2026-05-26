@@ -6,8 +6,6 @@ import { useI18n } from '../i18n/context';
 import { Button } from './ui';
 import { VatHint } from './shop/VatPrice';
 import { VatTotalsSummary } from './shop/VatTotalsSummary';
-import type { VatLine } from '../lib/vatDisplay';
-import { vatCentsFromGrossCents } from '../lib/vatMath';
 
 function paymentStatusLabel(order: OrderConfirmation, t: (key: string) => string): string {
   if (order.paymentMethod === 'IN_STORE') {
@@ -19,25 +17,9 @@ function paymentStatusLabel(order: OrderConfirmation, t: (key: string) => string
   return t('shopMessages.payOnlinePending');
 }
 
-function orderVatLines(order: OrderConfirmation): VatLine[] {
-  return order.items.map((it) => ({
-    priceCents: it.unitPriceCents,
-    qty: it.quantity,
-    vatRatePercent: it.vatRatePercent ?? 0,
-    vatRateLabel: it.vatRateLabel,
-  }));
-}
-
 function OrderConfirmationBody({ order }: { order: OrderConfirmation }) {
   const { t, localeTag } = useI18n();
   const fmtHour = (slot: string) => formatPickupHourLabel(slot, localeTag);
-  const vatLines = orderVatLines(order);
-  const totalVatCents =
-    order.totalVatCents ??
-    order.items.reduce((s, it) => {
-      const rate = it.vatRatePercent ?? 0;
-      return s + (it.lineVatCents ?? vatCentsFromGrossCents(it.lineCents, rate));
-    }, 0);
 
   return (
     <dl className="space-y-4 text-left text-sm">
@@ -82,10 +64,8 @@ function OrderConfirmationBody({ order }: { order: OrderConfirmation }) {
                     <span className="tabular-nums text-muted"> × {it.quantity}</span>
                     {rate > 0 && (
                       <VatHint
-                        grossCents={it.lineCents}
                         ratePercent={rate}
                         label={it.vatRateLabel}
-                        showAmount
                         className="mt-1"
                       />
                     )}
@@ -114,10 +94,7 @@ function OrderConfirmationBody({ order }: { order: OrderConfirmation }) {
         <dd className="mt-0.5 font-medium text-ink">{paymentStatusLabel(order, t)}</dd>
       </div>
       <div className="rounded-xl border border-border bg-canvas/60 p-3">
-        <VatTotalsSummary lines={vatLines} totalGrossCents={order.totalCents} />
-        {totalVatCents <= 0 && (
-          <p className="mt-2 text-xs text-muted">{t('shop.pricesIncludeVat')}</p>
-        )}
+        <VatTotalsSummary totalGrossCents={order.totalCents} />
       </div>
     </dl>
   );
@@ -155,7 +132,7 @@ export function OrderSuccessModal({ open, onClose, order, loadState }: OrderSucc
         notes: t('shopMessages.notes'),
         payment: t('shopMessages.payment'),
         total: t('common.total'),
-        totalVat: t('shop.totalVat'),
+        pricesIncludeVat: t('shop.pricesIncludeVat'),
         paymentStatus: paymentStatusLabel(order, t),
       },
       localeTag

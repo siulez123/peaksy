@@ -53,6 +53,7 @@ export type SuperUser = {
 };
 
 export type ProductDisplayLayout = 'LARGE' | 'MEDIUM' | 'SMALL';
+export type ShopColorPalette = 'INDIGO' | 'TEAL' | 'ROSE' | 'AMBER';
 
 /** Dados públicos da loja (GET /public/loja). */
 export interface LojaPublic {
@@ -65,6 +66,7 @@ export interface LojaPublic {
   allowOnlinePayment: boolean;
   allowInStorePayment: boolean;
   productDisplayLayout: ProductDisplayLayout;
+  colorPalette: ShopColorPalette;
 }
 
 export type CheckoutPaymentMethod = 'ONLINE' | 'IN_STORE';
@@ -441,17 +443,24 @@ export const adminApi = {
   },
   shopDisplay: {
     get: (token: string, slug: string) =>
-      apiFetch<{ productDisplayLayout: ProductDisplayLayout }>('/admin/shop-display', {
-        token,
-        tenantSlug: slug,
-      }),
-    update: (token: string, slug: string, body: { productDisplayLayout: ProductDisplayLayout }) =>
-      apiFetch<{ productDisplayLayout: ProductDisplayLayout }>('/admin/shop-display', {
-        method: 'PATCH',
-        token,
-        tenantSlug: slug,
-        body: JSON.stringify(body),
-      }),
+      apiFetch<{ productDisplayLayout: ProductDisplayLayout; colorPalette: ShopColorPalette }>(
+        '/admin/shop-display',
+        { token, tenantSlug: slug }
+      ),
+    update: (
+      token: string,
+      slug: string,
+      body: Partial<{ productDisplayLayout: ProductDisplayLayout; colorPalette: ShopColorPalette }>
+    ) =>
+      apiFetch<{ productDisplayLayout: ProductDisplayLayout; colorPalette: ShopColorPalette }>(
+        '/admin/shop-display',
+        {
+          method: 'PATCH',
+          token,
+          tenantSlug: slug,
+          body: JSON.stringify(body),
+        }
+      ),
   },
 };
 

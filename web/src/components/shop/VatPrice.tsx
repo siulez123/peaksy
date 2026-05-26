@@ -1,30 +1,19 @@
 import { formatMoney } from '../../api';
 import { useI18n } from '../../i18n/context';
-import { formatVatRatePercent, vatCentsFromGrossCents } from '../../lib/vatDisplay';
+import { vatShortLabel } from '../../lib/vatLabel';
+
 type VatHintProps = {
-  grossCents: number;
   ratePercent: number;
   label?: string;
-  /** Mostrar montante de IVA além da taxa */
-  showAmount?: boolean;
   className?: string;
 };
 
-/** Linha secundária com taxa de IVA (preço TTC no elemento pai). */
-export function VatHint({ grossCents, ratePercent, label, showAmount = false, className }: VatHintProps) {
+/** Linha secundária: «IVA 23%» (preço TTC no elemento pai). */
+export function VatHint({ ratePercent, label, className }: VatHintProps) {
   const { t, localeTag } = useI18n();
-  const rate = formatVatRatePercent(ratePercent, localeTag);
-  const vatCents = vatCentsFromGrossCents(grossCents, ratePercent);
-
   return (
     <p className={className ?? 'text-xs leading-snug text-muted'}>
-      {showAmount && vatCents > 0 ? (
-        t('shop.vatLineDetail', { vat: formatMoney(vatCents), rate })
-      ) : label ? (
-        t('shop.vatRateLabel', { label, rate })
-      ) : (
-        t('shop.vatIncluded', { rate })
-      )}
+      {vatShortLabel(ratePercent, label, localeTag, t)}
     </p>
   );
 }
@@ -34,7 +23,6 @@ type PriceWithVatProps = {
   ratePercent: number;
   label?: string;
   size?: 'sm' | 'md' | 'lg';
-  showAmount?: boolean;
   className?: string;
 };
 
@@ -44,19 +32,12 @@ const priceClass: Record<NonNullable<PriceWithVatProps['size']>, string> = {
   lg: 'text-lg font-semibold text-primary',
 };
 
-/** Preço TTC + indicação de IVA. */
-export function PriceWithVat({
-  grossCents,
-  ratePercent,
-  label,
-  size = 'md',
-  showAmount = false,
-  className,
-}: PriceWithVatProps) {
+/** Preço TTC + «IVA X%». */
+export function PriceWithVat({ grossCents, ratePercent, label, size = 'md', className }: PriceWithVatProps) {
   return (
     <div className={className}>
       <p className={`tabular-nums ${priceClass[size]}`}>{formatMoney(grossCents)}</p>
-      <VatHint grossCents={grossCents} ratePercent={ratePercent} label={label} showAmount={showAmount} />
+      <VatHint ratePercent={ratePercent} label={label} />
     </div>
   );
 }

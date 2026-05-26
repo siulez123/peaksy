@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { Button, Card, Input, Label, SheetDialog } from '../../components/ui';
 import { useResolvedTenantSlug } from '../../lib/tenantHost';
 import { useI18n } from '../../i18n/context';
+import { vatShortLabel } from '../../lib/vatLabel';
 
 type VatOption = { id: string; label: string; ratePercent: number };
 
@@ -31,7 +32,7 @@ const emptyForm = (vatRateId = ''): FormState => ({
 });
 
 export function AdminProducts() {
-  const { t } = useI18n();
+  const { t, localeTag } = useI18n();
   const slug = useResolvedTenantSlug();
   const { token } = useAuth();
   const [items, setItems] = useState<ProductRow[]>([]);
@@ -209,7 +210,7 @@ export function AdminProducts() {
         ) : (
           vatRates.map((r) => (
             <option key={r.id} value={r.id}>
-              {r.label} ({r.ratePercent}%)
+              {vatShortLabel(r.ratePercent, r.label, localeTag, t)}
             </option>
           ))
         )}
@@ -260,7 +261,7 @@ export function AdminProducts() {
                     <p className="text-sm text-primary-hover">
                       {formatMoney(p.priceCents)}{' '}
                       <span className="text-muted">
-                        ({p.vatRateLabel} {p.vatRatePercent}%)
+                        ({vatShortLabel(p.vatRatePercent, p.vatRateLabel, localeTag, t)})
                       </span>
                     </p>
                     {!p.active && <span className="text-xs text-warning">{t('adminCommon.inactive')}</span>}

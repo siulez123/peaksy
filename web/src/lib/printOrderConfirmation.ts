@@ -1,7 +1,6 @@
 import { formatMoney, type OrderConfirmation } from '../api';
 import { formatPickupHourLabel } from './timeOfDay';
 import { formatVatRatePercent } from './vatDisplay';
-import { vatCentsFromGrossCents } from './vatMath';
 
 export type OrderPrintLabels = {
   title: string;
@@ -12,7 +11,7 @@ export type OrderPrintLabels = {
   notes: string;
   payment: string;
   total: string;
-  totalVat: string;
+  pricesIncludeVat: string;
   paymentStatus: string;
 };
 
@@ -24,6 +23,13 @@ function escapeHtml(text: string): string {
     .replace(/"/g, '&quot;');
 }
 
+function vatNoteHtml(rate: number, label: string | undefined, localeTag: string): string {
+  if (rate <= 0) return '';
+  const rateStr = escapeHtml(formatVatRatePercent(rate, localeTag));
+  const prefix = label && /reduzid/i.test(label) ? 'IVA reduzido ' : 'IVA ';
+  return ` <span class="muted">(${prefix}${rateStr}%)</span>`;
+}
+
 /** Abre janela de impressão com o resumo completo (evita folha em branco do modal). */
 export function printOrderConfirmation(
   order: OrderConfirmation,
@@ -32,33 +38,14 @@ export function printOrderConfirmation(
 ): void {
   const fmtHour = (slot: string) => formatPickupHourLabel(slot, localeTag);
   const itemRows = order.items
-    .map((it) => {
-      const rate = it.vatRatePercent ?? 0;
-      const lineVat =
-        it.lineVatCents ?? (rate > 0 ? vatCentsFromGrossCents(it.lineCents, rate) : 0);
-      const vatNote =
-        rate > 0
-          ? ` <span class="muted">(${escapeHtml(formatMoney(lineVat))} IVA ${escapeHtml(formatVatRatePercent(rate, localeTag))}%)</span>`
-          : '';
-      return `
+    .map(
+      (it) => `
       <tr>
-        <td>${escapeHtml(it.productName)} <span class="muted">${escapeHtml(it.variant)}</span> × ${it.quantity}${vatNote}</td>
+        <td>${escapeHtml(it.productName)} <span class="muted">${escapeHtml(it.variant)}</span> × ${it.quantity}${vatNoteHtml(it.vatRatePercent ?? 0, it.vatRateLabel, localeTag)}</td>
         <td class="num">${escapeHtml(formatMoney(it.lineCents))}</td>
-      </tr>`;
-    })
+      </tr>`
+    )
     .join('');
-
-  const totalVatCents =
-    order.totalVatCents ??
-    order.items.reduce((s, it) => {
-      const rate = it.vatRatePercent ?? 0;
-      return s + (it.lineVatCents ?? vatCentsFromGrossCents(it.lineCents, rate));
-    }, 0);
-
-  const vatBlock =
-    totalVatCents > 0
-      ? `<p class="vat-total">${escapeHtml(labels.totalVat)}: ${escapeHtml(formatMoney(totalVatCents))}</p>`
-      : '';
 
   const notesBlock = order.notes
     ? `<p><span class="label">${escapeHtml(labels.notes)}</span> ${escapeHtml(order.notes)}</p>`
@@ -81,8 +68,8 @@ export function printOrderConfirmation(
     th, td { padding: 8px 0; border-bottom: 1px solid #e2e8f0; text-align: left; vertical-align: top; }
     th { font-size: 11px; text-transform: uppercase; color: #64748b; }
     td.num, th.num { text-align: right; }
-    .vat-total { font-size: 13px; color: #64748b; text-align: right; margin: 4px 0 0; }
     .total { font-size: 16px; font-weight: 700; margin-top: 8px; text-align: right; }
+    .vat-note { font-size: 12px; color: #64748b; text-align: right; margin-top: 4px; }
   </style>
 </head>
 <body>
@@ -114,8 +101,8 @@ export function printOrderConfirmation(
     <span class="label">${escapeHtml(labels.payment)}</span>
     ${escapeHtml(labels.paymentStatus)}
   </div>
-  ${vatBlock}
   <p class="total">${escapeHtml(labels.total)}: ${escapeHtml(formatMoney(order.totalCents))}</p>
+  <p class="vat-note">${escapeHtml(labels.pricesIncludeVat)}</p>
 </body>
 </html>`;
 

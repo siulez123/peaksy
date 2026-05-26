@@ -145,9 +145,14 @@ const vatRateUpdateSchema = vatRateCreateSchema.partial().refine((d) => Object.k
   message: 'Nada para atualizar.',
 });
 
-const shopDisplaySchema = z.object({
-  productDisplayLayout: z.enum(['LARGE', 'MEDIUM', 'SMALL']),
-});
+const shopDisplaySchema = z
+  .object({
+    productDisplayLayout: z.enum(['LARGE', 'MEDIUM', 'SMALL']).optional(),
+    colorPalette: z.enum(['INDIGO', 'TEAL', 'ROSE', 'AMBER']).optional(),
+  })
+  .refine((d) => d.productDisplayLayout !== undefined || d.colorPalette !== undefined, {
+    message: 'Nada para atualizar.',
+  });
 
 function vatRateJson(rate: { id: string; label: string; ratePercent: { toString(): string } | number; sortOrder: number }) {
   return {
@@ -1886,7 +1891,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
 
       const loja = await fastify.prisma.loja.findUnique({
         where: { id: tenant.lojaId },
-        select: { productDisplayLayout: true },
+        select: { productDisplayLayout: true, colorPalette: true },
       });
       if (!loja) {
         throw new NotFoundError('Loja not found');
@@ -1901,16 +1906,9 @@ export async function adminRoutes(fastify: FastifyInstance) {
     '/admin/shop-display',
     {
       schema: {
-        description: 'Atualizar layout de produtos na loja pública',
+        description: 'Layout e paleta de cores da loja pública',
         tags: ['admin'],
         security: [{ bearerAuth: [] }],
-        body: {
-          type: 'object',
-          required: ['productDisplayLayout'],
-          properties: {
-            productDisplayLayout: { type: 'string', enum: ['LARGE', 'MEDIUM', 'SMALL'] },
-          },
-        },
       },
       onRequest: [requireLojaAdmin, requireTenant],
     },
@@ -1925,8 +1923,13 @@ export async function adminRoutes(fastify: FastifyInstance) {
 
       const loja = await fastify.prisma.loja.update({
         where: { id: tenant.lojaId },
-        data: { productDisplayLayout: data.productDisplayLayout },
-        select: { productDisplayLayout: true },
+        data: {
+          ...(data.productDisplayLayout !== undefined
+            ? { productDisplayLayout: data.productDisplayLayout }
+            : {}),
+          ...(data.colorPalette !== undefined ? { colorPalette: data.colorPalette } : {}),
+        },
+        select: { productDisplayLayout: true, colorPalette: true },
       });
 
       return loja;

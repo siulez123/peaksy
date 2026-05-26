@@ -23,7 +23,7 @@ import { OrderSuccessModal } from '../../components/OrderSuccessModal';
 import { ShopProductGrid } from '../../components/shop/ShopProductGrid';
 import { VatHint } from '../../components/shop/VatPrice';
 import { VatTotalsSummary } from '../../components/shop/VatTotalsSummary';
-import type { VatLine } from '../../lib/vatDisplay';
+import { shopPaletteStyle } from '../../lib/shopColorPalettes';
 
 const NOTES_MAX_LENGTH = 40;
 
@@ -114,10 +114,8 @@ function CartPanel({
                   <span className="text-muted">{t('common.perUnit')}</span>
                 </p>
                 <VatHint
-                  grossCents={l.priceCents}
                   ratePercent={l.vatRatePercent}
                   label={l.vatRateLabel}
-                  showAmount
                   className="mt-0.5"
                 />
               </div>
@@ -149,9 +147,8 @@ function CartPanel({
                       {formatMoney(l.priceCents * l.qty)}
                     </span>
                     <VatHint
-                      grossCents={l.priceCents * l.qty}
                       ratePercent={l.vatRatePercent}
-                      showAmount
+                      label={l.vatRateLabel}
                       className="text-right"
                     />
                   </div>
@@ -168,10 +165,7 @@ function CartPanel({
             </li>
           ))}
           <li className="border-t border-border pt-3">
-            <VatTotalsSummary
-              lines={lines as VatLine[]}
-              totalGrossCents={totalCents}
-            />
+            <VatTotalsSummary totalGrossCents={totalCents} />
           </li>
         </ul>
       )}
@@ -204,7 +198,6 @@ type CheckoutModalProps = {
   selectedDay: ShopDayRow | undefined;
   pickupTimeOk: boolean;
   totalCents: number;
-  vatLines: VatLine[];
   customerName: string;
   setCustomerName: (v: string) => void;
   customerPhone: string;
@@ -238,7 +231,6 @@ function CheckoutModal({
   selectedDay,
   pickupTimeOk,
   totalCents,
-  vatLines,
   customerName,
   setCustomerName,
   customerPhone,
@@ -296,7 +288,7 @@ function CheckoutModal({
               <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">
                 {t('shop.checkoutTotal')}
               </p>
-              <VatTotalsSummary lines={vatLines} totalGrossCents={totalCents} />
+              <VatTotalsSummary totalGrossCents={totalCents} />
             </div>
           </div>
           {(allowOnlinePayment || allowInStorePayment) && (
@@ -740,12 +732,6 @@ export function ShopPage() {
   };
 
   const lines = Object.values(cart);
-  const vatLines: VatLine[] = lines.map((l) => ({
-    priceCents: l.priceCents,
-    qty: l.qty,
-    vatRatePercent: l.vatRatePercent,
-    vatRateLabel: l.vatRateLabel,
-  }));
   const totalCents = lines.reduce((s, l) => s + l.priceCents * l.qty, 0);
   const itemCount = lines.reduce((s, l) => s + l.qty, 0);
 
@@ -933,11 +919,14 @@ export function ShopPage() {
     return <LojaNotFoundPage slug={slug} />;
   }
 
+  const paletteStyle = lojaPublic ? shopPaletteStyle(lojaPublic.colorPalette) : undefined;
+
   return (
     <div
       className={`mx-auto max-w-full overflow-x-clip px-4 pt-8 sm:pt-10 ${
         showOrderingUI && lines.length > 0 ? 'pb-32 lg:pb-14' : 'pb-10 sm:pb-12'
       } max-w-6xl`}
+      style={paletteStyle}
     >
       <ShopPublicHeader lojaLabel={shopTitle} subtitle={shopSubtitle} />
 
@@ -1052,7 +1041,6 @@ export function ShopPage() {
         selectedDay={selectedDay}
         pickupTimeOk={pickupTimeOk}
         totalCents={totalCents}
-        vatLines={vatLines}
         customerName={customerName}
         setCustomerName={setCustomerName}
         customerPhone={customerPhone}

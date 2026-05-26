@@ -367,8 +367,8 @@ function CheckoutModal({
                 {t('shop.otpSent', { phone: customerPhone.trim() })}
               </p>
               <p className="text-xs text-muted">{t('shop.inStorePayHint')}</p>
-              <div>
-                <label htmlFor="shop-otp-code" className="text-sm font-medium text-ink">
+              <div className="pt-1">
+                <label htmlFor="shop-otp-code" className="mb-3 block text-sm font-medium text-ink">
                   {t('shop.otpCodeLabel')}
                 </label>
                 <Input
@@ -379,39 +379,36 @@ function CheckoutModal({
                   value={otpCode}
                   onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                   disabled={paying}
-                  className="mt-1 text-center text-lg tracking-[0.35em] tabular-nums"
+                  className="border-2 border-slate-300 bg-surface text-center text-lg font-semibold tracking-[0.35em] text-ink tabular-nums shadow-sm placeholder:text-slate-400"
                   required
                 />
               </div>
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <Button
+              <Button
+                type="button"
+                className="w-full"
+                disabled={paying || otpCode.length !== 6}
+                onClick={() => void onVerifyOtp()}
+              >
+                {paying ? t('common.loading') : t('shop.otpVerify')}
+              </Button>
+              <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 border-t border-border/80 pt-3">
+                <button
                   type="button"
-                  className="flex-1"
-                  disabled={paying || otpCode.length !== 6}
-                  onClick={() => void onVerifyOtp()}
-                >
-                  {paying ? t('common.loading') : t('shop.otpVerify')}
-                </Button>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className="flex-1"
+                  className="text-xs text-muted transition-colors hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
                   disabled={paying || resendCooldown > 0}
                   onClick={() => void onResendOtp()}
                 >
-                  {resendCooldown > 0
-                    ? t('shop.otpResendIn', { seconds: resendCooldown })
-                    : t('shop.otpResend')}
-                </Button>
+                  {t('shop.otpResend')}
+                </button>
+                <button
+                  type="button"
+                  className="text-xs text-muted transition-colors hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
+                  disabled={paying || resendCooldown > 0}
+                  onClick={onOtpBack}
+                >
+                  {t('shop.otpBack')}
+                </button>
               </div>
-              <button
-                type="button"
-                className="text-sm text-primary hover:underline disabled:opacity-50"
-                disabled={paying}
-                onClick={onOtpBack}
-              >
-                {t('shop.otpBack')}
-              </button>
             </div>
           ) : (
             <>

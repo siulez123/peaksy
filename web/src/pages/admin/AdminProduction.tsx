@@ -19,8 +19,59 @@ type BreakdownData = {
     totalQuantity: number;
   }>;
   productTotals: Array<{ productName: string; variant: string; totalQuantity: number }>;
+  productPendingTotals: Array<{ productName: string; variant: string; totalQuantity: number }>;
   statusCounts: Record<string, number>;
+  ordersPickedUp: number;
+  ordersNotPickedUp: number;
 };
+
+function ProductionQtyTable({
+  rows,
+  emptyMessage,
+}: {
+  rows: Array<{ productName: string; variant: string; totalQuantity: number }>;
+  emptyMessage: string;
+}) {
+  const { t } = useI18n();
+  const total = rows.reduce((s, r) => s + r.totalQuantity, 0);
+
+  if (rows.length === 0) {
+    return <p className="text-sm text-muted">{emptyMessage}</p>;
+  }
+
+  return (
+    <div className="overflow-x-auto rounded-xl border border-border">
+      <table className="w-full min-w-[280px] text-left text-sm">
+        <thead className="border-b border-border bg-slate-50 text-xs font-semibold uppercase tracking-wide text-muted">
+          <tr>
+            <th className="px-4 py-3">{t('adminCommon.product')}</th>
+            <th className="px-4 py-3">{t('adminCommon.variant')}</th>
+            <th className="px-4 py-3 text-right">{t('adminCommon.quantity')}</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-border">
+          {rows.map((r, i) => (
+            <tr key={i} className="hover:bg-slate-50/80">
+              <td className="px-4 py-2.5 font-medium text-ink">{r.productName}</td>
+              <td className="px-4 py-2.5 text-muted">{r.variant}</td>
+              <td className="px-4 py-2.5 text-right font-semibold tabular-nums text-primary-800">
+                {r.totalQuantity}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+        <tfoot className="border-t border-border bg-slate-50/80">
+          <tr>
+            <td colSpan={2} className="px-4 py-2.5 text-sm font-semibold text-ink">
+              {t('common.total')}
+            </td>
+            <td className="px-4 py-2.5 text-right text-sm font-bold tabular-nums text-ink">{total}</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  );
+}
 
 type CatalogProduct = {
   id: string;
@@ -328,6 +379,68 @@ export function AdminProduction() {
               })}
             </p>
           </Card>
+
+          <div className="grid gap-6 lg:grid-cols-2">
+            <Card>
+              <h2 className="mb-1 text-lg font-semibold text-ink">
+                {t('adminProduction.pendingProductsTitle')}
+              </h2>
+              <p className="mb-4 text-xs text-muted">{t('adminProduction.pendingProductsDesc')}</p>
+              <ProductionQtyTable
+                rows={data.productPendingTotals}
+                emptyMessage={t('adminProduction.noPendingProducts')}
+              />
+            </Card>
+
+            <Card>
+              <h2 className="mb-1 text-lg font-semibold text-ink">
+                {t('adminProduction.ordersPickupTitle')}
+              </h2>
+              <p className="mb-4 text-xs text-muted">{t('adminProduction.ordersPickupDesc')}</p>
+              {data.totalOrders === 0 ? (
+                <p className="text-sm text-muted">{t('adminProduction.noOrdersInPeriod')}</p>
+              ) : (
+                <div className="overflow-x-auto rounded-xl border border-border">
+                  <table className="w-full text-left text-sm">
+                    <thead className="border-b border-border bg-slate-50 text-xs font-semibold uppercase tracking-wide text-muted">
+                      <tr>
+                        <th className="px-4 py-3">{t('adminCommon.status')}</th>
+                        <th className="px-4 py-3 text-right">{t('adminCommon.quantity')}</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      <tr className="hover:bg-slate-50/80">
+                        <td className="px-4 py-2.5 font-medium text-ink">
+                          {t('adminProduction.ordersNotPickedUp')}
+                        </td>
+                        <td className="px-4 py-2.5 text-right font-semibold tabular-nums text-amber-800">
+                          {data.ordersNotPickedUp}
+                        </td>
+                      </tr>
+                      <tr className="hover:bg-slate-50/80">
+                        <td className="px-4 py-2.5 font-medium text-ink">
+                          {t('adminProduction.ordersPickedUp')}
+                        </td>
+                        <td className="px-4 py-2.5 text-right font-semibold tabular-nums text-emerald-800">
+                          {data.ordersPickedUp}
+                        </td>
+                      </tr>
+                    </tbody>
+                    <tfoot className="border-t border-border bg-slate-50/80">
+                      <tr>
+                        <td className="px-4 py-2.5 text-sm font-semibold text-ink">
+                          {t('common.total')}
+                        </td>
+                        <td className="px-4 py-2.5 text-right text-sm font-bold tabular-nums text-ink">
+                          {data.totalOrders}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              )}
+            </Card>
+          </div>
 
           <div className="grid gap-6 lg:grid-cols-2">
             <Card>

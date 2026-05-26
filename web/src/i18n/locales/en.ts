@@ -439,6 +439,15 @@ export const en = {
     detailTitle: 'Detail by day, time and product',
     detailDesc: 'Each row is the quantity to produce for that day, time and item.',
     noDetailRows: 'No rows to show.',
+    pendingProductsTitle: 'Still to prepare (by product)',
+    pendingProductsDesc:
+      'Quantities on lines not yet marked ready (orders not yet picked up).',
+    ordersPickupTitle: 'Orders by pickup status',
+    ordersPickupDesc: 'Paid orders in the period, by order status.',
+    ordersNotPickedUp: 'Not yet picked up',
+    ordersPickedUp: 'Already picked up',
+    noPendingProducts: 'Nothing left to prepare for this period/filter.',
+    noOrdersInPeriod: 'No orders in the period.',
   },
   superNav: {
     metrics: 'Metrics',

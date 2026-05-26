@@ -1608,11 +1608,48 @@ export async function adminRoutes(fastify: FastifyInstance) {
         `${a.productName} ${a.variant}`.localeCompare(`${b.productName} ${b.variant}`, 'pt')
       );
 
+      const pendingByProduct = new Map<
+        string,
+        { productName: string; variant: string; totalQuantity: number }
+      >();
+
+      for (const order of orders) {
+        if (order.status === 'PICKED_UP') {
+          continue;
+        }
+        for (const item of order.items) {
+          if (item.ready) {
+            continue;
+          }
+          if (idSet && !idSet.has(item.productId)) {
+            continue;
+          }
+          const k = `${item.productNameSnapshot}\0${item.variantSnapshot}`;
+          const x = pendingByProduct.get(k);
+          if (!x) {
+            pendingByProduct.set(k, {
+              productName: item.productNameSnapshot,
+              variant: item.variantSnapshot,
+              totalQuantity: item.quantity,
+            });
+          } else {
+            x.totalQuantity += item.quantity;
+          }
+        }
+      }
+
+      const productPendingTotals = Array.from(pendingByProduct.values()).sort((a, b) =>
+        `${a.productName} ${a.variant}`.localeCompare(`${b.productName} ${b.variant}`, 'pt')
+      );
+
       const statusCounts = {
         RECEIVED: orders.filter((o) => o.status === 'RECEIVED').length,
         READY: orders.filter((o) => o.status === 'READY').length,
         PICKED_UP: orders.filter((o) => o.status === 'PICKED_UP').length,
       };
+
+      const ordersPickedUp = statusCounts.PICKED_UP;
+      const ordersNotPickedUp = statusCounts.RECEIVED + statusCounts.READY;
 
       return {
         pickupDate: fromStr,
@@ -1620,7 +1657,10 @@ export async function adminRoutes(fastify: FastifyInstance) {
         totalOrders: orders.length,
         rows,
         productTotals,
+        productPendingTotals,
         statusCounts,
+        ordersPickedUp,
+        ordersNotPickedUp,
       };
     }
   );

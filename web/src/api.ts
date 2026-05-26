@@ -400,7 +400,10 @@ export const adminApi = {
           totalQuantity: number;
         }>;
         productTotals: Array<{ productName: string; variant: string; totalQuantity: number }>;
+        productPendingTotals: Array<{ productName: string; variant: string; totalQuantity: number }>;
         statusCounts: Record<string, number>;
+        ordersPickedUp: number;
+        ordersNotPickedUp: number;
       }>(`/admin/orders/production-breakdown?${p.toString()}`, { token, tenantSlug: slug });
     },
   },

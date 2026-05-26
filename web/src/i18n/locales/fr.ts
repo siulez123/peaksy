@@ -445,6 +445,15 @@ export const fr = {
     detailTitle: 'Détail par jour, heure et produit',
     detailDesc: 'Chaque ligne est la quantité à produire pour ce jour, cette heure et cette référence.',
     noDetailRows: 'Aucune ligne à afficher.',
+    pendingProductsTitle: 'À préparer (par produit)',
+    pendingProductsDesc:
+      'Quantités sur des lignes pas encore marquées prêtes (commandes non retirées).',
+    ordersPickupTitle: 'Commandes par retrait',
+    ordersPickupDesc: 'Commandes payées sur la période, selon le statut de la commande.',
+    ordersNotPickedUp: 'Pas encore retirées',
+    ordersPickedUp: 'Déjà retirées',
+    noPendingProducts: 'Rien à préparer pour cette période/filtre.',
+    noOrdersInPeriod: 'Aucune commande sur la période.',
   },
   superNav: {
     metrics: 'Métriques',

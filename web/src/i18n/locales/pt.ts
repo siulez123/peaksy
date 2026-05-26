@@ -175,7 +175,15 @@ export const pt = {
     payInStore: 'Pagar na loja',
     payInStoreDesc: 'Reserva a encomenda e pagas no levantamento.',
     inStorePayHint:
-      'A encomenda fica registada. Pagas quando fores levantar à loja.',
+      'Enviámos um SMS com um código de 6 dígitos. Introduz-o para confirmar. Pagas na loja ao levantar.',
+    otpTitle: 'Código de confirmação',
+    otpSent: 'Enviámos um código para {{phone}}. Válido 10 minutos.',
+    otpCodeLabel: 'Código SMS',
+    otpVerify: 'Confirmar código',
+    otpResend: 'Reenviar código',
+    otpResendIn: 'Reenviar em {{seconds}}s',
+    otpBack: 'Alterar dados',
+    otpInvalid: 'Código inválido.',
     phoneInvalid:
       'Número inválido. Usa 8 a 15 dígitos; podes incluir + e o código do país.',
     verifyPhone: 'Verifica o número de telefone antes de continuar.',

@@ -172,7 +172,16 @@ export const en = {
     payOnlineDesc: 'Card, MB WAY and other methods via Stripe.',
     payInStore: 'Pay in store',
     payInStoreDesc: 'Reserve your order and pay when you pick up.',
-    inStorePayHint: 'Your order will be registered. You pay when you collect at the shop.',
+    inStorePayHint:
+      'We sent a 6-digit code by SMS. Enter it to confirm. Pay at the shop when you pick up.',
+    otpTitle: 'Confirmation code',
+    otpSent: 'We sent a code to {{phone}}. Valid for 10 minutes.',
+    otpCodeLabel: 'SMS code',
+    otpVerify: 'Confirm code',
+    otpResend: 'Resend code',
+    otpResendIn: 'Resend in {{seconds}}s',
+    otpBack: 'Edit details',
+    otpInvalid: 'Invalid code.',
     phoneInvalid:
       'Invalid number. Use 8 to 15 digits; you may include + and country code.',
     verifyPhone: 'Check the phone number before continuing.',

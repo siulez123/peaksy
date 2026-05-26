@@ -175,7 +175,15 @@ export const fr = {
     payInStore: 'Payer en boutique',
     payInStoreDesc: 'Réservez la commande et payez au retrait.',
     inStorePayHint:
-      'La commande est enregistrée. Vous payez lors du retrait en boutique.',
+      'Nous avons envoyé un code à 6 chiffres par SMS. Saisissez-le pour confirmer. Paiement en boutique au retrait.',
+    otpTitle: 'Code de confirmation',
+    otpSent: 'Code envoyé au {{phone}}. Valide 10 minutes.',
+    otpCodeLabel: 'Code SMS',
+    otpVerify: 'Confirmer le code',
+    otpResend: 'Renvoyer le code',
+    otpResendIn: 'Renvoyer dans {{seconds}} s',
+    otpBack: 'Modifier les données',
+    otpInvalid: 'Code invalide.',
     phoneInvalid:
       'Numéro invalide. Utilisez 8 à 15 chiffres ; vous pouvez inclure + et l’indicatif pays.',
     verifyPhone: 'Vérifiez le numéro de téléphone avant de continuer.',

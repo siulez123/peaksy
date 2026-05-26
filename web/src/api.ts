@@ -222,6 +222,39 @@ export const publicApi = {
       tenantSlug: slug,
       body: JSON.stringify(body),
     }),
+  checkoutSendPhoneCode: (
+    slug: string,
+    body: {
+      pickupDate: string;
+      pickupTime: string;
+      items: { productId: string; qty: number }[];
+      customerName: string;
+      customerPhone: string;
+      customerEmail?: string;
+      notes?: string;
+      successPath?: string;
+      cancelPath?: string;
+      paymentMethod: 'IN_STORE';
+    }
+  ) =>
+    apiFetch<{
+      verificationId: string;
+      expiresInSeconds: number;
+      resendAfterSeconds: number;
+    }>('/public/checkout/phone/send-code', {
+      method: 'POST',
+      tenantSlug: slug,
+      body: JSON.stringify(body),
+    }),
+  checkoutVerifyPhone: (
+    slug: string,
+    body: { verificationId: string; code: string }
+  ) =>
+    apiFetch<CheckoutResult>('/public/checkout/phone/verify', {
+      method: 'POST',
+      tenantSlug: slug,
+      body: JSON.stringify(body),
+    }),
   orderConfirmation: (
     slug: string,
     q: { orderId?: string | null; sessionId?: string | null }

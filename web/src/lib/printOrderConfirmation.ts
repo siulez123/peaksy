@@ -45,8 +45,12 @@ function buildPrintHtml(
     )
     .join('');
 
-  const notesBlock = order.notes
-    ? `<p><span class="label">${escapeHtml(labels.notes)}</span> ${escapeHtml(order.notes)}</p>`
+  const notesText = order.notes?.trim();
+  const notesBlock = notesText
+    ? `<div class="block">
+    <span class="label">${escapeHtml(labels.notes)}</span>
+    ${escapeHtml(notesText)}
+  </div>`
     : '';
 
   return `<!DOCTYPE html>

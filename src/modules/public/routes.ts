@@ -1,16 +1,16 @@
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import Stripe from 'stripe';
-import { ValidationError, NotFoundError, ConflictError } from '../../lib/errors';
+import { ValidationError, NotFoundError } from '../../lib/errors';
 import {
   formatDateForDB,
   getTodayInTimezone,
   isDateTodayOrAfter,
 } from '../../lib/dates';
-import { isValidInternationalPhone } from '../../lib/phone';
-import { notifyOrderInStore, notifyOrderPaid } from '../../lib/orderNotifications';
-import { isTimeWithinWindow, isValidHhHalfHour } from '../../lib/timeOfDay';
+import { notifyOrderPaid } from '../../lib/orderNotifications';
 import { publicAnalyticsRoutes } from './analyticsRoutes';
+import { phoneCheckoutRoutes } from './phoneCheckoutRoutes';
+import { checkoutSchema, frontendBaseUrl, validateCheckoutRequest } from '../../lib/checkoutValidation';
 import { vatCentsFromGrossCents, summarizeVatByRate } from '../../lib/vatAmounts';
 
 /** Só instanciar com chave real — `new Stripe('')` rebenta ao carregar o módulo (ex.: Railway sem Stripe). */
@@ -27,64 +27,6 @@ function getStripe(): Stripe {
   }
   return stripeSingleton;
 }
-
-function validateStripeReturnPath(
-  path: string,
-  tenantSlug: string,
-  kind: 'success' | 'cancel'
-): string {
-  const trimmed = path.trim();
-  if (!trimmed.startsWith('/') || trimmed.includes('..') || trimmed.includes('//')) {
-    throw new ValidationError('Caminho de retorno inválido.');
-  }
-  const okSuccess =
-    trimmed === '/' ||
-    trimmed === `/loja/${tenantSlug}` ||
-    trimmed === '/sucesso' ||
-    trimmed === `/loja/${tenantSlug}/sucesso`;
-  const okCancel =
-    trimmed === '/cancelar' || trimmed === `/loja/${tenantSlug}/cancelar`;
-  if (kind === 'success' && !okSuccess) {
-    throw new ValidationError('Caminho de sucesso após pagamento não permitido.');
-  }
-  if (kind === 'cancel' && !okCancel) {
-    throw new ValidationError('Caminho de cancelamento não permitido.');
-  }
-  return trimmed;
-}
-
-const checkoutSchema = z.object({
-  pickupDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  pickupTime: z
-    .string()
-    .min(1)
-    .regex(
-      /^([01]\d|2[0-3]):(00|30)$/,
-      'Hora de levantamento: horas cheias ou meias (ex.: 13:00, 13:30).'
-    ),
-  items: z
-    .array(
-      z.object({
-        productId: z.string().uuid(),
-        qty: z.number().int().positive(),
-      })
-    )
-    .min(1),
-  customerName: z.string().min(1).max(200),
-  customerPhone: z
-    .string()
-    .min(1)
-    .max(50)
-    .refine((s) => isValidInternationalPhone(s), {
-      message: 'Telefone inválido (8–15 dígitos; + e código do país permitidos).',
-    }),
-  customerEmail: z.string().email().optional(),
-  notes: z.string().max(40).optional(),
-  /** Caminhos relativos no FRONTEND_URL (loja na raiz do subdomínio ou /loja/:slug). */
-  successPath: z.string().optional(),
-  cancelPath: z.string().optional(),
-  paymentMethod: z.enum(['ONLINE', 'IN_STORE']).default('ONLINE'),
-});
 
 export async function publicRoutes(fastify: FastifyInstance) {
   // Helper function for hooks
@@ -365,217 +307,28 @@ export async function publicRoutes(fastify: FastifyInstance) {
       const tenant = request.tenant!;
       const data = checkoutSchema.parse(request.body);
 
-      const lojaPayments = await fastify.prisma.loja.findUnique({
-        where: { id: tenant.lojaId },
-        select: { allowOnlinePayment: true, allowInStorePayment: true },
-      });
-      if (!lojaPayments) {
-        throw new NotFoundError('Loja not found');
-      }
-      if (!lojaPayments.allowOnlinePayment && !lojaPayments.allowInStorePayment) {
-        throw new ValidationError('Esta loja não aceita encomendas neste momento.');
-      }
-      if (data.paymentMethod === 'ONLINE' && !lojaPayments.allowOnlinePayment) {
-        throw new ValidationError('Pagamento online não está disponível nesta loja.');
-      }
-      if (data.paymentMethod === 'IN_STORE' && !lojaPayments.allowInStorePayment) {
-        throw new ValidationError('Pagamento na loja não está disponível nesta loja.');
-      }
-
-      // Dia de levantamento: hoje ou futuro (no calendário da loja), não apenas "depois de hoje"
-      if (!isDateTodayOrAfter(data.pickupDate, tenant.timezone)) {
-        throw new ValidationError('A data de levantamento não pode ser anterior a hoje.');
-      }
-
-      const windows = await fastify.prisma.availableDay.findMany({
-        where: {
-          lojaId: tenant.lojaId,
-          active: true,
-        },
-        include: {
-          pickupDateRules: true,
-          productCaps: true,
-        },
-      });
-
-      const availableDay = windows.find((r) => {
-        const s = formatDateForDB(r.pickupDate);
-        const e = formatDateForDB(r.pickupEndDate);
-        return data.pickupDate >= s && data.pickupDate <= e;
-      });
-
-      if (!availableDay) {
-        throw new NotFoundError('Available day not found');
-      }
-
-      const pickupRule = availableDay.pickupDateRules.find(
-        (rule) => formatDateForDB(rule.pickupDate) === data.pickupDate
-      );
-      if (!pickupRule) {
-        throw new NotFoundError('Available day not found');
-      }
-
-      if (availableDay.ordersOpenAt && new Date(availableDay.ordersOpenAt) > new Date()) {
-        throw new ValidationError('As encomendas para este período ainda não estão abertas.');
-      }
-
-      if (new Date(pickupRule.orderDeadline) < new Date()) {
-        throw new ValidationError('Order deadline has passed');
-      }
-
-      const pt = data.pickupTime.trim();
-      if (!isValidHhHalfHour(pt)) {
-        throw new ValidationError('Hora de levantamento: horas cheias ou meias (ex.: 13:00, 13:30).');
-      }
-      if (
-        !isTimeWithinWindow(pt, availableDay.pickupTimeMin, availableDay.pickupTimeMax)
-      ) {
-        throw new ValidationError(
-          `Hora de levantamento tem de estar entre ${availableDay.pickupTimeMin} e ${availableDay.pickupTimeMax}.`
-        );
-      }
-
-      // Validate products and calculate total
-      const productIds = data.items.map((item) => item.productId);
-      const products = await fastify.prisma.product.findMany({
-        where: {
-          id: { in: productIds },
-          lojaId: tenant.lojaId,
-          active: true,
-        },
-        include: { vatRate: true },
-      });
-
-      if (products.length !== productIds.length) {
-        throw new NotFoundError('One or more products not found');
-      }
-
-      let totalCents = 0;
-      const orderItems: Array<{
-        productId: string;
-        productNameSnapshot: string;
-        variantSnapshot: string;
-        unitPriceCentsSnapshot: number;
-        vatRatePercentSnapshot: number;
-        vatRateLabelSnapshot: string;
-        quantity: number;
-      }> = [];
-
-      for (const item of data.items) {
-        const product = products.find((p) => p.id === item.productId);
-        if (!product) {
-          throw new NotFoundError(`Product ${item.productId} not found`);
-        }
-
-        // Check product cap if exists
-        const productCap = availableDay.productCaps.find(
-          (cap) => cap.productId === product.id
-        );
-        if (productCap) {
-          const paidOrdersForProduct = await fastify.prisma.orderItem.aggregate({
-            where: {
-              productId: product.id,
-              order: {
-                availableDayId: availableDay.id,
-                paid: true,
-                pickupDate: new Date(`${data.pickupDate}T12:00:00.000Z`),
-              },
-            },
-            _sum: {
-              quantity: true,
-            },
-          });
-
-          const currentQuantity =
-            (paidOrdersForProduct._sum.quantity || 0) + item.qty;
-          if (currentQuantity > productCap.cap) {
-            throw new ConflictError(
-              `Product ${product.name} ${product.variant} cap exceeded`
-            );
-          }
-        }
-
-        const itemTotal = product.priceCents * item.qty;
-        totalCents += itemTotal;
-
-        orderItems.push({
-          productId: product.id,
-          productNameSnapshot: product.name,
-          variantSnapshot: product.variant,
-          unitPriceCentsSnapshot: product.priceCents,
-          vatRatePercentSnapshot: Number(product.vatRate.ratePercent),
-          vatRateLabelSnapshot: product.vatRate.label,
-          quantity: item.qty,
-        });
-      }
-
-      if (availableDay.dayCapTotal) {
-        const paidOrderCount = await fastify.prisma.order.count({
-          where: {
-            availableDayId: availableDay.id,
-            paid: true,
-          },
-        });
-        if (paidOrderCount >= availableDay.dayCapTotal) {
-          throw new ConflictError('Limite de encomendas para este período atingido.');
-        }
-      }
-
-      const frontendBase =
-        process.env.FRONTEND_URL ||
-        (request.headers.origin as string | undefined) ||
-        'http://localhost:5173';
-
-      const baseUrl = frontendBase.replace(/\/$/, '');
-      const successRel = data.successPath
-        ? validateStripeReturnPath(data.successPath, tenant.slug, 'success')
-        : `/loja/${tenant.slug}`;
-      const cancelRel = data.cancelPath
-        ? validateStripeReturnPath(data.cancelPath, tenant.slug, 'cancel')
-        : `/loja/${tenant.slug}/cancelar`;
-
       if (data.paymentMethod === 'IN_STORE') {
-        const order = await fastify.prisma.order.create({
-          data: {
-            lojaId: tenant.lojaId,
-            availableDayId: availableDay.id,
-            pickupDate: new Date(data.pickupDate),
-            pickupTime: pt,
-            customerName: data.customerName.trim(),
-            customerPhone: data.customerPhone.trim(),
-            customerEmail: data.customerEmail?.trim() || null,
-            notes: data.notes?.trim().substring(0, 40) || null,
-            totalCents,
-            paid: true,
-            paymentMethod: 'IN_STORE',
-            status: 'RECEIVED',
-            items: {
-              create: orderItems,
-            },
-          },
-        });
-
-        await notifyOrderInStore(order.id, fastify.prisma, request.log).catch((e) => {
-          request.log.error({ err: e }, 'notifyOrderInStore failed');
-        });
-
-        return {
-          paymentMethod: 'IN_STORE',
-          successUrl: `${baseUrl}${successRel}?order_id=${order.id}`,
-        };
+        throw new ValidationError(
+          'Confirma a encomenda com o código SMS enviado para o teu telemóvel.'
+        );
       }
 
-      // Create order (unpaid until Stripe)
+      const validated = await validateCheckoutRequest(fastify.prisma, tenant, data);
+      const { data: vData, orderItems, totalCents, pickupTime: pt, successRel, cancelRel } =
+        validated;
+
+      const baseUrl = frontendBaseUrl(request.headers.origin as string | undefined);
+
       const order = await fastify.prisma.order.create({
         data: {
           lojaId: tenant.lojaId,
-          availableDayId: availableDay.id,
-          pickupDate: new Date(data.pickupDate),
+          availableDayId: validated.availableDayId,
+          pickupDate: new Date(vData.pickupDate),
           pickupTime: pt,
-          customerName: data.customerName.trim(),
-          customerPhone: data.customerPhone.trim(),
-          customerEmail: data.customerEmail?.trim() || null,
-          notes: data.notes?.trim().substring(0, 40) || null,
+          customerName: vData.customerName.trim(),
+          customerPhone: vData.customerPhone.trim(),
+          customerEmail: vData.customerEmail?.trim() || null,
+          notes: vData.notes?.trim().substring(0, 40) || null,
           totalCents,
           paid: false,
           paymentMethod: 'ONLINE',
@@ -785,6 +538,7 @@ export async function publicRoutes(fastify: FastifyInstance) {
     }
   );
 
+  await fastify.register(phoneCheckoutRoutes);
   await fastify.register(publicAnalyticsRoutes);
 }
 

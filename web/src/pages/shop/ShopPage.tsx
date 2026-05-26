@@ -215,6 +215,13 @@ type CheckoutModalProps = {
   allowInStorePayment: boolean;
   paymentMethod: CheckoutPaymentMethod;
   setPaymentMethod: (v: CheckoutPaymentMethod) => void;
+  otpStep: 'checkout' | 'otp';
+  otpCode: string;
+  setOtpCode: (v: string) => void;
+  onVerifyOtp: () => void;
+  onResendOtp: () => void;
+  onOtpBack: () => void;
+  resendCooldown: number;
 };
 
 function CheckoutModal({
@@ -248,6 +255,13 @@ function CheckoutModal({
   allowInStorePayment,
   paymentMethod,
   setPaymentMethod,
+  otpStep,
+  otpCode,
+  setOtpCode,
+  onVerifyOtp,
+  onResendOtp,
+  onOtpBack,
+  resendCooldown,
 }: CheckoutModalProps) {
   const { t, localeTag, formatDateTime } = useI18n();
   if (!open) return null;
@@ -336,8 +350,8 @@ function CheckoutModal({
           {paymentMethod === 'ONLINE' && allowOnlinePayment && (
             <p className="text-xs leading-relaxed text-muted">{t('shop.stripeHint')}</p>
           )}
-          {paymentMethod === 'IN_STORE' && allowInStorePayment && (
-            <p className="text-xs leading-relaxed text-muted">{t('shop.inStorePayHint')}</p>
+          {paymentMethod === 'IN_STORE' && allowInStorePayment && otpStep === 'checkout' && (
+            <p className="text-xs leading-relaxed text-muted">{t('shop.payInStoreDesc')}</p>
           )}
 
           {checkoutErr && (
@@ -346,6 +360,61 @@ function CheckoutModal({
             </p>
           )}
 
+          {otpStep === 'otp' ? (
+            <div className="space-y-4 rounded-xl border border-primary/25 bg-primary-soft/30 p-4">
+              <h3 className="text-sm font-semibold text-ink">{t('shop.otpTitle')}</h3>
+              <p className="text-sm text-muted">
+                {t('shop.otpSent', { phone: customerPhone.trim() })}
+              </p>
+              <p className="text-xs text-muted">{t('shop.inStorePayHint')}</p>
+              <div>
+                <label htmlFor="shop-otp-code" className="text-sm font-medium text-ink">
+                  {t('shop.otpCodeLabel')}
+                </label>
+                <Input
+                  id="shop-otp-code"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  maxLength={6}
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  disabled={paying}
+                  className="mt-1 text-center text-lg tracking-[0.35em] tabular-nums"
+                  required
+                />
+              </div>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Button
+                  type="button"
+                  className="flex-1"
+                  disabled={paying || otpCode.length !== 6}
+                  onClick={() => void onVerifyOtp()}
+                >
+                  {paying ? t('common.loading') : t('shop.otpVerify')}
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="flex-1"
+                  disabled={paying || resendCooldown > 0}
+                  onClick={() => void onResendOtp()}
+                >
+                  {resendCooldown > 0
+                    ? t('shop.otpResendIn', { seconds: resendCooldown })
+                    : t('shop.otpResend')}
+                </Button>
+              </div>
+              <button
+                type="button"
+                className="text-sm text-primary hover:underline disabled:opacity-50"
+                disabled={paying}
+                onClick={onOtpBack}
+              >
+                {t('shop.otpBack')}
+              </button>
+            </div>
+          ) : (
+            <>
           <div className="rounded-xl border border-border bg-canvas/80 p-3">
             <h3 className="mb-2 text-sm font-semibold text-ink">{t('shop.pickupDayTime')}</h3>
             {days.length === 0 ? (
@@ -481,6 +550,8 @@ function CheckoutModal({
                 ? t('shop.confirmOrder')
                 : t('shop.payContinue')}
           </Button>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -517,6 +588,10 @@ export function ShopPage() {
   const [successLoad, setSuccessLoad] = useState<'loading' | 'ok' | 'fail'>('loading');
   const [checkoutErr, setCheckoutErr] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<CheckoutPaymentMethod>('ONLINE');
+  const [verificationId, setVerificationId] = useState<string | null>(null);
+  const [otpStep, setOtpStep] = useState<'checkout' | 'otp'>('checkout');
+  const [otpCode, setOtpCode] = useState('');
+  const [resendCooldown, setResendCooldown] = useState(0);
   type LojaHead = 'loading' | LojaPublic | 'fail';
   const [lojaHead, setLojaHead] = useState<LojaHead>('loading');
 
@@ -776,15 +851,6 @@ export function ShopPage() {
   }, [orderModalOpen]);
 
   useEffect(() => {
-    if (!orderModalOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !paying) setOrderModalOpen(false);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [orderModalOpen, paying]);
-
-  useEffect(() => {
     if (!successOpen) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -826,6 +892,85 @@ export function ShopPage() {
     }
   }, [pickupHourSlots, pickupTime]);
 
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const id = window.setInterval(() => {
+      setResendCooldown((s) => (s <= 1 ? 0 : s - 1));
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [resendCooldown]);
+
+  const resetOtpFlow = useCallback(() => {
+    setVerificationId(null);
+    setOtpStep('checkout');
+    setOtpCode('');
+    setResendCooldown(0);
+  }, []);
+
+  const closeCheckoutModal = useCallback(() => {
+    setOrderModalOpen(false);
+    resetOtpFlow();
+    setCheckoutErr(null);
+  }, [resetOtpFlow]);
+
+  useEffect(() => {
+    if (!orderModalOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !paying) closeCheckoutModal();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [orderModalOpen, paying, closeCheckoutModal]);
+
+  const buildCheckoutPayload = useCallback(() => {
+    return {
+      pickupDate,
+      pickupTime,
+      items: lines.map((l) => ({ productId: l.productId, qty: l.qty })),
+      customerName,
+      customerPhone,
+      customerEmail: customerEmail || undefined,
+      notes: notes || undefined,
+      successPath: shopSuccessReturnPath(slug, hostSlug),
+      cancelPath: hostSlug ? '/cancelar' : `/loja/${slug}/cancelar`,
+    };
+  }, [
+    pickupDate,
+    pickupTime,
+    lines,
+    customerName,
+    customerPhone,
+    customerEmail,
+    notes,
+    slug,
+    hostSlug,
+  ]);
+
+  const sendPhoneCode = useCallback(async () => {
+    const r = await publicApi.checkoutSendPhoneCode(slug, {
+      ...buildCheckoutPayload(),
+      paymentMethod: 'IN_STORE',
+    });
+    setVerificationId(r.verificationId);
+    setOtpStep('otp');
+    setOtpCode('');
+    setResendCooldown(r.resendAfterSeconds);
+  }, [slug, buildCheckoutPayload]);
+
+  const verifyOtp = useCallback(async () => {
+    if (!verificationId || otpCode.length !== 6) return;
+    const res = await publicApi.checkoutVerifyPhone(slug, {
+      verificationId,
+      code: otpCode,
+    });
+    if (res.successUrl) {
+      const u = new URL(res.successUrl, window.location.origin);
+      closeCheckoutModal();
+      setCart({});
+      navigate(`${u.pathname}${u.search}`, { replace: true });
+    }
+  }, [verificationId, otpCode, slug, navigate, closeCheckoutModal]);
+
   const checkout = async () => {
     if (!pickupDate || lines.length === 0 || !selectedDay) return;
     if (!pickupTime || !pickupHourSlots.includes(pickupTime)) {
@@ -846,31 +991,46 @@ export function ShopPage() {
     setPaying(true);
     setCheckoutErr(null);
     try {
+      if (paymentMethod === 'IN_STORE') {
+        await sendPhoneCode();
+        return;
+      }
       const res = await publicApi.checkout(slug, {
-        pickupDate,
-        pickupTime,
-        items: lines.map((l) => ({ productId: l.productId, qty: l.qty })),
-        customerName,
-        customerPhone,
-        customerEmail: customerEmail || undefined,
-        notes: notes || undefined,
-        successPath: shopSuccessReturnPath(slug, hostSlug),
-        cancelPath: hostSlug ? '/cancelar' : `/loja/${slug}/cancelar`,
-        paymentMethod,
+        ...buildCheckoutPayload(),
+        paymentMethod: 'ONLINE',
       });
       if (res.checkoutUrl) {
         window.location.href = res.checkoutUrl;
-      } else if (res.successUrl) {
-        const u = new URL(res.successUrl, window.location.origin);
-        setOrderModalOpen(false);
-        setCart({});
-        navigate(`${u.pathname}${u.search}`, { replace: true });
-        return;
       } else {
         setCheckoutErr(t('common.paymentFailed'));
       }
     } catch (e) {
       setCheckoutErr(e instanceof Error ? e.message : t('common.paymentFailed'));
+    } finally {
+      setPaying(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    setPaying(true);
+    setCheckoutErr(null);
+    try {
+      await verifyOtp();
+    } catch (e) {
+      setCheckoutErr(e instanceof Error ? e.message : t('shop.otpInvalid'));
+    } finally {
+      setPaying(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (resendCooldown > 0) return;
+    setPaying(true);
+    setCheckoutErr(null);
+    try {
+      await sendPhoneCode();
+    } catch (e) {
+      setCheckoutErr(e instanceof Error ? e.message : t('common.genericError'));
     } finally {
       setPaying(false);
     }
@@ -1029,7 +1189,7 @@ export function ShopPage() {
       {showOrderingUI && (
       <CheckoutModal
         open={orderModalOpen}
-        onClose={() => setOrderModalOpen(false)}
+        onClose={closeCheckoutModal}
         paying={paying}
         lojaLabel={lojaLabel}
         days={days}
@@ -1058,6 +1218,16 @@ export function ShopPage() {
         allowInStorePayment={allowInStorePayment}
         paymentMethod={paymentMethod}
         setPaymentMethod={setPaymentMethod}
+        otpStep={otpStep}
+        otpCode={otpCode}
+        setOtpCode={setOtpCode}
+        onVerifyOtp={handleVerifyOtp}
+        onResendOtp={handleResendOtp}
+        onOtpBack={() => {
+          resetOtpFlow();
+          setCheckoutErr(null);
+        }}
+        resendCooldown={resendCooldown}
       />
       )}
 

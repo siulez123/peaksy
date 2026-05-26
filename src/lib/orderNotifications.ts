@@ -1,6 +1,8 @@
 import nodemailer from 'nodemailer';
 import type { PrismaClient } from '@prisma/client';
 import type { FastifyBaseLogger } from 'fastify/types/logger';
+import { normalizePhoneE164 } from './phoneE164';
+import { sendSms } from './sms';
 
 function formatMoneyEUR(cents: number): string {
   return new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(cents / 100);
@@ -12,32 +14,6 @@ function escapeHtml(s: string): string {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
-}
-
-async function sendSms(to: string, body: string, log: FastifyBaseLogger): Promise<void> {
-  const sid = process.env.TWILIO_ACCOUNT_SID;
-  const token = process.env.TWILIO_AUTH_TOKEN;
-  const from = process.env.TWILIO_FROM_NUMBER;
-  if (!sid || !token || !from) {
-    log.warn('SMS não enviado: define TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN e TWILIO_FROM_NUMBER');
-    return;
-  }
-
-  const url = `https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`;
-  const params = new URLSearchParams({ To: to.trim(), From: from.trim(), Body: body });
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      Authorization: `Basic ${Buffer.from(`${sid}:${token}`).toString('base64')}`,
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: params.toString(),
-  });
-
-  if (!res.ok) {
-    const t = await res.text();
-    log.error({ status: res.status, body: t }, 'Falha ao enviar SMS (Twilio)');
-  }
 }
 
 async function sendEmail(to: string, subject: string, html: string, log: FastifyBaseLogger): Promise<void> {
@@ -89,7 +65,8 @@ async function notifyOrderCore(
     1500
   );
 
-  await sendSms(order.customerPhone, smsBody, log);
+  const smsTo = normalizePhoneE164(order.customerPhone) ?? order.customerPhone.trim();
+  await sendSms(smsTo, smsBody, log);
 
   const email = order.customerEmail?.trim();
   if (email) {

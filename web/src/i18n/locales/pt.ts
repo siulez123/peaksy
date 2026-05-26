@@ -184,7 +184,6 @@ export const pt = {
     phoneHint:
       'Podes usar o indicativo do país (ex.: +351 ou 0033). Entre 8 e 15 dígitos no total.',
     vatShort: 'IVA {{rate}}%',
-    vatReduced: 'IVA reduzido {{rate}}%',
     pricesIncludeVat: 'Preços com IVA incluído.',
   },
   shopMessages: {

@@ -181,7 +181,6 @@ export const en = {
     phoneHint:
       'You may use the country code (e.g. +351 or 0033). 8 to 15 digits in total.',
     vatShort: 'VAT {{rate}}%',
-    vatReduced: 'Reduced VAT {{rate}}%',
     pricesIncludeVat: 'Prices include VAT.',
   },
   shopMessages: {

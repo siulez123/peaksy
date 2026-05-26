@@ -25,7 +25,7 @@ const collectSchema = z.object({
 
 export async function publicAnalyticsRoutes(fastify: FastifyInstance) {
   fastify.post(
-    '/public/analytics/events',
+    '/public/usage/events',
     {
       config: {
         rateLimit: {
@@ -34,7 +34,7 @@ export async function publicAnalyticsRoutes(fastify: FastifyInstance) {
         },
       },
       schema: {
-        description: 'Registar eventos de analytics (page views, embeds)',
+        description: 'Registar eventos de utilização (page views, embeds)',
         tags: ['public'],
         body: {
           type: 'object',

@@ -40,7 +40,7 @@ async function tenantResolverPluginFn(
       request.url.startsWith('/docs') ||
       request.url.startsWith('/auth/') ||
       request.url.startsWith('/health') ||
-      pathOnly.startsWith('/public/analytics/')
+      pathOnly.startsWith('/public/usage/')
     ) {
       return;
     }
@@ -93,7 +93,7 @@ async function tenantResolverPluginFn(
       if (
         !request.url.startsWith('/super/') &&
         !request.url.startsWith('/auth/') &&
-        !pathOnly.startsWith('/public/analytics/')
+        !pathOnly.startsWith('/public/usage/')
       ) {
         throw new ForbiddenError('Tenant required for this endpoint. Use X-Tenant-Slug header in development.');
       }

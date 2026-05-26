@@ -98,7 +98,7 @@ async function flushQueue(): Promise<void> {
   const batch = queue.splice(0, 20);
   const sessionId = getSessionId();
   try {
-    await apiFetch<{ accepted: number }>('/public/analytics/events', {
+    await apiFetch<{ accepted: number }>('/public/usage/events', {
       method: 'POST',
       body: JSON.stringify({
         events: batch.map((e) => ({

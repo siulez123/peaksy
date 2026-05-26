@@ -16,6 +16,7 @@ type OrderRow = {
   totalCents: number;
   paid: boolean;
   paymentMethod: 'ONLINE' | 'IN_STORE';
+  notes: string | null;
   items: Array<{
     id: string;
     quantity: number;
@@ -67,6 +68,7 @@ function mapOrder(o: ApiOrder): OrderRow {
     totalCents: o.totalCents,
     paid: o.paid,
     paymentMethod: o.paymentMethod,
+    notes: o.notes ?? null,
     items: o.items.map((it) => ({
       id: it.id,
       quantity: it.quantity,
@@ -339,7 +341,7 @@ export function AdminOrders() {
 
           {/* Desktop: tabela */}
           <div className="hidden overflow-x-auto rounded-2xl border border-border bg-surface shadow-sm md:block">
-            <table className="w-full min-w-[1100px] text-left text-sm">
+            <table className="w-full min-w-[1180px] text-left text-sm">
               <thead className="border-b border-border bg-slate-50 text-xs font-semibold uppercase tracking-wide text-muted">
                 <tr>
                   <th className="px-4 py-3">{t('adminCommon.date')}</th>
@@ -349,6 +351,7 @@ export function AdminOrders() {
                   <th className="px-4 py-3">{t('adminCommon.status')}</th>
                   <th className="px-4 py-3">{t('adminCommon.payment')}</th>
                   <th className="px-4 py-3 text-right">{t('adminCommon.total')}</th>
+                  <th className="max-w-[8rem] px-4 py-3">{t('shopMessages.notes')}</th>
                   <th className="px-4 py-3">{t('adminCommon.items')}</th>
                   <th className="sticky right-0 z-20 min-w-[8.5rem] bg-slate-50 px-4 py-3 text-right shadow-[-10px_0_14px_-6px_rgba(0,0,0,0.12)]">
                     {t('adminCommon.actions')}
@@ -388,6 +391,15 @@ export function AdminOrders() {
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-right font-medium tabular-nums text-ink">
                       {formatMoney(o.totalCents)}
+                    </td>
+                    <td className="max-w-[8rem] px-4 py-3 align-top text-xs text-ink">
+                      {o.notes ? (
+                        <span className="line-clamp-4 break-words" title={o.notes}>
+                          {o.notes}
+                        </span>
+                      ) : (
+                        <span className="text-muted">—</span>
+                      )}
                     </td>
                     <td className="min-w-[280px] max-w-lg px-4 py-3 align-top text-xs text-ink">
                       {o.items.length === 0 ? (
@@ -470,6 +482,12 @@ export function AdminOrders() {
                   })()}
                 </p>
                 <p className="mt-1 text-xs text-muted">#{o.id.slice(0, 8)}…</p>
+                {o.notes && (
+                  <p className="mt-2 rounded-lg bg-canvas/80 px-2.5 py-2 text-sm text-ink">
+                    <span className="font-medium text-muted">{t('shopMessages.notes')}:</span>{' '}
+                    {o.notes}
+                  </p>
+                )}
                 <ul className="mt-3 space-y-2 border-t border-border pt-3 text-sm text-muted">
                   {o.items.map((it) => (
                     <li key={it.id}>

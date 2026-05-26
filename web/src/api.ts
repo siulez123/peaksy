@@ -341,13 +341,14 @@ export const adminApi = {
           totalCents: number;
           paid: boolean;
           paymentMethod: 'ONLINE' | 'IN_STORE';
+          notes: string | null;
           items: Array<{
-          id: string;
-          quantity: number;
-          productNameSnapshot: string;
-          variantSnapshot: string;
-          ready: boolean;
-        }>;
+            id: string;
+            quantity: number;
+            productNameSnapshot: string;
+            variantSnapshot: string;
+            ready: boolean;
+          }>;
         }>
       >(`/admin/orders${s ? `?${s}` : ''}`, { token, tenantSlug: slug });
     },

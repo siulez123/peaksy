@@ -3,8 +3,8 @@ import cors from '@fastify/cors';
 import dotenv from 'dotenv';
 import { errorHandler } from './lib/errors';
 import { logger } from './lib/logger';
-import { prismaPlugin } from './plugins/prisma';
 import { PrismaClient } from '@prisma/client';
+import { prismaPlugin } from './plugins/prisma';
 import { swaggerPlugin } from './plugins/swagger';
 import { authPlugin } from './plugins/auth';
 import { tenantResolverPlugin } from './plugins/tenantResolver';
@@ -76,54 +76,6 @@ async function build() {
   await server.register(adminRoutes);
   await server.register(superRoutes);
   server.log.info('All routes registered');
-  
-  // Add hook directly AFTER routes to ensure it runs and has access to Prisma
-  server.addHook('onRequest', async (request, reply) => {
-    // Skip if already processed by plugin
-    if ((request as any).tenant) {
-      return;
-    }
-    
-    // DEVELOPMENT: Allow X-Tenant-Slug header for local development without /etc/hosts
-    const devTenantSlug = request.headers['x-tenant-slug'] as string | undefined;
-    
-    const pathOnly = request.url.split('?')[0] ?? request.url;
-    if (
-      devTenantSlug &&
-      !request.url.startsWith('/super/') &&
-      !request.url.startsWith('/auth/') &&
-      !request.url.startsWith('/health') &&
-      !request.url.startsWith('/docs') &&
-      !pathOnly.startsWith('/uploads/') &&
-      !pathOnly.startsWith('/public/usage/')
-    ) {
-      try {
-        // Access Prisma from server
-        let prisma = server.prisma;
-        
-        // If still not available, create a temporary instance (fallback)
-        if (!prisma) {
-          prisma = new PrismaClient();
-        }
-        
-        const loja = await prisma.loja.findUnique({
-          where: { slug: devTenantSlug },
-        });
-
-        if (loja && loja.active) {
-          (request as any).tenant = {
-            lojaId: loja.id,
-            slug: loja.slug,
-            name: loja.name,
-            timezone: loja.timezone,
-          };
-          return;
-        }
-      } catch (err) {
-        request.log.error({ err, devTenantSlug }, 'Error resolving tenant from X-Tenant-Slug');
-      }
-    }
-  });
 
   // Health check (register early, before error handler)
   // Simple health check that doesn't depend on database

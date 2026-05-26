@@ -53,7 +53,12 @@ export function AdminPayment() {
   const [webhookUrlCopied, setWebhookUrlCopied] = useState(false);
 
   const load = useCallback(async () => {
-    if (!token || !slug) return;
+    if (!token || !slug) {
+      setErr(t('adminPayment.missingTenant'));
+      setSettings(null);
+      setStripe(null);
+      return;
+    }
     try {
       const [data, notif, stripeData] = await Promise.all([
         adminApi.paymentSettings.get(token, slug),

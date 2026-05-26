@@ -14,16 +14,6 @@ async function tenantResolverPluginFn(
   _options: FastifyPluginOptions
 ) {
   fastify.addHook('onRequest', async (request: FastifyRequest, reply) => {
-    request.log.info(
-      {
-        url: request.url,
-        host: request.headers.host,
-        xTenantSlug: request.headers['x-tenant-slug'],
-        method: request.method,
-      },
-      'Tenant resolver - hook started'
-    );
-
     const host = request.headers.host || '';
     // Remove port if present
     const hostWithoutPort = host.split(':')[0];
@@ -40,7 +30,8 @@ async function tenantResolverPluginFn(
       request.url.startsWith('/docs') ||
       request.url.startsWith('/auth/') ||
       request.url.startsWith('/health') ||
-      pathOnly.startsWith('/public/usage/')
+      pathOnly.startsWith('/public/usage/') ||
+      pathOnly.startsWith('/admin/')
     ) {
       return;
     }
@@ -50,10 +41,6 @@ async function tenantResolverPluginFn(
     // Fastify normalizes headers to lowercase
     const devTenantSlug = request.headers['x-tenant-slug'] as string | undefined;
     if (devTenantSlug) {
-      request.log.info(
-        { devTenantSlug, host: hostWithoutPort, url: request.url },
-        'Processing X-Tenant-Slug header'
-      );
       try {
         const loja = await fastify.prisma.loja.findUnique({
           where: { slug: devTenantSlug },
@@ -66,13 +53,10 @@ async function tenantResolverPluginFn(
             name: loja.name,
             timezone: loja.timezone,
           };
-          request.log.info({ tenant: request.tenant }, 'Tenant resolved from X-Tenant-Slug');
           return;
-        } else {
-          request.log.warn({ devTenantSlug, lojaFound: !!loja }, 'Loja not found or inactive');
-          throw new NotFoundError(`Loja with slug '${devTenantSlug}' not found or inactive`);
         }
-      } catch (err: any) {
+        throw new NotFoundError(`Loja with slug '${devTenantSlug}' not found or inactive`);
+      } catch (err: unknown) {
         if (err instanceof NotFoundError) {
           throw err;
         }
@@ -103,8 +87,6 @@ async function tenantResolverPluginFn(
     // Extract slug from subdomain: {slug}.<APP_DOMAIN> (ex.: lojademo.peaksy.pro)
     const appDomain = (process.env.APP_DOMAIN || 'peaksy.pro').toLowerCase();
     let slug: string | null = null;
-
-    request.log.info({ hostWithoutPort, appDomain }, 'Extracting slug from host');
 
     if (hostWithoutPort.endsWith(`.${appDomain}`)) {
       slug = hostWithoutPort.slice(0, -`.${appDomain}`.length);
@@ -138,20 +120,11 @@ async function tenantResolverPluginFn(
       slug = null;
     }
 
-    request.log.info({ slug, hostWithoutPort }, 'Extracted slug');
-
     // Host “genérico” (ex.: peaksy.up.railway.app, domínio custom sem sub-loja): não há tenant no Host.
-    // O SPA na raiz e rotas /auth funcionam sem tenant; a API pública usa X-Tenant-Slug (ex.: /loja/lojademo no FE).
     if (!slug) {
-      request.log.info(
-        { hostWithoutPort },
-        'Sem subdomínio de loja — continua sem tenant (resolve depois por header nas rotas que precisem)'
-      );
       return;
     }
 
-    // Load loja from database
-    request.log.info({ slug }, 'Loading loja from database');
     const loja = await fastify.prisma.loja.findUnique({
       where: { slug },
     });
@@ -172,7 +145,6 @@ async function tenantResolverPluginFn(
       name: loja.name,
       timezone: loja.timezone,
     };
-    request.log.info({ tenant: request.tenant }, 'Tenant resolved successfully');
   });
 
   // Helper to require tenant
@@ -185,7 +157,6 @@ async function tenantResolverPluginFn(
     // Try to resolve from X-Tenant-Slug header if not already resolved
     const devTenantSlug = request.headers['x-tenant-slug'] as string | undefined;
     if (devTenantSlug) {
-      request.log.info({ devTenantSlug }, 'Resolving tenant from X-Tenant-Slug in requireTenant');
       const loja = await fastify.prisma.loja.findUnique({
         where: { slug: devTenantSlug },
       });
@@ -197,7 +168,6 @@ async function tenantResolverPluginFn(
           name: loja.name,
           timezone: loja.timezone,
         };
-        request.log.info({ tenant: request.tenant }, 'Tenant resolved from X-Tenant-Slug in requireTenant');
         return;
       }
     }

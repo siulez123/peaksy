@@ -10,6 +10,16 @@ async function prismaPluginFn(
     log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
   });
 
+  try {
+    await prisma.$connect();
+    fastify.log.info('Ligação à base de dados estabelecida');
+  } catch (err) {
+    fastify.log.error(
+      { err },
+      'Falha ao ligar à base de dados — verifica DATABASE_URL e se o Postgres está acessível'
+    );
+  }
+
   fastify.decorate('prisma', prisma);
 
   fastify.addHook('onClose', async (instance) => {

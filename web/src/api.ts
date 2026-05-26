@@ -169,7 +169,25 @@ export async function apiFetch<T>(
   if (tenantSlug) headers.set('X-Tenant-Slug', tenantSlug);
   if (token) headers.set('Authorization', `Bearer ${token}`);
 
-  const res = await fetch(`${apiBase}${path}`, { ...rest, headers });
+  const timeoutMs = 30_000;
+  const signal =
+    rest.signal ??
+    (typeof AbortSignal !== 'undefined' && 'timeout' in AbortSignal
+      ? AbortSignal.timeout(timeoutMs)
+      : undefined);
+
+  let res: Response;
+  try {
+    res = await fetch(`${apiBase}${path}`, { ...rest, headers, signal });
+  } catch (e) {
+    if (e instanceof Error && e.name === 'TimeoutError') {
+      throw new Error('O servidor demorou demasiado a responder. Tenta outra vez.');
+    }
+    if (e instanceof Error && e.name === 'AbortError') {
+      throw new Error('Pedido cancelado ou expirado.');
+    }
+    throw e;
+  }
   if (!res.ok) {
     let msg = res.statusText;
     try {

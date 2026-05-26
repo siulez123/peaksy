@@ -383,6 +383,7 @@ export const en = {
     stripeMethodRequired: 'Select at least one payment method.',
     stripeSaved: 'Stripe settings saved.',
     atLeastOne: 'Enable at least one payment method.',
+    missingTenant: 'Could not identify the shop (subdomain).',
     saved: 'Settings saved.',
   },
   adminCommon: {

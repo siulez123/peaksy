@@ -387,6 +387,7 @@ export const fr = {
     stripeMethodRequired: 'Sélectionnez au moins un moyen de paiement.',
     stripeSaved: 'Stripe enregistré.',
     atLeastOne: 'Activez au moins un mode de paiement.',
+    missingTenant: 'Impossible d’identifier la boutique (sous-domaine).',
     saved: 'Paramètres enregistrés.',
   },
   adminCommon: {

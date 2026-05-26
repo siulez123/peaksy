@@ -387,6 +387,7 @@ export const pt = {
     stripeMethodRequired: 'Seleciona pelo menos um método de pagamento.',
     stripeSaved: 'Stripe guardado.',
     atLeastOne: 'Ativa pelo menos uma forma de pagamento.',
+    missingTenant: 'Não foi possível identificar a loja (subdomínio).',
     saved: 'Definições guardadas.',
   },
   adminCommon: {

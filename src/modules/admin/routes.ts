@@ -14,6 +14,7 @@ import {
   saveProductImageFile,
   deleteProductImageFile,
 } from '../../lib/productImage';
+import { stripeWebhookUrlFromRequest } from '../../lib/stripeWebhookUrl';
 async function readProductMultipart(request: FastifyRequest): Promise<{
   fields: Record<string, string>;
   image?: MultipartFile;
@@ -1742,6 +1743,112 @@ export async function adminRoutes(fastify: FastifyInstance) {
       });
 
       return loja;
+    }
+  );
+
+  const stripePaymentMethodSchema = z.enum(['card', 'mb_way']);
+  const stripeSettingsPatchSchema = z.object({
+    stripeSecretKey: z.string().max(256).optional(),
+    stripeWebhookSecret: z.string().max(256).optional(),
+    paymentMethods: z.array(stripePaymentMethodSchema).min(1).optional(),
+  });
+
+  const lojaStripeAdminSelect = {
+    stripeSecretKey: true,
+    stripeWebhookSecret: true,
+    stripePaymentMethods: true,
+    slug: true,
+  } as const;
+
+  function formatStripeSettings(
+    loja: {
+      stripeSecretKey: string | null;
+      stripeWebhookSecret: string | null;
+      stripePaymentMethods: string[];
+      slug: string;
+    },
+    webhookUrl: string
+  ) {
+    return {
+      secretKeyConfigured: Boolean(loja.stripeSecretKey?.trim()),
+      webhookSecretConfigured: Boolean(loja.stripeWebhookSecret?.trim()),
+      paymentMethods: loja.stripePaymentMethods,
+      webhookUrl,
+    };
+  }
+
+  // GET /admin/stripe-settings
+  fastify.get(
+    '/admin/stripe-settings',
+    {
+      schema: {
+        description: 'Configuração Stripe da loja',
+        tags: ['admin'],
+        security: [{ bearerAuth: [] }],
+      },
+      onRequest: [requireLojaAdmin, requireTenant],
+    },
+    async (request, reply) => {
+      const tenant = request.tenant!;
+      const user = request.user!;
+      if (user.lojaId !== tenant.lojaId) {
+        throw new ForbiddenError('Access denied');
+      }
+
+      const loja = await fastify.prisma.loja.findUnique({
+        where: { id: tenant.lojaId },
+        select: lojaStripeAdminSelect,
+      });
+      if (!loja) {
+        throw new NotFoundError('Loja not found');
+      }
+
+      const webhookUrl = stripeWebhookUrlFromRequest(loja.slug, request.headers);
+
+      return formatStripeSettings(loja, webhookUrl);
+    }
+  );
+
+  // PATCH /admin/stripe-settings
+  fastify.patch(
+    '/admin/stripe-settings',
+    {
+      schema: {
+        description: 'Atualizar Stripe da loja',
+        tags: ['admin'],
+        security: [{ bearerAuth: [] }],
+      },
+      onRequest: [requireLojaAdmin, requireTenant],
+    },
+    async (request, reply) => {
+      const tenant = request.tenant!;
+      const user = request.user!;
+      if (user.lojaId !== tenant.lojaId) {
+        throw new ForbiddenError('Access denied');
+      }
+
+      const data = stripeSettingsPatchSchema.parse(request.body);
+      const update: Record<string, unknown> = {};
+
+      if (data.stripeSecretKey !== undefined && data.stripeSecretKey !== '') {
+        update.stripeSecretKey = data.stripeSecretKey;
+      }
+      if (data.stripeWebhookSecret !== undefined && data.stripeWebhookSecret !== '') {
+        update.stripeWebhookSecret = data.stripeWebhookSecret;
+      }
+      if (data.paymentMethods !== undefined) {
+        update.stripePaymentMethods = data.paymentMethods;
+      }
+
+      const loja = await fastify.prisma.loja.update({
+        where: { id: tenant.lojaId },
+        data: update,
+        select: lojaStripeAdminSelect,
+      });
+
+      const webhookUrl = stripeWebhookUrlFromRequest(loja.slug, request.headers);
+
+      return formatStripeSettings(loja, webhookUrl);
     }
   );
 

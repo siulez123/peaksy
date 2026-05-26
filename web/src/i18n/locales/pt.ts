@@ -356,6 +356,24 @@ export const pt = {
     inStoreDesc: 'O cliente confirma a encomenda e paga no levantamento.',
     inStoreSmsHint:
       'O pagamento na loja só fica visível na loja pública depois de configurares o Twilio em Definições da loja → Email e SMS.',
+    onlineStripeHint:
+      'O pagamento online só fica visível na loja pública depois de configurares a chave secreta e o webhook Stripe abaixo.',
+    stripeTitle: 'Stripe',
+    stripeDesc:
+      'Cada loja usa a sua conta Stripe. Regista o URL do webhook no dashboard Stripe (evento checkout.session.completed).',
+    stripeSecretKey: 'Chave secreta (Secret key)',
+    stripeSecretKeyPlaceholder: 'Deixa em branco para manter a atual',
+    stripeWebhookSecret: 'Segredo do webhook',
+    stripeWebhookSecretPlaceholder: 'Deixa em branco para manter o atual',
+    stripeWebhookUrl: 'URL do webhook',
+    stripeWebhookUrlHint: 'Usa este URL exato ao criar o endpoint no Stripe.',
+    stripeMethodsTitle: 'Métodos no Checkout',
+    stripeMethod: {
+      card: 'Cartão',
+      mb_way: 'MB WAY',
+    },
+    stripeMethodRequired: 'Seleciona pelo menos um método de pagamento.',
+    stripeSaved: 'Stripe guardado.',
     atLeastOne: 'Ativa pelo menos uma forma de pagamento.',
     saved: 'Definições guardadas.',
   },

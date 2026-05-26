@@ -8,26 +8,17 @@ import {
   isDateTodayOrAfter,
 } from '../../lib/dates';
 import { lojaHasSms, lojaHasSmtp, lojaNotificationSelect } from '../../lib/lojaNotificationConfig';
+import {
+  getStripeClient,
+  lojaHasStripe,
+  lojaStripePaymentMethodTypes,
+  lojaStripeSelect,
+} from '../../lib/lojaStripeConfig';
 import { notifyOrderPaid } from '../../lib/orderNotifications';
 import { publicAnalyticsRoutes } from './analyticsRoutes';
 import { phoneCheckoutRoutes } from './phoneCheckoutRoutes';
 import { checkoutSchema, frontendBaseUrl, validateCheckoutRequest } from '../../lib/checkoutValidation';
 import { vatCentsFromGrossCents, summarizeVatByRate } from '../../lib/vatAmounts';
-
-/** Só instanciar com chave real — `new Stripe('')` rebenta ao carregar o módulo (ex.: Railway sem Stripe). */
-let stripeSingleton: Stripe | null = null;
-function getStripe(): Stripe {
-  const key = process.env.STRIPE_SECRET_KEY?.trim();
-  if (!key) {
-    throw new ValidationError('Pagamentos Stripe não estão configurados (STRIPE_SECRET_KEY).');
-  }
-  if (!stripeSingleton) {
-    stripeSingleton = new Stripe(key, {
-      apiVersion: '2025-02-24.acacia',
-    });
-  }
-  return stripeSingleton;
-}
 
 export async function publicRoutes(fastify: FastifyInstance) {
   // Helper function for hooks
@@ -82,6 +73,7 @@ export async function publicRoutes(fastify: FastifyInstance) {
           productDisplayLayout: true,
           colorPalette: true,
           ...lojaNotificationSelect,
+          ...lojaStripeSelect,
         },
       });
       if (!loja) {
@@ -94,7 +86,7 @@ export async function publicRoutes(fastify: FastifyInstance) {
         postalCode: loja.postalCode,
         locality: loja.locality,
         phone: loja.phone,
-        allowOnlinePayment: loja.allowOnlinePayment,
+        allowOnlinePayment: loja.allowOnlinePayment && lojaHasStripe(loja),
         allowInStorePayment: loja.allowInStorePayment && lojaHasSms(loja),
         collectCustomerEmail: lojaHasSmtp(loja),
         productDisplayLayout: loja.productDisplayLayout,
@@ -332,6 +324,17 @@ export async function publicRoutes(fastify: FastifyInstance) {
       const { data: vData, orderItems, totalCents, pickupTime: pt, successRel, cancelRel } =
         validated;
 
+      const lojaStripe = await fastify.prisma.loja.findUnique({
+        where: { id: tenant.lojaId },
+        select: lojaStripeSelect,
+      });
+      const stripeKey = lojaStripe?.stripeSecretKey?.trim();
+      if (!stripeKey) {
+        throw new ValidationError('Pagamento online não está configurado nesta loja.');
+      }
+      const stripe = getStripeClient(stripeKey);
+      const paymentMethodTypes = lojaStripePaymentMethodTypes(lojaStripe!);
+
       const baseUrl = frontendBaseUrl(request.headers.origin as string | undefined);
 
       const order = await fastify.prisma.order.create({
@@ -356,8 +359,8 @@ export async function publicRoutes(fastify: FastifyInstance) {
 
       let session: Stripe.Checkout.Session;
       try {
-        session = await getStripe().checkout.sessions.create({
-          payment_method_types: ['card', 'mb_way'] as Stripe.Checkout.SessionCreateParams.PaymentMethodType[],
+        session = await stripe.checkout.sessions.create({
+          payment_method_types: paymentMethodTypes,
           line_items: orderItems.map((item) => ({
             price_data: {
               currency: 'eur',
@@ -393,12 +396,12 @@ export async function publicRoutes(fastify: FastifyInstance) {
     }
   );
 
-  // POST /public/webhooks/stripe
+  // POST /public/webhooks/stripe/:tenantSlug — um endpoint por loja (secret próprio)
   fastify.post(
-    '/public/webhooks/stripe',
+    '/public/webhooks/stripe/:tenantSlug',
     {
       schema: {
-        description: 'Stripe webhook handler',
+        description: 'Stripe webhook handler (por loja)',
         tags: ['public'],
       },
       config: {
@@ -406,38 +409,50 @@ export async function publicRoutes(fastify: FastifyInstance) {
       },
     },
     async (request, reply) => {
+      const tenantSlug = (request.params as { tenantSlug: string }).tenantSlug?.trim();
+      if (!tenantSlug) {
+        return reply.status(400).send({ error: 'Slug em falta' });
+      }
+
+      const loja = await fastify.prisma.loja.findUnique({
+        where: { slug: tenantSlug },
+        select: { id: true, stripeSecretKey: true, stripeWebhookSecret: true },
+      });
+      const stripeKey = loja?.stripeSecretKey?.trim();
+      const webhookSecret = loja?.stripeWebhookSecret?.trim();
+      if (!loja || !stripeKey || !webhookSecret) {
+        request.log.warn({ tenantSlug }, 'Stripe webhook: loja sem Stripe configurado');
+        return reply.status(404).send({ error: 'Stripe não configurado para esta loja' });
+      }
+
       const sig = request.headers['stripe-signature'] as string;
-      const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET?.trim();
-
-      if (!process.env.STRIPE_SECRET_KEY?.trim()) {
-        request.log.warn('Stripe webhook chamado mas STRIPE_SECRET_KEY não está definida');
-        return reply.status(503).send({ error: 'Stripe não configurado' });
-      }
-      if (!webhookSecret) {
-        request.log.warn('STRIPE_WEBHOOK_SECRET em falta');
-        return reply.status(503).send({ error: 'Webhook Stripe não configurado' });
-      }
-
       let event: Stripe.Event;
 
       try {
-        // Fastify raw body handling
-        const body = (request as any).rawBody || request.body || '';
+        const body = (request as { rawBody?: Buffer | string }).rawBody || request.body || '';
         const bodyString = typeof body === 'string' ? body : body.toString();
-        event = getStripe().webhooks.constructEvent(bodyString, sig, webhookSecret);
-      } catch (err: any) {
-        request.log.warn({ err }, 'Stripe webhook signature verification failed');
+        event = getStripeClient(stripeKey).webhooks.constructEvent(bodyString, sig, webhookSecret);
+      } catch (err: unknown) {
+        request.log.warn({ err, tenantSlug }, 'Stripe webhook signature verification failed');
         return reply.status(400).send({ error: 'Invalid signature' });
       }
 
       if (event.type === 'checkout.session.completed') {
         const session = event.data.object as Stripe.Checkout.Session;
         const orderId = session.metadata?.orderId;
+        const metaLojaId = session.metadata?.lojaId;
+
+        if (metaLojaId && metaLojaId !== loja.id) {
+          request.log.warn({ orderId, metaLojaId, lojaId: loja.id }, 'Webhook: lojaId não coincide');
+          return { received: true };
+        }
 
         if (orderId) {
-          const existing = await fastify.prisma.order.findUnique({ where: { id: orderId } });
+          const existing = await fastify.prisma.order.findFirst({
+            where: { id: orderId, lojaId: loja.id },
+          });
           if (!existing) {
-            request.log.warn({ orderId }, 'Webhook: encomenda não encontrada');
+            request.log.warn({ orderId, tenantSlug }, 'Webhook: encomenda não encontrada');
           } else if (existing.paid) {
             request.log.info({ orderId }, 'Webhook: encomenda já paga, ignorando duplicado');
           } else {

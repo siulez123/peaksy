@@ -70,6 +70,15 @@ export interface LojaPublic {
   colorPalette: ShopColorPalette;
 }
 
+export type StripeCheckoutMethod = 'card' | 'mb_way';
+
+export type LojaStripeSettings = {
+  secretKeyConfigured: boolean;
+  webhookSecretConfigured: boolean;
+  paymentMethods: StripeCheckoutMethod[];
+  webhookUrl: string;
+};
+
 export type LojaNotificationSettings = {
   smtp: {
     host: string | null;
@@ -473,6 +482,17 @@ export const adminApi = {
         '/admin/payment-settings',
         { method: 'PATCH', token, tenantSlug: slug, body: JSON.stringify(body) }
       ),
+  },
+  stripeSettings: {
+    get: (token: string, slug: string) =>
+      apiFetch<LojaStripeSettings>('/admin/stripe-settings', { token, tenantSlug: slug }),
+    update: (token: string, slug: string, body: Record<string, unknown>) =>
+      apiFetch<LojaStripeSettings>('/admin/stripe-settings', {
+        method: 'PATCH',
+        token,
+        tenantSlug: slug,
+        body: JSON.stringify(body),
+      }),
   },
   notificationSettings: {
     get: (token: string, slug: string) =>

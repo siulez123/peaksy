@@ -24,8 +24,6 @@ services:
     environment:
       DATABASE_URL: postgresql://peaksy:peaksy_dev@postgres:5432/peaksy
       JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
-      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
-      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
       NODE_ENV: ${NODE_ENV:-development}
       PORT: 3000
     ports:

@@ -7,8 +7,7 @@ Crie um arquivo `.env` na raiz do projeto com:
 ```env
 DATABASE_URL="postgresql://peaksy:peaksy_dev@localhost:5433/peaksy"
 JWT_SECRET="your-super-secret-jwt-key-change-in-production-min-32-chars"
-STRIPE_SECRET_KEY="sk_test_..."
-STRIPE_WEBHOOK_SECRET="whsec_..."
+OTP_PEPPER="dev-otp-pepper-change-me"
 # URL da loja (Vite); necessário para o Stripe redirecionar de volta após pagamento
 FRONTEND_URL="http://localhost:5173"
 NODE_ENV="development"
@@ -52,19 +51,26 @@ Usa **chaves de teste** do Stripe (`sk_test_...`). No Dashboard não é cobrado 
 
 Como nos passos 2–4 acima (`docker compose`, migrations, seed, `npm run dev` na raiz).
 
-### 2. Webhook local (para o pedido ficar “pago” na base de dados)
+### 2. Stripe por loja (admin)
 
-Sem isto, o pagamento no Stripe **funciona** e és redirecionado para a página de sucesso, mas o servidor **não** recebe o evento e a encomenda pode ficar `paid: false` (e sem SMS/email).
+1. Inicia sessão no admin da loja demo.
+2. Vai a **Formas de pagamento** → secção **Stripe**.
+3. Cola a **chave secreta** de teste (`sk_test_...`) da conta Stripe dessa loja.
+4. Copia o **URL do webhook** mostrado no formulário (ex.: `http://localhost:3000/public/webhooks/stripe/lojademo`).
 
-Num terminal à parte:
+### 3. Webhook local (para o pedido ficar “pago” na base de dados)
+
+Sem isto, o pagamento no Stripe **funciona** e és redirecionado para a página de sucesso, mas o servidor **não** recebe o evento e a encomenda pode ficar `paid: false`.
+
+Num terminal à parte (substitui `lojademo` pelo slug da loja):
 
 ```bash
-stripe listen --forward-to localhost:3000/public/webhooks/stripe
+stripe listen --forward-to localhost:3000/public/webhooks/stripe/lojademo
 ```
 
-O CLI mostra um **webhook signing secret** (`whsec_...`). Coloca-o no `.env` como `STRIPE_WEBHOOK_SECRET` e **reinicia** a API (`npm run dev`).
+O CLI mostra um **webhook signing secret** (`whsec_...`). Cola-o no admin em **Segredo do webhook** e guarda.
 
-### 3. Arranca a loja (frontend)
+### 4. Arranca a loja (frontend)
 
 ```bash
 cd web && npm install && npm run dev
@@ -72,7 +78,7 @@ cd web && npm install && npm run dev
 
 Abre `http://localhost:5173/loja/lojademo` (ou o slug da loja demo após seed).
 
-### 4. Confirma `FRONTEND_URL`
+### 5. Confirma `FRONTEND_URL`
 
 No `.env` da **raiz** (API), deve existir `FRONTEND_URL=http://localhost:5173` para o Stripe redirecionar para `/loja/:slug/sucesso` após pagar.
 

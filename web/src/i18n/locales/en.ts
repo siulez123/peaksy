@@ -353,6 +353,24 @@ export const en = {
     inStoreDesc: 'Customer confirms the order and pays on pickup.',
     inStoreSmsHint:
       'Pay in store only appears on the public shop after you configure Twilio under Shop settings → Email & SMS.',
+    onlineStripeHint:
+      'Online payment only appears on the public shop after you configure the Stripe secret key and webhook below.',
+    stripeTitle: 'Stripe',
+    stripeDesc:
+      'Each shop uses its own Stripe account. Register the webhook URL in the Stripe dashboard (checkout.session.completed).',
+    stripeSecretKey: 'Secret key',
+    stripeSecretKeyPlaceholder: 'Leave blank to keep the current key',
+    stripeWebhookSecret: 'Webhook signing secret',
+    stripeWebhookSecretPlaceholder: 'Leave blank to keep the current secret',
+    stripeWebhookUrl: 'Webhook URL',
+    stripeWebhookUrlHint: 'Use this exact URL when creating the endpoint in Stripe.',
+    stripeMethodsTitle: 'Checkout payment methods',
+    stripeMethod: {
+      card: 'Card',
+      mb_way: 'MB WAY',
+    },
+    stripeMethodRequired: 'Select at least one payment method.',
+    stripeSaved: 'Stripe settings saved.',
     atLeastOne: 'Enable at least one payment method.',
     saved: 'Settings saved.',
   },

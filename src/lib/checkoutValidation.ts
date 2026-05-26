@@ -107,6 +107,7 @@ export async function validateCheckoutRequest(
       twilioAccountSid: true,
       twilioAuthToken: true,
       twilioFromNumber: true,
+      stripeSecretKey: true,
     },
   });
   if (!lojaPayments) {
@@ -115,8 +116,13 @@ export async function validateCheckoutRequest(
   if (!lojaPayments.allowOnlinePayment && !lojaPayments.allowInStorePayment) {
     throw new ValidationError('Esta loja não aceita encomendas neste momento.');
   }
-  if (data.paymentMethod === 'ONLINE' && !lojaPayments.allowOnlinePayment) {
-    throw new ValidationError('Pagamento online não está disponível nesta loja.');
+  if (data.paymentMethod === 'ONLINE') {
+    if (!lojaPayments.allowOnlinePayment) {
+      throw new ValidationError('Pagamento online não está disponível nesta loja.');
+    }
+    if (!lojaPayments.stripeSecretKey?.trim()) {
+      throw new ValidationError('Pagamento online não está configurado nesta loja.');
+    }
   }
   const inStoreSmsOk =
     Boolean(lojaPayments.twilioAccountSid?.trim()) &&

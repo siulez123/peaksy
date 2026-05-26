@@ -96,6 +96,10 @@ model Loja {
   twilioAccountSid   String?
   twilioAuthToken    String?
   twilioFromNumber   String?
+  /// Stripe por loja (pagamento online)
+  stripeSecretKey      String?
+  stripeWebhookSecret  String?
+  stripePaymentMethods String[] @default(["card", "mb_way"])
   createdAt DateTime @default(now())
 
   users            User[]

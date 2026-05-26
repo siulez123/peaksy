@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ChevronUp, Minus, Plus, ShoppingBag, Trash2, X } from 'lucide-react';
 import {
@@ -208,7 +208,6 @@ type CheckoutModalProps = {
   setNotes: (v: string) => void;
   phoneError: string | null;
   phoneOk: boolean;
-  checkoutErr: string | null;
   onClearCheckoutErr: () => void;
   onPay: () => void;
   allowOnlinePayment: boolean;
@@ -224,6 +223,47 @@ type CheckoutModalProps = {
   onOtpBack: () => void;
   resendCooldown: number;
 };
+
+function CheckoutErrorDialog({
+  open,
+  message,
+  onClose,
+}: {
+  open: boolean;
+  message: string;
+  onClose: () => void;
+}) {
+  const { t } = useI18n();
+  if (!open) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-[80] flex items-center justify-center p-4"
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="checkout-error-title"
+      aria-describedby="checkout-error-desc"
+    >
+      <button
+        type="button"
+        className="absolute inset-0 bg-black/55"
+        onClick={onClose}
+        aria-label={t('common.close')}
+      />
+      <div className="relative w-full max-w-sm rounded-2xl border border-border bg-surface p-5 shadow-2xl">
+        <h2 id="checkout-error-title" className="text-lg font-semibold text-ink">
+          {t('shop.checkoutErrorTitle')}
+        </h2>
+        <p id="checkout-error-desc" className="mt-3 text-sm leading-relaxed text-red-700">
+          {message}
+        </p>
+        <Button type="button" className="mt-5 w-full" onClick={onClose}>
+          {t('common.close')}
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 function CheckoutModal({
   open,
@@ -249,7 +289,6 @@ function CheckoutModal({
   setNotes,
   phoneError,
   phoneOk,
-  checkoutErr,
   onClearCheckoutErr,
   onPay,
   allowOnlinePayment,
@@ -266,9 +305,20 @@ function CheckoutModal({
   resendCooldown,
 }: CheckoutModalProps) {
   const { t, localeTag, formatDateTime } = useI18n();
+  const scrollRef = useRef<HTMLDivElement>(null);
   if (!open) return null;
 
   const fmtHour = (slot: string) => formatPickupHourLabel(slot, localeTag);
+
+  const selectPickupDay = (date: string, timeMin: string, timeMax: string) => {
+    const scrollTop = scrollRef.current?.scrollTop ?? 0;
+    setPickupDate(date);
+    const slots = pickupHalfHourSlotsBetween(timeMin, timeMax);
+    setPickupTime(slots[0] ?? '');
+    requestAnimationFrame(() => {
+      scrollRef.current?.scrollTo({ top: scrollTop });
+    });
+  };
 
   return (
     <div className="fixed inset-0 z-[70] flex items-end justify-center sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="checkout-modal-title">
@@ -280,7 +330,11 @@ function CheckoutModal({
         }}
         aria-label={t('common.close')}
       />
-      <div className="relative max-h-[min(92dvh,720px)] w-full max-w-md overflow-y-auto overscroll-contain rounded-t-2xl border border-border bg-surface shadow-2xl sm:rounded-2xl" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
+      <div
+        ref={scrollRef}
+        className="relative max-h-[min(92dvh,720px)] w-full max-w-md overflow-y-auto overscroll-contain rounded-t-2xl border border-border bg-surface shadow-2xl sm:rounded-2xl"
+        style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
+      >
         <div className="sticky top-0 flex items-center justify-between border-b border-border bg-surface px-4 py-3 sm:px-6">
           <h2 id="checkout-modal-title" className="text-lg font-semibold text-ink">
             {t('shop.checkoutTitle')}
@@ -356,12 +410,6 @@ function CheckoutModal({
             <p className="text-xs leading-relaxed text-muted">{t('shop.payInStoreDesc')}</p>
           )}
 
-          {checkoutErr && (
-            <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700" role="alert">
-              {checkoutErr}
-            </p>
-          )}
-
           {otpStep === 'otp' ? (
             <div className="space-y-4 rounded-xl border border-primary/25 bg-primary-soft/30 p-4">
               <h3 className="text-sm font-semibold text-ink">{t('shop.otpTitle')}</h3>
@@ -426,11 +474,7 @@ function CheckoutModal({
                       key={`${d.id}-${d.pickupDate}`}
                       type="button"
                       disabled={!d.canOrder || paying}
-                      onClick={() => {
-                        setPickupDate(d.pickupDate);
-                        const slots = pickupHalfHourSlotsBetween(d.pickupTimeMin, d.pickupTimeMax);
-                        setPickupTime(slots[0] ?? '');
-                      }}
+                      onClick={() => selectPickupDay(d.pickupDate, d.pickupTimeMin, d.pickupTimeMax)}
                       className={`rounded-xl border px-3 py-2 text-sm ${
                         pickupDate === d.pickupDate
                           ? 'border-primary bg-primary-soft text-primary-soft-text'
@@ -588,6 +632,7 @@ export function ShopPage() {
   const [successOrder, setSuccessOrder] = useState<OrderConfirmation | null>(null);
   const [successLoad, setSuccessLoad] = useState<'loading' | 'ok' | 'fail'>('loading');
   const [checkoutErr, setCheckoutErr] = useState<string | null>(null);
+  const [checkoutErrOpen, setCheckoutErrOpen] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<CheckoutPaymentMethod>('ONLINE');
   const [verificationId, setVerificationId] = useState<string | null>(null);
   const [otpStep, setOtpStep] = useState<'checkout' | 'otp'>('checkout');
@@ -909,11 +954,21 @@ export function ShopPage() {
     setResendCooldown(0);
   }, []);
 
+  const showCheckoutError = useCallback((message: string) => {
+    setCheckoutErr(message);
+    setCheckoutErrOpen(true);
+  }, []);
+
+  const dismissCheckoutError = useCallback(() => {
+    setCheckoutErrOpen(false);
+    setCheckoutErr(null);
+  }, []);
+
   const closeCheckoutModal = useCallback(() => {
     setOrderModalOpen(false);
     resetOtpFlow();
-    setCheckoutErr(null);
-  }, [resetOtpFlow]);
+    dismissCheckoutError();
+  }, [resetOtpFlow, dismissCheckoutError]);
 
   useEffect(() => {
     if (!orderModalOpen) return;
@@ -977,7 +1032,7 @@ export function ShopPage() {
   const checkout = async () => {
     if (!pickupDate || lines.length === 0 || !selectedDay) return;
     if (!pickupTime || !pickupHourSlots.includes(pickupTime)) {
-      setCheckoutErr(
+      showCheckoutError(
         pickupHourSlots.length === 0
           ? t('shop.noPickupHoursDay')
           : t('shop.choosePickupTime', {
@@ -988,11 +1043,11 @@ export function ShopPage() {
       return;
     }
     if (!isValidInternationalPhone(customerPhone)) {
-      setCheckoutErr(t('shop.verifyPhone'));
+      showCheckoutError(t('shop.verifyPhone'));
       return;
     }
     setPaying(true);
-    setCheckoutErr(null);
+    dismissCheckoutError();
     try {
       if (paymentMethod === 'IN_STORE') {
         await sendPhoneCode();
@@ -1005,10 +1060,10 @@ export function ShopPage() {
       if (res.checkoutUrl) {
         window.location.href = res.checkoutUrl;
       } else {
-        setCheckoutErr(t('common.paymentFailed'));
+        showCheckoutError(t('common.paymentFailed'));
       }
     } catch (e) {
-      setCheckoutErr(e instanceof Error ? e.message : t('common.paymentFailed'));
+      showCheckoutError(e instanceof Error ? e.message : t('common.paymentFailed'));
     } finally {
       setPaying(false);
     }
@@ -1016,11 +1071,11 @@ export function ShopPage() {
 
   const handleVerifyOtp = async () => {
     setPaying(true);
-    setCheckoutErr(null);
+    dismissCheckoutError();
     try {
       await verifyOtp();
     } catch (e) {
-      setCheckoutErr(e instanceof Error ? e.message : t('shop.otpInvalid'));
+      showCheckoutError(e instanceof Error ? e.message : t('shop.otpInvalid'));
     } finally {
       setPaying(false);
     }
@@ -1029,11 +1084,11 @@ export function ShopPage() {
   const handleResendOtp = async () => {
     if (resendCooldown > 0) return;
     setPaying(true);
-    setCheckoutErr(null);
+    dismissCheckoutError();
     try {
       await sendPhoneCode();
     } catch (e) {
-      setCheckoutErr(e instanceof Error ? e.message : t('common.genericError'));
+      showCheckoutError(e instanceof Error ? e.message : t('common.genericError'));
     } finally {
       setPaying(false);
     }
@@ -1044,7 +1099,7 @@ export function ShopPage() {
     totalCents,
     itemCount,
     onEncomendar: () => {
-      setCheckoutErr(null);
+      dismissCheckoutError();
       setOrderModalOpen(true);
       setMobileCartOpen(false);
     },
@@ -1057,11 +1112,9 @@ export function ShopPage() {
 
   const hasOpenPickupDays = days.some((d) => d.canOrder);
   const showOrderingUI =
-    !loading &&
-    lojaPublic !== null &&
-    hasOpenPickupDays &&
-    !productsLoading &&
-    products.length > 0;
+    !loading && lojaPublic !== null && hasOpenPickupDays && products.length > 0;
+  const showInitialProductsLoad =
+    !loading && lojaPublic !== null && hasOpenPickupDays && productsLoading && products.length === 0;
   const infoReason: 'closed' | 'noProducts' = hasOpenPickupDays ? 'noProducts' : 'closed';
 
   if (!slug) {
@@ -1096,18 +1149,26 @@ export function ShopPage() {
       {loading && <p className="text-center text-muted py-12">{t('common.loading')}</p>}
       {loadErr && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{loadErr}</p>}
 
-      {!loading && lojaPublic && productsLoading && hasOpenPickupDays && (
+      {showInitialProductsLoad && (
         <p className="text-center text-muted py-12">{t('common.loading')}</p>
       )}
 
-      {!loading && lojaPublic && !productsLoading && !showOrderingUI && (
+      {!loading && lojaPublic && !showInitialProductsLoad && !showOrderingUI && (
         <ShopPublicInfoCenter loja={lojaPublic} reason={infoReason} />
       )}
 
       {showOrderingUI && (
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
-            <Card>
+            <Card className="relative">
+              {productsLoading && (
+                <div
+                  className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-surface/70"
+                  aria-hidden
+                >
+                  <p className="text-sm font-medium text-muted">{t('common.loading')}</p>
+                </div>
+              )}
               <h2 className="mb-3 font-semibold text-ink">{t('shop.products')}</h2>
               <ShopProductGrid
                 layout={lojaPublic.productDisplayLayout ?? 'LARGE'}
@@ -1189,7 +1250,7 @@ export function ShopPage() {
         </div>
       )}
 
-      {showOrderingUI && (
+      {orderModalOpen && (
       <CheckoutModal
         open={orderModalOpen}
         onClose={closeCheckoutModal}
@@ -1214,8 +1275,7 @@ export function ShopPage() {
         setNotes={setNotes}
         phoneError={phoneError}
         phoneOk={phoneOk}
-        checkoutErr={checkoutErr}
-        onClearCheckoutErr={() => setCheckoutErr(null)}
+        onClearCheckoutErr={dismissCheckoutError}
         onPay={checkout}
         allowOnlinePayment={allowOnlinePayment}
         allowInStorePayment={allowInStorePayment}
@@ -1229,11 +1289,17 @@ export function ShopPage() {
         onResendOtp={handleResendOtp}
         onOtpBack={() => {
           resetOtpFlow();
-          setCheckoutErr(null);
+          dismissCheckoutError();
         }}
         resendCooldown={resendCooldown}
       />
       )}
+
+      <CheckoutErrorDialog
+        open={checkoutErrOpen && Boolean(checkoutErr)}
+        message={checkoutErr ?? ''}
+        onClose={dismissCheckoutError}
+      />
 
       <OrderSuccessModal
         open={successOpen}

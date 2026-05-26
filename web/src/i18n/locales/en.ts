@@ -152,6 +152,7 @@ export const en = {
     plusOne: 'Add one',
     removeLine: 'Remove line {{name}} {{variant}}',
     checkoutTitle: 'Order details',
+    checkoutErrorTitle: 'Could not complete',
     checkoutTotal: 'Total',
     stripeHint:
       'You will be redirected to Stripe secure payment (card, MB WAY, etc., depending on availability).',

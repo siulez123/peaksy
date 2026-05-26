@@ -154,6 +154,7 @@ export const pt = {
     plusOne: 'Mais um',
     removeLine: 'Remover linha {{name}} {{variant}}',
     checkoutTitle: 'Dados da encomenda',
+    checkoutErrorTitle: 'Não foi possível concluir',
     checkoutTotal: 'Total',
     stripeHint:
       'Serás redirecionado para o pagamento seguro do Stripe (cartão, MB WAY, etc., conforme o que estiver disponível).',

@@ -154,6 +154,7 @@ export const fr = {
     plusOne: 'Ajouter un',
     removeLine: 'Retirer la ligne {{name}} {{variant}}',
     checkoutTitle: 'Détails de la commande',
+    checkoutErrorTitle: 'Impossible de terminer',
     checkoutTotal: 'Total',
     stripeHint:
       'Vous serez redirigé vers le paiement sécurisé Stripe (carte, MB WAY, etc., selon disponibilité).',

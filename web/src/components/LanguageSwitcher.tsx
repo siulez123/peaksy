@@ -84,7 +84,7 @@ export function LanguageSwitcher({ variant = 'default', className = '' }: Props)
           id={listId}
           role="listbox"
           aria-label={t('lang.label')}
-          className={`absolute right-0 z-50 mt-1 flex w-8 flex-col gap-0.5 rounded-lg border p-0.5 ${menuClass[variant]}`}
+          className={`absolute right-0 top-full z-[100] mt-1 flex w-8 flex-col gap-0.5 rounded-lg border p-1 ${menuClass[variant]}`}
         >
           {LOCALES.map((loc) => {
             const active = locale === loc;

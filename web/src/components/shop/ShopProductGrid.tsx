@@ -143,8 +143,11 @@ export function ShopProductGrid({ layout, products, cart, t, onAdd, onSetQty }: 
     return (
       <ul className="divide-y divide-border rounded-2xl border border-border bg-surface overflow-hidden">
         {products.map((p) => (
-          <li key={p.id} className="flex items-center gap-3 p-3 sm:gap-4 sm:p-4">
-            <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-canvas sm:h-20 sm:w-20">
+          <li
+            key={p.id}
+            className="grid grid-cols-[4rem_minmax(0,1fr)] gap-x-3 gap-y-2.5 p-3 sm:grid-cols-[5rem_minmax(0,1fr)_auto] sm:items-center sm:gap-x-4 sm:gap-y-0 sm:p-4"
+          >
+            <div className="row-span-2 h-16 w-16 shrink-0 self-start overflow-hidden rounded-xl bg-canvas sm:row-span-1 sm:h-20 sm:w-20">
               <ProductImage
                 product={p}
                 t={t}
@@ -152,8 +155,8 @@ export function ShopProductGrid({ layout, products, cart, t, onAdd, onSetQty }: 
                 iconClassName="h-8 w-8"
               />
             </div>
-            <div className="min-w-0 flex-1">
-              <p className="font-semibold text-ink leading-snug">{p.name}</p>
+            <div className="min-w-0 self-center sm:self-auto">
+              <p className="font-semibold leading-snug text-ink">{p.name}</p>
               <p className="text-sm text-muted">{p.variant}</p>
               <PriceWithVat
                 grossCents={p.priceCents}
@@ -162,7 +165,16 @@ export function ShopProductGrid({ layout, products, cart, t, onAdd, onSetQty }: 
                 size="sm"
               />
             </div>
-            <AddOrQty product={p} cart={cart} t={t} onAdd={onAdd} onSetQty={onSetQty} />
+            <div className="col-span-2 flex w-full justify-center sm:col-span-1 sm:col-start-3 sm:w-auto sm:justify-end">
+              <AddOrQty
+                product={p}
+                cart={cart}
+                t={t}
+                onAdd={onAdd}
+                onSetQty={onSetQty}
+                buttonClassName="w-full !py-2 text-sm font-medium sm:w-auto sm:!min-w-[7.5rem]"
+              />
+            </div>
           </li>
         ))}
       </ul>

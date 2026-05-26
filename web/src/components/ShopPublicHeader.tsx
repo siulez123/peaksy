@@ -9,17 +9,16 @@ type Props = {
 /** Cabeçalho da loja — fundo claro com acentos da paleta da loja. */
 export function ShopPublicHeader({ lojaLabel, subtitle }: Props) {
   return (
-    <header className="relative mb-8 max-w-full overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-primary-soft via-surface to-canvas shadow-sm ring-1 ring-primary/10">
+    <header className="relative z-20 mb-8 max-w-full overflow-visible rounded-2xl border border-border bg-gradient-to-br from-primary-soft via-surface to-canvas shadow-sm ring-1 ring-primary/10">
       <div
-        className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-primary/12 blur-3xl"
+        className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl"
         aria-hidden
-      />
-      <div
-        className="pointer-events-none absolute -bottom-6 left-1/3 h-28 w-48 rounded-full bg-primary/8 blur-2xl"
-        aria-hidden
-      />
+      >
+        <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-primary/12 blur-3xl" />
+        <div className="absolute -bottom-6 left-1/3 h-28 w-48 rounded-full bg-primary/8 blur-2xl" />
+      </div>
 
-      <div className="relative flex min-w-0 items-start justify-between gap-3 px-4 py-5 sm:gap-5 sm:px-7 sm:py-6">
+      <div className="relative z-10 flex min-w-0 items-start justify-between gap-3 px-4 py-5 sm:gap-5 sm:px-7 sm:py-6">
         <div className="flex min-w-0 flex-1 items-start gap-3 sm:gap-4">
           <div
             className="mt-0.5 hidden h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-border bg-surface shadow-sm ring-1 ring-primary/15 sm:flex sm:h-14 sm:w-14"
@@ -41,7 +40,7 @@ export function ShopPublicHeader({ lojaLabel, subtitle }: Props) {
             )}
           </div>
         </div>
-        <LanguageSwitcher className="mt-0.5 shrink-0" />
+        <LanguageSwitcher className="relative z-30 mt-0.5 shrink-0" />
       </div>
 
       <div

@@ -1670,9 +1670,14 @@ export async function adminRoutes(fastify: FastifyInstance) {
     .object({
       allowOnlinePayment: z.boolean(),
       allowInStorePayment: z.boolean(),
+      inStoreVerifySms: z.boolean().optional(),
+      inStoreVerifyEmail: z.boolean().optional(),
     })
     .refine((d) => d.allowOnlinePayment || d.allowInStorePayment, {
       message: 'Ativa pelo menos uma forma de pagamento.',
+    })
+    .refine((d) => !d.inStoreVerifySms || !d.inStoreVerifyEmail, {
+      message: 'Ativa apenas SMS ou email para validar encomendas na loja, não ambos.',
     });
 
   // GET /admin/payment-settings
@@ -1695,7 +1700,12 @@ export async function adminRoutes(fastify: FastifyInstance) {
 
       const loja = await fastify.prisma.loja.findUnique({
         where: { id: tenant.lojaId },
-        select: { allowOnlinePayment: true, allowInStorePayment: true },
+        select: {
+          allowOnlinePayment: true,
+          allowInStorePayment: true,
+          inStoreVerifySms: true,
+          inStoreVerifyEmail: true,
+        },
       });
       if (!loja) {
         throw new NotFoundError('Loja not found');
@@ -1733,13 +1743,54 @@ export async function adminRoutes(fastify: FastifyInstance) {
 
       const data = paymentSettingsSchema.parse(request.body);
 
+      let inStoreVerifySms = data.inStoreVerifySms ?? false;
+      let inStoreVerifyEmail = data.inStoreVerifyEmail ?? false;
+      if (!data.allowInStorePayment) {
+        inStoreVerifySms = false;
+        inStoreVerifyEmail = false;
+      }
+
+      const lojaRow = await fastify.prisma.loja.findUnique({
+        where: { id: tenant.lojaId },
+        select: {
+          twilioAccountSid: true,
+          twilioAuthToken: true,
+          twilioFromNumber: true,
+          smtpHost: true,
+          emailFrom: true,
+        },
+      });
+      if (!lojaRow) {
+        throw new NotFoundError('Loja not found');
+      }
+
+      const twilioOk =
+        Boolean(lojaRow.twilioAccountSid?.trim()) &&
+        Boolean(lojaRow.twilioAuthToken?.trim()) &&
+        Boolean(lojaRow.twilioFromNumber?.trim());
+      const smtpOk = Boolean(lojaRow.smtpHost?.trim() && lojaRow.emailFrom?.trim());
+
+      if (inStoreVerifySms && !twilioOk) {
+        throw new ValidationError('Configura o Twilio em Definições da loja → Email e SMS.');
+      }
+      if (inStoreVerifyEmail && !smtpOk) {
+        throw new ValidationError('Configura o SMTP em Definições da loja → Email e SMS.');
+      }
+
       const loja = await fastify.prisma.loja.update({
         where: { id: tenant.lojaId },
         data: {
           allowOnlinePayment: data.allowOnlinePayment,
           allowInStorePayment: data.allowInStorePayment,
+          inStoreVerifySms,
+          inStoreVerifyEmail,
         },
-        select: { allowOnlinePayment: true, allowInStorePayment: true },
+        select: {
+          allowOnlinePayment: true,
+          allowInStorePayment: true,
+          inStoreVerifySms: true,
+          inStoreVerifyEmail: true,
+        },
       });
 
       return loja;

@@ -108,6 +108,8 @@ export async function validateCheckoutRequest(
       twilioAuthToken: true,
       twilioFromNumber: true,
       stripeSecretKey: true,
+      inStoreVerifySms: true,
+      inStoreVerifyEmail: true,
     },
   });
   if (!lojaPayments) {
@@ -124,16 +126,12 @@ export async function validateCheckoutRequest(
       throw new ValidationError('Pagamento online não está configurado nesta loja.');
     }
   }
-  const inStoreSmsOk =
-    Boolean(lojaPayments.twilioAccountSid?.trim()) &&
-    Boolean(lojaPayments.twilioAuthToken?.trim()) &&
-    Boolean(lojaPayments.twilioFromNumber?.trim());
   if (data.paymentMethod === 'IN_STORE') {
     if (!lojaPayments.allowInStorePayment) {
       throw new ValidationError('Pagamento na loja não está disponível nesta loja.');
     }
-    if (!inStoreSmsOk) {
-      throw new ValidationError('Confirmação por SMS não está configurada nesta loja.');
+    if (lojaPayments.inStoreVerifyEmail && !data.customerEmail?.trim()) {
+      throw new ValidationError('Indica o email para receber o código de confirmação.');
     }
   }
 

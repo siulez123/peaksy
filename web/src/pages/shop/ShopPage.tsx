@@ -213,6 +213,8 @@ type CheckoutModalProps = {
   allowOnlinePayment: boolean;
   allowInStorePayment: boolean;
   collectCustomerEmail: boolean;
+  emailRequired: boolean;
+  inStoreVerification: 'none' | 'sms' | 'email';
   paymentMethod: CheckoutPaymentMethod;
   setPaymentMethod: (v: CheckoutPaymentMethod) => void;
   otpStep: 'checkout' | 'otp';
@@ -294,6 +296,8 @@ function CheckoutModal({
   allowOnlinePayment,
   allowInStorePayment,
   collectCustomerEmail,
+  emailRequired,
+  inStoreVerification,
   paymentMethod,
   setPaymentMethod,
   otpStep,
@@ -414,7 +418,9 @@ function CheckoutModal({
             <div className="space-y-4 rounded-xl border border-primary/25 bg-primary-soft/30 p-4">
               <h3 className="text-sm font-semibold text-ink">{t('shop.otpTitle')}</h3>
               <p className="text-sm text-muted">
-                {t('shop.otpSent', { phone: customerPhone.trim() })}
+                {inStoreVerification === 'email'
+                  ? t('shop.otpSentEmail', { email: customerEmail.trim() })
+                  : t('shop.otpSent', { phone: customerPhone.trim() })}
               </p>
               <p className="text-xs text-muted">{t('shop.inStorePayHint')}</p>
               <div className="pt-1">
@@ -563,11 +569,12 @@ function CheckoutModal({
           </div>
           {collectCustomerEmail && (
             <div>
-              <Label>{t('shop.emailOptional')}</Label>
+              <Label>{emailRequired ? t('common.email') : t('shop.emailOptional')}</Label>
               <Input
                 type="email"
                 value={customerEmail}
                 onChange={(e) => setCustomerEmail(e.target.value)}
+                required={emailRequired}
               />
             </div>
           )}
@@ -694,6 +701,8 @@ export function ShopPage() {
   const allowOnlinePayment = lojaPublic?.allowOnlinePayment ?? true;
   const allowInStorePayment = lojaPublic?.allowInStorePayment ?? false;
   const collectCustomerEmail = lojaPublic?.collectCustomerEmail ?? false;
+  const inStoreVerification = lojaPublic?.inStoreVerification ?? 'none';
+  const emailRequired = inStoreVerification === 'email';
 
   useEffect(() => {
     if (!lojaPublic) return;
@@ -986,7 +995,9 @@ export function ShopPage() {
       items: lines.map((l) => ({ productId: l.productId, qty: l.qty })),
       customerName,
       customerPhone,
-      ...(collectCustomerEmail ? { customerEmail: customerEmail || undefined } : {}),
+      ...(collectCustomerEmail || emailRequired
+        ? { customerEmail: customerEmail || undefined }
+        : {}),
       notes: notes || undefined,
       successPath: shopSuccessReturnPath(slug, hostSlug),
       cancelPath: hostSlug ? '/cancelar' : `/loja/${slug}/cancelar`,
@@ -999,6 +1010,7 @@ export function ShopPage() {
     customerPhone,
     customerEmail,
     collectCustomerEmail,
+    emailRequired,
     notes,
     slug,
     hostSlug,
@@ -1015,9 +1027,30 @@ export function ShopPage() {
     setResendCooldown(r.resendAfterSeconds);
   }, [slug, buildCheckoutPayload]);
 
+  const sendEmailCode = useCallback(async () => {
+    const email = customerEmail.trim();
+    if (!email) {
+      showCheckoutError(t('shop.emailRequiredVerify'));
+      return;
+    }
+    const r = await publicApi.checkoutSendEmailCode(slug, {
+      ...buildCheckoutPayload(),
+      customerEmail: email,
+      paymentMethod: 'IN_STORE',
+    });
+    setVerificationId(r.verificationId);
+    setOtpStep('otp');
+    setOtpCode('');
+    setResendCooldown(r.resendAfterSeconds);
+  }, [slug, buildCheckoutPayload, customerEmail, showCheckoutError, t]);
+
   const verifyOtp = useCallback(async () => {
     if (!verificationId || otpCode.length !== 6) return;
-    const res = await publicApi.checkoutVerifyPhone(slug, {
+    const verify =
+      inStoreVerification === 'email'
+        ? publicApi.checkoutVerifyEmail
+        : publicApi.checkoutVerifyPhone;
+    const res = await verify(slug, {
       verificationId,
       code: otpCode,
     });
@@ -1027,7 +1060,17 @@ export function ShopPage() {
       setCart({});
       navigate(`${u.pathname}${u.search}`, { replace: true });
     }
-  }, [verificationId, otpCode, slug, navigate, closeCheckoutModal]);
+  }, [verificationId, otpCode, slug, navigate, closeCheckoutModal, inStoreVerification]);
+
+  const finishInStoreSuccess = useCallback(
+    (successUrl: string) => {
+      const u = new URL(successUrl, window.location.origin);
+      closeCheckoutModal();
+      setCart({});
+      navigate(`${u.pathname}${u.search}`, { replace: true });
+    },
+    [closeCheckoutModal, navigate]
+  );
 
   const checkout = async () => {
     if (!pickupDate || lines.length === 0 || !selectedDay) return;
@@ -1046,11 +1089,31 @@ export function ShopPage() {
       showCheckoutError(t('shop.verifyPhone'));
       return;
     }
+    if (paymentMethod === 'IN_STORE' && emailRequired && !customerEmail.trim()) {
+      showCheckoutError(t('shop.emailRequiredVerify'));
+      return;
+    }
     setPaying(true);
     dismissCheckoutError();
     try {
       if (paymentMethod === 'IN_STORE') {
-        await sendPhoneCode();
+        if (inStoreVerification === 'sms') {
+          await sendPhoneCode();
+          return;
+        }
+        if (inStoreVerification === 'email') {
+          await sendEmailCode();
+          return;
+        }
+        const res = await publicApi.checkout(slug, {
+          ...buildCheckoutPayload(),
+          paymentMethod: 'IN_STORE',
+        });
+        if (res.successUrl) {
+          finishInStoreSuccess(res.successUrl);
+        } else {
+          showCheckoutError(t('common.paymentFailed'));
+        }
         return;
       }
       const res = await publicApi.checkout(slug, {
@@ -1086,7 +1149,11 @@ export function ShopPage() {
     setPaying(true);
     dismissCheckoutError();
     try {
-      await sendPhoneCode();
+      if (inStoreVerification === 'email') {
+        await sendEmailCode();
+      } else {
+        await sendPhoneCode();
+      }
     } catch (e) {
       showCheckoutError(e instanceof Error ? e.message : t('common.genericError'));
     } finally {
@@ -1280,6 +1347,8 @@ export function ShopPage() {
         allowOnlinePayment={allowOnlinePayment}
         allowInStorePayment={allowInStorePayment}
         collectCustomerEmail={collectCustomerEmail}
+        emailRequired={emailRequired}
+        inStoreVerification={inStoreVerification}
         paymentMethod={paymentMethod}
         setPaymentMethod={setPaymentMethod}
         otpStep={otpStep}

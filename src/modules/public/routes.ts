@@ -7,14 +7,16 @@ import {
   getTodayInTimezone,
   isDateTodayOrAfter,
 } from '../../lib/dates';
-import { lojaHasSms, lojaHasSmtp, lojaNotificationSelect } from '../../lib/lojaNotificationConfig';
+import { resolveInStoreVerification } from '../../lib/inStoreVerification';
+import { lojaHasSmtp, lojaNotificationSelect } from '../../lib/lojaNotificationConfig';
+import { createInStoreOrder } from '../../lib/createInStoreOrder';
 import {
   getStripeClient,
   lojaHasStripe,
   lojaStripePaymentMethodTypes,
   lojaStripeSelect,
 } from '../../lib/lojaStripeConfig';
-import { notifyOrderPaid } from '../../lib/orderNotifications';
+import { notifyOrderInStore, notifyOrderPaid } from '../../lib/orderNotifications';
 import { publicAnalyticsRoutes } from './analyticsRoutes';
 import { phoneCheckoutRoutes } from './phoneCheckoutRoutes';
 import { checkoutSchema, frontendBaseUrl, validateCheckoutRequest } from '../../lib/checkoutValidation';
@@ -49,6 +51,7 @@ export async function publicRoutes(fastify: FastifyInstance) {
               allowOnlinePayment: { type: 'boolean' },
               allowInStorePayment: { type: 'boolean' },
               collectCustomerEmail: { type: 'boolean' },
+              inStoreVerification: { type: 'string', enum: ['none', 'sms', 'email'] },
               productDisplayLayout: { type: 'string', enum: ['LARGE', 'MEDIUM', 'SMALL'] },
               colorPalette: { type: 'string', enum: ['INDIGO', 'TEAL', 'ROSE', 'AMBER'] },
             },
@@ -70,6 +73,8 @@ export async function publicRoutes(fastify: FastifyInstance) {
           phone: true,
           allowOnlinePayment: true,
           allowInStorePayment: true,
+          inStoreVerifySms: true,
+          inStoreVerifyEmail: true,
           productDisplayLayout: true,
           colorPalette: true,
           ...lojaNotificationSelect,
@@ -79,6 +84,8 @@ export async function publicRoutes(fastify: FastifyInstance) {
       if (!loja) {
         throw new NotFoundError('Loja not found');
       }
+      const inStoreVerification = resolveInStoreVerification(loja);
+      const smtpOk = lojaHasSmtp(loja);
       return {
         name: loja.name,
         slug: loja.slug,
@@ -87,8 +94,9 @@ export async function publicRoutes(fastify: FastifyInstance) {
         locality: loja.locality,
         phone: loja.phone,
         allowOnlinePayment: loja.allowOnlinePayment && lojaHasStripe(loja),
-        allowInStorePayment: loja.allowInStorePayment && lojaHasSms(loja),
-        collectCustomerEmail: lojaHasSmtp(loja),
+        allowInStorePayment: loja.allowInStorePayment,
+        collectCustomerEmail: smtpOk,
+        inStoreVerification,
         productDisplayLayout: loja.productDisplayLayout,
         colorPalette: loja.colorPalette,
       };
@@ -314,13 +322,40 @@ export async function publicRoutes(fastify: FastifyInstance) {
       const tenant = request.tenant!;
       const data = checkoutSchema.parse(request.body);
 
-      if (data.paymentMethod === 'IN_STORE') {
-        throw new ValidationError(
-          'Confirma a encomenda com o código SMS enviado para o teu telemóvel.'
-        );
-      }
-
       const validated = await validateCheckoutRequest(fastify.prisma, tenant, data);
+
+      if (data.paymentMethod === 'IN_STORE') {
+        const lojaPay = await fastify.prisma.loja.findUnique({
+          where: { id: tenant.lojaId },
+          select: {
+            allowInStorePayment: true,
+            inStoreVerifySms: true,
+            inStoreVerifyEmail: true,
+          },
+        });
+        const mode = lojaPay ? resolveInStoreVerification(lojaPay) : 'none';
+        if (mode === 'sms') {
+          throw new ValidationError(
+            'Confirma a encomenda com o código SMS enviado para o teu telemóvel.'
+          );
+        }
+        if (mode === 'email') {
+          throw new ValidationError(
+            'Confirma a encomenda com o código enviado para o teu email.'
+          );
+        }
+
+        const { successRel } = validated;
+        const baseUrl = frontendBaseUrl(request.headers.origin as string | undefined);
+        const order = await createInStoreOrder(fastify.prisma, tenant.lojaId, validated);
+        await notifyOrderInStore(order.id, fastify.prisma, request.log).catch((e) => {
+          request.log.error({ err: e }, 'notifyOrderInStore failed');
+        });
+        return {
+          paymentMethod: 'IN_STORE' as const,
+          successUrl: `${baseUrl}${successRel}?order_id=${order.id}`,
+        };
+      }
       const { data: vData, orderItems, totalCents, pickupTime: pt, successRel, cancelRel } =
         validated;
 

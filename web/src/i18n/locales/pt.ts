@@ -179,6 +179,8 @@ export const pt = {
       'Enviámos um SMS com um código de 6 dígitos. Introduz-o para confirmar. Pagas na loja ao levantar.',
     otpTitle: 'Código de confirmação',
     otpSent: 'Enviámos um código para {{phone}}. Válido 10 minutos.',
+    otpSentEmail: 'Enviámos um código de 6 dígitos para {{email}}.',
+    emailRequiredVerify: 'Indica o teu email para receber o código de confirmação.',
     otpCodeLabel: 'Código SMS',
     otpVerify: 'Confirmar código',
     otpResend: 'Reenviar código',
@@ -355,8 +357,17 @@ export const pt = {
     onlineDesc: 'Redirecionamento para Stripe (cartão, MB WAY, etc.).',
     inStoreTitle: 'Pagar na loja',
     inStoreDesc: 'O cliente confirma a encomenda e paga no levantamento.',
-    inStoreSmsHint:
-      'O pagamento na loja só fica visível na loja pública depois de configurares o Twilio em Definições da loja → Email e SMS.',
+    inStoreVerifyTitle: 'Validação da encomenda',
+    inStoreVerifyDesc:
+      'Opcional. Ativa no máximo um método (SMS ou email). Sem validação, a encomenda é registada de imediato.',
+    inStoreVerifySms: 'Validar por SMS',
+    inStoreVerifySmsDesc: 'Código enviado para o telefone do cliente (requer Twilio).',
+    inStoreVerifySmsHint: 'Configura o Twilio em Definições da loja → Email e SMS.',
+    inStoreVerifyEmail: 'Validar por email',
+    inStoreVerifyEmailDesc: 'Código enviado para o email do cliente (requer SMTP).',
+    inStoreVerifyEmailHint: 'Configura o SMTP em Definições da loja → Email e SMS.',
+    inStoreVerifyNone:
+      'Nenhuma validação ativa: a encomenda é criada sem código de confirmação.',
     onlineStripeHint:
       'O pagamento online só fica visível na loja pública depois de configurares a chave secreta e o webhook Stripe abaixo.',
     stripeTitle: 'Stripe',

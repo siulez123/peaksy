@@ -177,6 +177,8 @@ export const en = {
       'We sent a 6-digit code by SMS. Enter it to confirm. Pay at the shop when you pick up.',
     otpTitle: 'Confirmation code',
     otpSent: 'We sent a code to {{phone}}. Valid for 10 minutes.',
+    otpSentEmail: 'We sent a 6-digit code to {{email}}.',
+    emailRequiredVerify: 'Enter your email to receive the confirmation code.',
     otpCodeLabel: 'SMS code',
     otpVerify: 'Confirm code',
     otpResend: 'Resend code',
@@ -352,8 +354,16 @@ export const en = {
     onlineDesc: 'Redirect to Stripe (card, MB WAY, etc.).',
     inStoreTitle: 'Pay in store',
     inStoreDesc: 'Customer confirms the order and pays on pickup.',
-    inStoreSmsHint:
-      'Pay in store only appears on the public shop after you configure Twilio under Shop settings → Email & SMS.',
+    inStoreVerifyTitle: 'Order verification',
+    inStoreVerifyDesc:
+      'Optional. Enable at most one method (SMS or email). With none, the order is placed immediately.',
+    inStoreVerifySms: 'Verify by SMS',
+    inStoreVerifySmsDesc: 'Code sent to the customer phone (requires Twilio).',
+    inStoreVerifySmsHint: 'Configure Twilio under Shop settings → Email & SMS.',
+    inStoreVerifyEmail: 'Verify by email',
+    inStoreVerifyEmailDesc: 'Code sent to the customer email (requires SMTP).',
+    inStoreVerifyEmailHint: 'Configure SMTP under Shop settings → Email & SMS.',
+    inStoreVerifyNone: 'No verification: orders are created without a confirmation code.',
     onlineStripeHint:
       'Online payment only appears on the public shop after you configure the Stripe secret key and webhook below.',
     stripeTitle: 'Stripe',

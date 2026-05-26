@@ -66,6 +66,7 @@ export interface LojaPublic {
   allowOnlinePayment: boolean;
   allowInStorePayment: boolean;
   collectCustomerEmail: boolean;
+  inStoreVerification: 'none' | 'sms' | 'email';
   productDisplayLayout: ProductDisplayLayout;
   colorPalette: ShopColorPalette;
 }
@@ -281,6 +282,39 @@ export const publicApi = {
       tenantSlug: slug,
       body: JSON.stringify(body),
     }),
+  checkoutSendEmailCode: (
+    slug: string,
+    body: {
+      pickupDate: string;
+      pickupTime: string;
+      items: { productId: string; qty: number }[];
+      customerName: string;
+      customerPhone: string;
+      customerEmail: string;
+      notes?: string;
+      successPath?: string;
+      cancelPath?: string;
+      paymentMethod: 'IN_STORE';
+    }
+  ) =>
+    apiFetch<{
+      verificationId: string;
+      expiresInSeconds: number;
+      resendAfterSeconds: number;
+    }>('/public/checkout/email/send-code', {
+      method: 'POST',
+      tenantSlug: slug,
+      body: JSON.stringify(body),
+    }),
+  checkoutVerifyEmail: (
+    slug: string,
+    body: { verificationId: string; code: string }
+  ) =>
+    apiFetch<CheckoutResult>('/public/checkout/email/verify', {
+      method: 'POST',
+      tenantSlug: slug,
+      body: JSON.stringify(body),
+    }),
   orderConfirmation: (
     slug: string,
     q: { orderId?: string | null; sessionId?: string | null }
@@ -469,19 +503,33 @@ export const adminApi = {
   },
   paymentSettings: {
     get: (token: string, slug: string) =>
-      apiFetch<{ allowOnlinePayment: boolean; allowInStorePayment: boolean }>(
-        '/admin/payment-settings',
-        { token, tenantSlug: slug }
-      ),
+      apiFetch<{
+        allowOnlinePayment: boolean;
+        allowInStorePayment: boolean;
+        inStoreVerifySms: boolean;
+        inStoreVerifyEmail: boolean;
+      }>('/admin/payment-settings', { token, tenantSlug: slug }),
     update: (
       token: string,
       slug: string,
-      body: { allowOnlinePayment: boolean; allowInStorePayment: boolean }
+      body: {
+        allowOnlinePayment: boolean;
+        allowInStorePayment: boolean;
+        inStoreVerifySms: boolean;
+        inStoreVerifyEmail: boolean;
+      }
     ) =>
-      apiFetch<{ allowOnlinePayment: boolean; allowInStorePayment: boolean }>(
-        '/admin/payment-settings',
-        { method: 'PATCH', token, tenantSlug: slug, body: JSON.stringify(body) }
-      ),
+      apiFetch<{
+        allowOnlinePayment: boolean;
+        allowInStorePayment: boolean;
+        inStoreVerifySms: boolean;
+        inStoreVerifyEmail: boolean;
+      }>('/admin/payment-settings', {
+        method: 'PATCH',
+        token,
+        tenantSlug: slug,
+        body: JSON.stringify(body),
+      }),
   },
   stripeSettings: {
     get: (token: string, slug: string) =>

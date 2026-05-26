@@ -81,6 +81,10 @@ model Loja {
   allowOnlinePayment  Boolean @default(true)
   /// Pagamento no levantamento na loja
   allowInStorePayment Boolean @default(false)
+  /// Validar encomenda na loja por SMS (Twilio) — mutuamente exclusivo com inStoreVerifyEmail
+  inStoreVerifySms   Boolean @default(false)
+  /// Validar encomenda na loja por email (SMTP) — mutuamente exclusivo com inStoreVerifySms
+  inStoreVerifyEmail Boolean @default(false)
   /// Grelha de produtos na loja pública (grande = predefinido)
   productDisplayLayout ProductDisplayLayout @default(LARGE)
   /// Paleta de cores (loja pública)
@@ -241,11 +245,18 @@ model AvailableDayProductCap {
   @@map("available_day_product_caps")
 }
 
-/// OTP SMS antes de criar encomenda «pagar na loja».
+enum CheckoutVerificationChannel {
+  SMS
+  EMAIL
+}
+
+/// OTP antes de criar encomenda «pagar na loja» (SMS ou email).
 model CheckoutVerification {
-  id         String    @id @default(uuid())
+  id         String                      @id @default(uuid())
   lojaId     String
-  phoneE164  String
+  channel    CheckoutVerificationChannel @default(SMS)
+  phoneE164  String?
+  email      String?
   codeHash   String
   attempts   Int       @default(0)
   expiresAt  DateTime
@@ -258,6 +269,7 @@ model CheckoutVerification {
   loja Loja @relation(fields: [lojaId], references: [id], onDelete: Cascade)
 
   @@index([lojaId, phoneE164, createdAt])
+  @@index([lojaId, email, createdAt])
   @@map("checkout_verifications")
 }
 

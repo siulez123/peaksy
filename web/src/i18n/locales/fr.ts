@@ -179,6 +179,8 @@ export const fr = {
       'Nous avons envoyé un code à 6 chiffres par SMS. Saisissez-le pour confirmer. Paiement en boutique au retrait.',
     otpTitle: 'Code de confirmation',
     otpSent: 'Code envoyé au {{phone}}. Valide 10 minutes.',
+    otpSentEmail: 'Code à 6 chiffres envoyé à {{email}}.',
+    emailRequiredVerify: 'Indiquez votre e-mail pour recevoir le code de confirmation.',
     otpCodeLabel: 'Code SMS',
     otpVerify: 'Confirmer le code',
     otpResend: 'Renvoyer le code',
@@ -355,8 +357,17 @@ export const fr = {
     onlineDesc: 'Redirection vers Stripe (carte, MB WAY, etc.).',
     inStoreTitle: 'Payer en boutique',
     inStoreDesc: 'Le client confirme la commande et paie au retrait.',
-    inStoreSmsHint:
-      'Le paiement en boutique n’apparaît sur la boutique publique qu’après configuration de Twilio dans Paramètres boutique → E-mail et SMS.',
+    inStoreVerifyTitle: 'Validation de commande',
+    inStoreVerifyDesc:
+      'Facultatif. Un seul moyen au maximum (SMS ou e-mail). Sans validation, la commande est enregistrée immédiatement.',
+    inStoreVerifySms: 'Valider par SMS',
+    inStoreVerifySmsDesc: 'Code envoyé au téléphone du client (Twilio requis).',
+    inStoreVerifySmsHint: 'Configurez Twilio dans Paramètres boutique → E-mail et SMS.',
+    inStoreVerifyEmail: 'Valider par e-mail',
+    inStoreVerifyEmailDesc: 'Code envoyé à l’e-mail du client (SMTP requis).',
+    inStoreVerifyEmailHint: 'Configurez le SMTP dans Paramètres boutique → E-mail et SMS.',
+    inStoreVerifyNone:
+      'Aucune validation : la commande est créée sans code de confirmation.',
     onlineStripeHint:
       'Le paiement en ligne n’apparaît sur la boutique publique qu’après configuration de la clé secrète et du webhook Stripe ci-dessous.',
     stripeTitle: 'Stripe',

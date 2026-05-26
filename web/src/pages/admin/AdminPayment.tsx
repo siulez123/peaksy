@@ -8,6 +8,8 @@ import { useI18n } from '../../i18n/context';
 type Settings = {
   allowOnlinePayment: boolean;
   allowInStorePayment: boolean;
+  inStoreVerifySms: boolean;
+  inStoreVerifyEmail: boolean;
 };
 
 const PAYMENT_METHODS: StripeCheckoutMethod[] = ['card', 'mb_way'];
@@ -20,6 +22,12 @@ function smsConfigured(notif: {
       notif.twilio.fromNumber?.trim() &&
       notif.twilio.authTokenConfigured
   );
+}
+
+function smtpConfigured(notif: {
+  smtp: { host: string | null; emailFrom: string | null };
+}): boolean {
+  return Boolean(notif.smtp.host?.trim() && notif.smtp.emailFrom?.trim());
 }
 
 function stripeConfigured(stripe: LojaStripeSettings): boolean {
@@ -41,6 +49,7 @@ export function AdminPayment() {
   const [saved, setSaved] = useState(false);
   const [stripeSaved, setStripeSaved] = useState(false);
   const [inStoreSmsOk, setInStoreSmsOk] = useState(false);
+  const [inStoreSmtpOk, setInStoreSmtpOk] = useState(false);
 
   const load = useCallback(async () => {
     if (!token || !slug) return;
@@ -52,6 +61,7 @@ export function AdminPayment() {
       ]);
       setSettings(data);
       setInStoreSmsOk(smsConfigured(notif));
+      setInStoreSmtpOk(smtpConfigured(notif));
       setStripe(stripeData);
       setStripeSecretKey('');
       setStripeWebhookSecret('');
@@ -126,6 +136,42 @@ export function AdminPayment() {
     );
   };
 
+  const setInStoreEnabled = (enabled: boolean) => {
+    setSettings((s) =>
+      s
+        ? {
+            ...s,
+            allowInStorePayment: enabled,
+            ...(enabled ? {} : { inStoreVerifySms: false, inStoreVerifyEmail: false }),
+          }
+        : s
+    );
+  };
+
+  const setVerifySms = (checked: boolean) => {
+    setSettings((s) =>
+      s
+        ? {
+            ...s,
+            inStoreVerifySms: checked,
+            inStoreVerifyEmail: checked ? false : s.inStoreVerifyEmail,
+          }
+        : s
+    );
+  };
+
+  const setVerifyEmail = (checked: boolean) => {
+    setSettings((s) =>
+      s
+        ? {
+            ...s,
+            inStoreVerifyEmail: checked,
+            inStoreVerifySms: checked ? false : s.inStoreVerifySms,
+          }
+        : s
+    );
+  };
+
   return (
     <div className="space-y-8">
       <SectionTitle title={t('adminPayment.title')} description={t('adminPayment.subtitle')} />
@@ -174,11 +220,7 @@ export function AdminPayment() {
                 type="checkbox"
                 className="mt-1 h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary-400"
                 checked={settings.allowInStorePayment}
-                onChange={(e) =>
-                  setSettings((s) =>
-                    s ? { ...s, allowInStorePayment: e.target.checked } : s
-                  )
-                }
+                onChange={(e) => setInStoreEnabled(e.target.checked)}
               />
               <span>
                 <span className="block text-sm font-semibold text-ink">
@@ -190,10 +232,67 @@ export function AdminPayment() {
               </span>
             </label>
 
-            {settings.allowInStorePayment && !inStoreSmsOk && (
-              <p className="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900">
-                {t('adminPayment.inStoreSmsHint')}
-              </p>
+            {settings.allowInStorePayment && (
+              <div className="space-y-3 rounded-xl border border-border bg-canvas/50 p-4">
+                <p className="text-sm font-semibold text-ink">{t('adminPayment.inStoreVerifyTitle')}</p>
+                <p className="text-xs leading-relaxed text-muted">
+                  {t('adminPayment.inStoreVerifyDesc')}
+                </p>
+
+                <label
+                  className={`flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-surface p-3 ${
+                    !inStoreSmsOk ? 'opacity-60' : ''
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary-400"
+                    checked={settings.inStoreVerifySms}
+                    disabled={!inStoreSmsOk}
+                    onChange={(e) => setVerifySms(e.target.checked)}
+                  />
+                  <span>
+                    <span className="block text-sm font-medium text-ink">
+                      {t('adminPayment.inStoreVerifySms')}
+                    </span>
+                    <span className="mt-0.5 block text-xs text-muted">
+                      {t('adminPayment.inStoreVerifySmsDesc')}
+                    </span>
+                  </span>
+                </label>
+                {!inStoreSmsOk && (
+                  <p className="text-xs text-amber-800">{t('adminPayment.inStoreVerifySmsHint')}</p>
+                )}
+
+                <label
+                  className={`flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-surface p-3 ${
+                    !inStoreSmtpOk ? 'opacity-60' : ''
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary-400"
+                    checked={settings.inStoreVerifyEmail}
+                    disabled={!inStoreSmtpOk}
+                    onChange={(e) => setVerifyEmail(e.target.checked)}
+                  />
+                  <span>
+                    <span className="block text-sm font-medium text-ink">
+                      {t('adminPayment.inStoreVerifyEmail')}
+                    </span>
+                    <span className="mt-0.5 block text-xs text-muted">
+                      {t('adminPayment.inStoreVerifyEmailDesc')}
+                    </span>
+                  </span>
+                </label>
+                {!inStoreSmtpOk && (
+                  <p className="text-xs text-amber-800">{t('adminPayment.inStoreVerifyEmailHint')}</p>
+                )}
+
+                {!settings.inStoreVerifySms && !settings.inStoreVerifyEmail && (
+                  <p className="text-xs text-muted">{t('adminPayment.inStoreVerifyNone')}</p>
+                )}
+              </div>
             )}
 
             <Button type="submit" disabled={saving}>

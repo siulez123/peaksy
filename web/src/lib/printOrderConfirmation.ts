@@ -6,6 +6,7 @@ export type OrderPrintLabels = {
   title: string;
   orderRef: string;
   name: string;
+  phone: string;
   pickup: string;
   items: string;
   notes: string;
@@ -84,6 +85,10 @@ function buildPrintHtml(
   <div class="block">
     <span class="label">${escapeHtml(labels.name)}</span>
     ${escapeHtml(order.customerName)}
+  </div>
+  <div class="block">
+    <span class="label">${escapeHtml(labels.phone)}</span>
+    ${escapeHtml(order.customerPhone)}
   </div>
   <div class="block">
     <span class="label">${escapeHtml(labels.pickup)}</span>

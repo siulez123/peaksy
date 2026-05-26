@@ -119,6 +119,7 @@ export type OrderConfirmation = {
   orderRef: string;
   lojaName: string;
   customerName: string;
+  customerPhone: string;
   pickupDate: string;
   pickupTime: string;
   totalCents: number;

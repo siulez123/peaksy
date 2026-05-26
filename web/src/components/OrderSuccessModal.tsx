@@ -37,6 +37,12 @@ function OrderConfirmationBody({ order }: { order: OrderConfirmation }) {
       </div>
       <div>
         <dt className="text-xs font-semibold uppercase tracking-wide text-muted">
+          {t('common.phone')}
+        </dt>
+        <dd className="mt-0.5 font-mono font-medium text-ink">{order.customerPhone}</dd>
+      </div>
+      <div>
+        <dt className="text-xs font-semibold uppercase tracking-wide text-muted">
           {t('shopMessages.pickup')}
         </dt>
         <dd className="mt-0.5 font-medium text-ink">
@@ -127,6 +133,7 @@ export function OrderSuccessModal({ open, onClose, order, loadState }: OrderSucc
         title: t('shopMessages.successTitle'),
         orderRef: t('shopMessages.orderRef'),
         name: t('common.name'),
+        phone: t('common.phone'),
         pickup: t('shopMessages.pickup'),
         items: t('shopMessages.items'),
         notes: t('shopMessages.notes'),

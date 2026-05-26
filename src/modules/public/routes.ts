@@ -585,6 +585,7 @@ export async function publicRoutes(fastify: FastifyInstance) {
         orderRef: order.id.slice(0, 8).toUpperCase(),
         lojaName: order.loja.name,
         customerName: order.customerName,
+        customerPhone: order.customerPhone,
         pickupDate: formatDateForDB(order.pickupDate),
         pickupTime: order.pickupTime,
         totalCents: order.totalCents,

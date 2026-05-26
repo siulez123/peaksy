@@ -50,6 +50,7 @@ export function AdminPayment() {
   const [stripeSaved, setStripeSaved] = useState(false);
   const [inStoreSmsOk, setInStoreSmsOk] = useState(false);
   const [inStoreSmtpOk, setInStoreSmtpOk] = useState(false);
+  const [webhookUrlCopied, setWebhookUrlCopied] = useState(false);
 
   const load = useCallback(async () => {
     if (!token || !slug) return;
@@ -158,6 +159,17 @@ export function AdminPayment() {
           }
         : s
     );
+  };
+
+  const copyWebhookUrl = async () => {
+    if (!stripe?.webhookUrl) return;
+    try {
+      await navigator.clipboard.writeText(stripe.webhookUrl);
+      setWebhookUrlCopied(true);
+      window.setTimeout(() => setWebhookUrlCopied(false), 2000);
+    } catch {
+      setErr(t('common.genericError'));
+    }
   };
 
   const setVerifyEmail = (checked: boolean) => {
@@ -338,7 +350,23 @@ export function AdminPayment() {
               </div>
               <div>
                 <Label>{t('adminPayment.stripeWebhookUrl')}</Label>
-                <Input readOnly value={stripe.webhookUrl} className="font-mono text-xs" />
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch">
+                  <Input
+                    readOnly
+                    value={stripe.webhookUrl}
+                    className="min-w-0 flex-1 font-mono text-sm read-only:cursor-text read-only:bg-surface read-only:text-ink"
+                    onFocus={(e) => e.currentTarget.select()}
+                    aria-label={t('adminPayment.stripeWebhookUrl')}
+                  />
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="shrink-0 sm:min-w-[7rem]"
+                    onClick={() => void copyWebhookUrl()}
+                  >
+                    {webhookUrlCopied ? t('adminIntegracao.copied') : t('adminIntegracao.copy')}
+                  </Button>
+                </div>
                 <p className="mt-1 text-xs text-muted">{t('adminPayment.stripeWebhookUrlHint')}</p>
               </div>
               <div>
